@@ -3,6 +3,7 @@ from glob import glob
 from collections import Iterable
 
 import numpy as np
+import torch
 from PIL import Image
 
 from torch.autograd import Variable
