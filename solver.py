@@ -78,25 +78,25 @@ class Solver(object):
         
         train_transform = transforms.Compose(
             [
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-                transforms.ToTensor(),
                 transforms.Resize((self.image_dim, self.image_dim)),
-                transforms.RandomGrayscale(p=0.3)
+                transforms.RandomGrayscale(p=0.3),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ]
         )
         
         val_transform = transforms.Compose(
             [
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-                transforms.ToTensor(),
                 transforms.Resize((self.image_dim, self.image_dim)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ]
         )
         
         mask_transform = transforms.Compose(
             [
-                transforms.ToTensor(),
                 transforms.Resize((self.mask_dim, self.mask_dim)),
+                transforms.ToTensor(),
             ]
         )
         
@@ -277,7 +277,7 @@ class Solver(object):
             
             total_loss += float(loss.item())
 
-            if step % 20 == 0:
+            if step % 500 == 0:
                 log_predicitons(
                     batch["orig_frame"],
                     batch["orig_text"],

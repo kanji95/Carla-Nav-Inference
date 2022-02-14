@@ -107,7 +107,7 @@ class CarlaDataset(Dataset):
         # output["matrix"] = np.load(matrix_files[sample_idx])
         # output["next_vehicle_position"] = vehicle_positions[sample_idx + 1]
 
-        tokens, phrase_mask = self.corpus.tokenize(output["command"])
+        tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
         output["text"] = tokens
         output["text_mask"] = phrase_mask
 

@@ -109,7 +109,7 @@ def log_predicitons(front_cam_image, lang_command, pred_mask, gt_mask, title="tr
         
         orig_img = front_cam_image[index]
         axes[i, 0].imshow(orig_img)
-        axes[i, 0].set_title(lang_command[index])
+        axes[i, 0].set_title(lang_command[index], fontsize=5)
         axes[i, 0].set_axis_off()
 
         mask_pred = rearrange(pred_mask[index], "c h w -> h w c")

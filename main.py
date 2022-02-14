@@ -84,7 +84,7 @@ if __name__ == "__main__":
     parser.add_argument("--gamma", default=0.7, type=float)
     parser.add_argument("--optimizer", default="AdamW", choices=["AdamW", "Adam", "SGD", "RMSprop", "Rprop", "ASGD", "RAdam"], type=str)
     
-    parser.add_argument('--data_root', default='ssd_scratch/cvit/kanishk/carla_data', type=str, help='dataset name')
+    parser.add_argument('--data_root', default='/ssd_scratch/cvit/kanishk/carla_data', type=str, help='dataset name')
     parser.add_argument("--image_dim", type=int, default=224, help="Image Dimension")
     parser.add_argument("--mask_dim", type=int, default=112, help="Mask Dimension")
     
@@ -92,6 +92,8 @@ if __name__ == "__main__":
     parser.add_argument("--save_dir", type=str, default="./saved_model")
     
     parser.add_argument("--threshold", type=float, default=0.4, help="mask threshold")
+
+    parser.add_argument("--save", default=False, action="store_true")
     
     args = parser.parse_args()
 
