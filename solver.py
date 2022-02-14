@@ -10,7 +10,9 @@ import torch
 from torch.optim import *
 from torch.utils.data import DataLoader
 
-from model import *
+import timm
+
+from models.model import *
 from dataloader import *
 from utils import *
 
@@ -47,9 +49,10 @@ class Solver(object):
         # print(f"METHOD USED FOR CURRENT RUN {run_name}")
         
         # TODO
-        visual_encoder = None
-        text_encoder = None
-        self.network = SegmentationBaseline(visual_encoder, text_encoder)
+        vit = timm.create_model("vit_tiny_patch16_224", pretrained=True)
+        visual_encoder = nn.Sequential(*list(vit.children())[:-1])
+        
+        self.network = SegmentationBaseline(visual_encoder)
         
         wandb.watch(self.network, log="all")
         
@@ -134,13 +137,14 @@ class Solver(object):
             with torch.no_grad():
                 frame = batch["frame"].cuda(non_blocking=True)
                 text = batch["text"].cuda(non_blocking=True)
+                text_mask = batch["text_mask"].cuda(non_blocking=True)
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 
                 batch_size = frame.shape[0]
             
             start_time = time()
             
-            mask = self.network(frame, text)
+            mask = self.network(frame, text, text_mask)
             
             loss = self.criterion(mask, gt_mask)
             loss.backward()
@@ -221,13 +225,14 @@ class Solver(object):
         for step, batch in enumerate(self.val_loader):
             frame = batch["frame"].cuda(non_blocking=True)
             text = batch["text"].cuda(non_blocking=True)
+            text_mask = batch["text_mask"].cuda(non_blocking=True)
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
             
             batch_size = frame.shape[0]
             
             start_time = time()
             
-            mask = self.network(frame, text)
+            mask = self.network(frame, text, text_mask)
             loss = self.criterion(mask, gt_mask)
             
             end_time = time()
