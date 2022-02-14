@@ -9,6 +9,7 @@ from datetime import datetime
 import torch
 from torch.optim import *
 from torch.utils.data import DataLoader
+import torchvision.transforms as transforms
 
 import timm
 
@@ -32,6 +33,8 @@ class Solver(object):
         self.num_workers = self.args.num_workers
         
         self.data_root = self.args.data_root
+        self.image_dim = self.args.image_dim
+        self.mask_dim = self.args.mask_dim
         
         self.grad_check = self.args.grad_check
         
@@ -73,9 +76,38 @@ class Solver(object):
             verbose=True,
         )
         
-        # TODO
-        self.train_dataset = CarlaDataset(self.args, data_root=self.data_root, split="train")
-        self.val_dataset = CarlaDataset(self.args, data_root=self.data_root, split="val")
+        train_transform = transforms.Compose(
+            [
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                transforms.ToTensor(),
+                transforms.Resize((self.image_dim, self.image_dim)),
+                transforms.RandomGrayscale(p=0.3)
+            ]
+        )
+        
+        val_transform = transforms.Compose(
+            [
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                transforms.ToTensor(),
+                transforms.Resize((self.image_dim, self.image_dim)),
+            ]
+        )
+        
+        mask_transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Resize((self.mask_dim, self.mask_dim)),
+            ]
+        )
+        
+        self.train_dataset = CarlaDataset(
+            data_root=self.data_root, split="train", 
+            img_transform=train_transform, mask_transform=mask_transform
+        )
+        self.val_dataset = CarlaDataset(
+            data_root=self.data_root, split="val", 
+            img_transform=val_transform, mask_transform=mask_transform
+        )
         
         self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size,
             num_workers=self.num_workers, pin_memory=True, drop_last=False,

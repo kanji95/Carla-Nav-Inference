@@ -3,3 +3,6 @@
 data/
 slurm-*
 *.sh
+__pycache__/
+models/__pycache__/
+wandb/
