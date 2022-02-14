@@ -2,6 +2,7 @@ import os
 from glob import glob
 
 import numpy as np
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
@@ -59,10 +60,10 @@ class CarlaDataset(Dataset):
         if self.transform is not None:
             img = self.transform(img)
 
-        output["image"] = np.array(img)
+        output["image"] = torch.from_numpy(np.array(img)).float()
         output["command"] = open(command_path, "r").read()
-        output["vehicle_position"] = vehicle_positions[sample_idx]
-        output["matrix"] = np.load(matrix_files[sample_idx])
+        output["vehicle_position"] = torch.from_numpy(vehicle_positions[sample_idx])
+        output["matrix"] = torch.from_numpy(np.load(matrix_files[sample_idx]))
         output["next_vehicle_position"] = vehicle_positions[sample_idx + 1]
 
         tokens, phrase_mask = self.corpus.tokenize(output["command"])
