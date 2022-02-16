@@ -34,15 +34,15 @@ class Solver(object):
         self.num_workers = self.args.num_workers
         
         self.data_root = self.args.data_root
+        
+        self.img_backbone = self.args.img_backbone
         self.image_dim = self.args.image_dim
         self.mask_dim = self.args.mask_dim
+        self.hidden_dim = self.args.hidden_dim
         
         self.grad_check = self.args.grad_check
         
         self.threshold = self.args.threshold
-        
-        # self.global_iter = 0
-        # self.global_epoch = 0
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.num_gpu = torch.cuda.device_count()
@@ -54,10 +54,10 @@ class Solver(object):
         
         # TODO
         ## vit_tiny_patch16_384, vit_tiny_patch16_224
-        vit = timm.create_model("vit_small_patch16_384", pretrained=True)
+        vit = timm.create_model(self.img_backbone, pretrained=True)
         visual_encoder = nn.Sequential(*list(vit.children())[:-1])
         
-        self.network = SegmentationBaseline(visual_encoder, self.mask_dim)
+        self.network = SegmentationBaseline(visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim)
         
         wandb.watch(self.network, log="all")
         

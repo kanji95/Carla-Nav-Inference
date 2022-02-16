@@ -12,16 +12,16 @@ from .mask_decoder import *
 # simplest thing should be to predict a segmentation mask first
 class SegmentationBaseline(nn.Module):
     """Some Information about MyModule"""
-    def __init__(self, vision_encoder, mask_dim=112):
+    def __init__(self, vision_encoder, hidden_dim=384, mask_dim=112):
         super(SegmentationBaseline, self).__init__()
         
         self.vision_encoder = vision_encoder
-        self.text_encoder = TextEncoder(num_layers=1, hidden_size=384)
+        self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
         
         # self.mm_fusion = None
         
         self.mm_decoder = nn.Sequential(
-            ASPP(in_channels=384, atrous_rates=[6, 12, 24], out_channels=256),
+            ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
             ConvUpsample(in_channels=256,
                 out_channels=1,
                 channels=[256, 256, 128],
