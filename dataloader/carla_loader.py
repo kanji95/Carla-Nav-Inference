@@ -11,7 +11,7 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from word_utils import Corpus
+from .word_utils import Corpus
 
 class ResizeAnnotation:
     """Resize the largest of the sides of the annotation to a given size"""

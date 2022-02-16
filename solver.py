@@ -15,9 +15,9 @@ from torchvision.models._utils import IntermediateLayerGetter
 import timm
 
 from models.model import *
-from dataloader import *
-from metrics import *
-from utils import *
+from dataloader.carla_loader import *
+from utilities.metrics import *
+from utilities.utilities import *
 
 
 class Solver(object):
