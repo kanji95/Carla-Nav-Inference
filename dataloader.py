@@ -13,6 +13,7 @@ from torch.utils.data import Dataset
 
 from word_utils import Corpus
 
+
 class ResizeAnnotation:
     """Resize the largest of the sides of the annotation to a given size"""
 
@@ -39,24 +40,25 @@ class ResizeAnnotation:
         )
         return out
 
+
 class CarlaDataset(Dataset):
     """Some Information about CarlaDataset"""
 
     def __init__(
         self,
-        data_root="/ssd_scratch/cvit/kanishk/carla_data",
+        data_root,
+        glove_path,
         split="train",
-        glove_path="/ssd_scratch/cvit/kanishk/glove",
         img_transform=None,
         mask_transform=None,
         dataset_len=10000,
         skip=10,
     ):
         self.data_dir = os.path.join(data_root, split)
-        
+
         self.img_transform = img_transform
         self.mask_transform = mask_transform
-        
+
         self.dataset_len = dataset_len
         self.skip = skip
         self.episodes = sorted(os.listdir(self.data_dir))
@@ -70,7 +72,8 @@ class CarlaDataset(Dataset):
         output = {}
 
         # import pdb; pdb.set_trace()
-        episode_dir = os.path.join(self.data_dir, np.random.choice(self.episodes))
+        episode_dir = os.path.join(
+            self.data_dir, np.random.choice(self.episodes))
         # print(episode_dir)
 
         image_files = sorted(glob(episode_dir + f"/images/*.png"))
@@ -96,19 +99,19 @@ class CarlaDataset(Dataset):
         mask = Image.open(mask_path).convert('L')
 
         output["orig_frame"] = np.array(img)
-        
+
         if self.img_transform:
             img = self.img_transform(img)
-        
+
         if self.mask_transform:
             mask = self.mask_transform(mask)
             mask[mask > 0] = 1
 
         output["frame"] = img
         output["gt_frame"] = mask
-        
+
         command = open(command_path, "r").read()
-        command = re.sub(r'[^\w\s]','',command)
+        command = re.sub(r'[^\w\s]', '', command)
         output["orig_text"] = command
         # print(output["orig_text"])
         # output["vehicle_position"] = vehicle_positions[sample_idx]
