@@ -79,8 +79,10 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=420, type=int, help="random seed")
     parser.add_argument("--epochs", default=200, type=int, help="epoch size")
 
-    parser.add_argument("--batch_size", default=100, type=int, help="batch size")
-    parser.add_argument("--num_workers", type=int, default=10, help="number of workers")
+    parser.add_argument("--batch_size", default=100,
+                        type=int, help="batch size")
+    parser.add_argument("--num_workers", type=int,
+                        default=10, help="number of workers")
 
     parser.add_argument("--lr", default=1e-4, type=float, help="learning rate")
     parser.add_argument("--weight_decay", default=1e-3, type=float)
@@ -100,6 +102,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--glove_path",
+        default="/ssd_scratch/cvit/kanishk/glove",
+        type=str,
+        help="dataset name",
+    )
+
+    parser.add_argument(
         "--img_backbone",
         default="vit_tiny_patch16_224",
         choices=[
@@ -111,6 +120,7 @@ if __name__ == "__main__":
         ],
         type=str,
     )
+
     parser.add_argument("--image_dim", type=int, default=224, help="Image Dimension")
     parser.add_argument("--mask_dim", type=int, default=112, help="Mask Dimension")
     parser.add_argument("--hidden_dim", type=int, default=256, help="Hidden Dimension")
@@ -118,7 +128,8 @@ if __name__ == "__main__":
     parser.add_argument("--grad_check", default=False, action="store_true")
     parser.add_argument("--save_dir", type=str, default="./saved_model")
 
-    parser.add_argument("--threshold", type=float, default=0.4, help="mask threshold")
+    parser.add_argument("--threshold", type=float,
+                        default=0.4, help="mask threshold")
 
     parser.add_argument("--save", default=False, action="store_true")
 
