@@ -16,12 +16,12 @@ class SegmentationBaseline(nn.Module):
         super(SegmentationBaseline, self).__init__()
         
         self.vision_encoder = vision_encoder
-        self.text_encoder = TextEncoder(num_layers=1)
+        self.text_encoder = TextEncoder(num_layers=1, hidden_size=384)
         
         # self.mm_fusion = None
         
         self.mm_decoder = nn.Sequential(
-            ASPP(in_channels=192, atrous_rates=[6, 12, 24], out_channels=256),
+            ASPP(in_channels=384, atrous_rates=[6, 12, 24], out_channels=256),
             ConvUpsample(in_channels=256,
                 out_channels=1,
                 channels=[256, 256, 128],
@@ -38,6 +38,7 @@ class SegmentationBaseline(nn.Module):
         
         vision_feat = self.vision_encoder(frames)
         vision_feat = F.normalize(vision_feat, p=2, dim=1) # B x N x C
+        vision_dim = int(vision_feat.shape[1]**.5)
         # vision_feat = rearrange(vision_feat, "b (h w) c -> b c h w", h=14, w=14)
         
         text_feat = self.text_encoder(text) # B x L x C
@@ -45,12 +46,13 @@ class SegmentationBaseline(nn.Module):
         text_feat = text_feat * text_mask[:, :, None]
         
         # import pdb; pdb.set_trace()
+        # print(vision_feat.shape, text_feat.shape)
         cross_attn = torch.bmm(vision_feat, text_feat.transpose(1, 2).contiguous()) # B x N x L
         cross_attn = cross_attn.softmax(dim=-1)
         attn_feat = cross_attn @ text_feat  # B x N x C
         
         fused_feat = vision_feat * attn_feat
-        fused_feat = rearrange(fused_feat, "b (h w) c -> b c h w", h=14, w=14)
+        fused_feat = rearrange(fused_feat, "b (h w) c -> b c h w", h=vision_dim, w=vision_dim)
         
         segm_mask = self.mm_decoder(fused_feat) #.squeeze(1)
 

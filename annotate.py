@@ -50,8 +50,8 @@ def annotate(args):
             matrix_dir = os.path.join(args.dir, episode, 'inverse_matrix')
             if os.path.exists(mask_dir) and (len(os.listdir(mask_dir)) == len(os.listdir(image_dir)) == len(os.listdir(matrix_dir))):
                 print(f"Skipping {episode}")
-                shutil.rmtree(os.path.join(args.dir, episode, 'annotations'))
-                pass
+                # shutil.rmtree(os.path.join(args.dir, episode, 'annotations'))
+                continue
             else:
                 shutil.rmtree(os.path.join(args.dir, episode, 'masks'))
         except:
@@ -77,6 +77,7 @@ def annotate(args):
 
         for i, frame in enumerate(frames):
             name = '.'.join(frame.split('.')[:-1])
+            # print(frame, name)
             if i >= float_coordinates.shape[0]:
                 break
             if i >= float_coordinates.shape[0]:

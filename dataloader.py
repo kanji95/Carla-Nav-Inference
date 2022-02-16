@@ -1,4 +1,5 @@
 import os
+import re
 from glob import glob
 from collections import Iterable
 
@@ -59,6 +60,7 @@ class CarlaDataset(Dataset):
         self.dataset_len = dataset_len
         self.skip = skip
         self.episodes = sorted(os.listdir(self.data_dir))
+        #  print(self.episodes)
         self.corpus = Corpus(glove_path)
 
     def __len__(self):
@@ -67,7 +69,9 @@ class CarlaDataset(Dataset):
     def __getitem__(self, idx):
         output = {}
 
-        episode_dir = os.path.join(self.data_dir, np.random.choice(self.episodes)[0])
+        # import pdb; pdb.set_trace()
+        episode_dir = os.path.join(self.data_dir, np.random.choice(self.episodes))
+        # print(episode_dir)
 
         image_files = sorted(glob(episode_dir + f"/images/*.png"))
         mask_files = sorted(glob(episode_dir + f"/masks/*.png"))
@@ -83,6 +87,7 @@ class CarlaDataset(Dataset):
                 position = np.array(line.split(","), dtype=np.float32)
                 vehicle_positions.append(position)
 
+        # print(num_files, episode_dir)
         sample_idx = np.random.choice(range(self.skip, num_files - self.skip))
 
         img_path = image_files[sample_idx]
@@ -102,7 +107,10 @@ class CarlaDataset(Dataset):
         output["frame"] = img
         output["gt_frame"] = mask
         
-        output["orig_text"] = open(command_path, "r").read()
+        command = open(command_path, "r").read()
+        command = re.sub(r'[^\w\s]','',command)
+        output["orig_text"] = command
+        # print(output["orig_text"])
         # output["vehicle_position"] = vehicle_positions[sample_idx]
         # output["matrix"] = np.load(matrix_files[sample_idx])
         # output["next_vehicle_position"] = vehicle_positions[sample_idx + 1]

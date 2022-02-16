@@ -6,3 +6,5 @@ slurm-*
 __pycache__/
 models/__pycache__/
 wandb/
+saved_model/
+test.py

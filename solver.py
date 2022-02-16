@@ -15,6 +15,7 @@ import timm
 
 from models.model import *
 from dataloader import *
+from metrics import *
 from utils import *
 
 
@@ -52,10 +53,11 @@ class Solver(object):
         # print(f"METHOD USED FOR CURRENT RUN {run_name}")
         
         # TODO
-        vit = timm.create_model("vit_tiny_patch16_224", pretrained=True)
+        ## vit_tiny_patch16_384, vit_tiny_patch16_224
+        vit = timm.create_model("vit_small_patch16_384", pretrained=True)
         visual_encoder = nn.Sequential(*list(vit.children())[:-1])
         
-        self.network = SegmentationBaseline(visual_encoder)
+        self.network = SegmentationBaseline(visual_encoder, self.mask_dim)
         
         wandb.watch(self.network, log="all")
         
@@ -101,11 +103,11 @@ class Solver(object):
         )
         
         self.train_dataset = CarlaDataset(
-            data_root=self.data_root, split="train", 
+            data_root=self.data_root, split="train", dataset_len=100000, 
             img_transform=train_transform, mask_transform=mask_transform
         )
         self.val_dataset = CarlaDataset(
-            data_root=self.data_root, split="val", 
+            data_root=self.data_root, split="val", dataset_len=20000,
             img_transform=val_transform, mask_transform=mask_transform
         )
         
@@ -160,8 +162,11 @@ class Solver(object):
         
         total_loss = 0
         total_inter, total_union = 0, 0
+        total_pg = 0
         
         data_len = len(self.train_loader)
+
+        num_samples = 0
         
         epoch_start = time()
         for step, batch in enumerate(self.train_loader):
@@ -173,6 +178,7 @@ class Solver(object):
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 
                 batch_size = frame.shape[0]
+                num_samples += batch_size
             
             start_time = time()
             
@@ -197,6 +203,8 @@ class Solver(object):
             total_inter += inter.item()
             total_union += union.item()
             
+            total_pg += pointing_game(mask, gt_mask)
+
             total_loss += float(loss.item())
             
             if step % 500 == 0:
@@ -216,10 +224,11 @@ class Solver(object):
                 timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
                 curr_loss = total_loss / (step + 1)
                 curr_IOU = total_inter / total_union
+                curr_pg = total_pg / num_samples
                 lr = self.optimizer.param_groups[0]["lr"]
                 
                 print(
-                    f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} IOU {curr_IOU:.4f} memory_use {memoryUse:.3f}MB lr {lr:.7f} elapsed {elapsed_time:.2f}"
+                        f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} IOU {curr_IOU:.4f} PG {curr_pg:.4f} memory_use {memoryUse:.3f}MB lr {lr:.7f} elapsed {elapsed_time:.2f}"
                 )
                 
         epoch_end = time()
@@ -229,16 +238,18 @@ class Solver(object):
 
         train_loss = total_loss / data_len
         train_IOU = total_inter / total_union
+        train_pg = total_pg / num_samples
         
         wandb.log(
             {
                 "loss": train_loss,
                 "IOU": train_IOU,
+                "PG": train_pg,
             }
         )
         
         print(
-            f"{timestamp} FINISHED Epoch:{epochId:2d} loss {train_loss:.4f} overall_IOU {train_IOU:.4f} elapsed {epoch_time:.2f}"
+                f"{timestamp} FINISHED Epoch:{epochId:2d} loss {train_loss:.4f} overall_IOU {train_IOU:.4f} PG {train_pg:.4f} elapsed {epoch_time:.2f}"
         )
     
     @torch.no_grad()
@@ -251,8 +262,11 @@ class Solver(object):
 
         total_loss = 0
         total_inter, total_union = 0, 0
+        total_pg = 0
         
         data_len = len(self.val_loader)
+
+        num_samples = 0
         
         for step, batch in enumerate(self.val_loader):
             frame = batch["frame"].cuda(non_blocking=True)
@@ -261,7 +275,8 @@ class Solver(object):
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
             
             batch_size = frame.shape[0]
-            
+            num_samples += batch_size
+
             start_time = time()
             
             mask = self.network(frame, text, text_mask)
@@ -275,6 +290,8 @@ class Solver(object):
             total_inter += inter.item()
             total_union += union.item()
             
+            total_pg += pointing_game(mask, gt_mask)
+
             total_loss += float(loss.item())
 
             if step % 500 == 0:
@@ -294,26 +311,29 @@ class Solver(object):
                 timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
 
                 curr_loss = total_loss / (step + 1)
-                overall_IOU = total_inter / total_union
+                curr_IOU = total_inter / total_union
+                curr_pg = total_pg / num_samples
                 
                 print(
-                    f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} overall_IOU {overall_IOU:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
+                    f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} overall_IOU {curr_IOU:.4f} pointing_game {curr_pg:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 )
         
         val_loss = total_loss / data_len
         val_IOU = total_inter / total_union
+        val_pg = total_pg / num_samples
         
         timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
         
         wandb.log(
             {
                 "val_loss": val_loss,
-                "val_IOU": val_IOU
+                "val_IOU": val_IOU,
+                "val_PG": val_pg,
             }
         )
         
         print(
-            f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} overall_IOU {val_IOU:.4f}"
+                f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} overall_IOU {val_IOU:.4f} pointing_game {val_pg:.4f}"
         )
         
         return val_IOU, val_loss

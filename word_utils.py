@@ -73,7 +73,8 @@ class Corpus(object):
     def tokenize(self, line, max_len=20):
         # Tokenize line contents
         # words = SENTENCE_SPLIT_REGEX.split(line.strip())
-        words = line.split()
+        line = re.sub(r'[^\w\s]','',line)
+        words = line.strip().split()
         words = [w.lower() for w in words if len(w) > 0]
 
         phrase_mask = [1] * len(words)
