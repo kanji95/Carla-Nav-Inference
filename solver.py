@@ -10,13 +10,14 @@ import torch
 from torch.optim import *
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
+from torchvision.models._utils import IntermediateLayerGetter
 
 import timm
 
 from models.model import *
-from dataloader import *
-from metrics import *
-from utils import *
+from dataloader.carla_loader import *
+from utilities.metrics import *
+from utilities.utilities import *
 
 
 class Solver(object):
@@ -51,16 +52,20 @@ class Solver(object):
         self.num_gpu = torch.cuda.device_count()
         print(f"Using {self.device} with {self.num_gpu} GPUS!")
 
-        # self.experiment = wandb.init(project="Language Navigation", config=self.args)
-        # run_name = f"{experiment.id}"
-        # print(f"METHOD USED FOR CURRENT RUN {run_name}")
+        return_layers = {"layer2": "layer2",
+                         "layer3": "layer3", "layer4": "layer4"}
 
-        # TODO
-        ## vit_tiny_patch16_384, vit_tiny_patch16_224
-        vit = timm.create_model(self.img_backbone, pretrained=True)
-        visual_encoder = nn.Sequential(*list(vit.children())[:-1])
+        if "vit_" in self.img_backbone:
+            img_backbone = timm.create_model(
+                self.img_backbone, pretrained=True)
+            visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
+        elif "dino_resnet50" in self.img_backbone:
+            img_backbone = torch.hub.load(
+                'facebookresearch/dino:main', 'dino_resnet50')
+            visual_encoder = IntermediateLayerGetter(
+                img_backbone, return_layers)
 
-        self.network = SegmentationBaseline(
+        self.network = IROSBaseline(
             visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim)
 
         wandb.watch(self.network, log="all")
