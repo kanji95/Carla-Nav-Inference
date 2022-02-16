@@ -113,7 +113,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--image_dim", type=int, default=224, help="Image Dimension")
     parser.add_argument("--mask_dim", type=int, default=112, help="Mask Dimension")
-    parser.add_argument("--hidden_dim", type=int, default=112, help="Hidden Dimension")
+    parser.add_argument("--hidden_dim", type=int, default=256, help="Hidden Dimension")
 
     parser.add_argument("--grad_check", default=False, action="store_true")
     parser.add_argument("--save_dir", type=str, default="./saved_model")

@@ -179,11 +179,12 @@ class Solver(object):
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 
                 batch_size = frame.shape[0]
+                frame_mask = torch.ones(batch_size, 14*14, dtype=torch.int64).cuda(non_blocking=True)
                 num_samples += batch_size
             
             start_time = time()
             
-            mask = self.network(frame, text, text_mask)
+            mask = self.network(frame, text, frame_mask, text_mask)
             
             loss = self.criterion(mask, gt_mask)
             loss.backward()
@@ -276,11 +277,12 @@ class Solver(object):
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
             
             batch_size = frame.shape[0]
+            frame_mask = torch.ones(batch_size, 14*14, dtype=torch.int64).cuda(non_blocking=True)
             num_samples += batch_size
 
             start_time = time()
             
-            mask = self.network(frame, text, text_mask)
+            mask = self.network(frame, text, frame_mask, text_mask)
             loss = self.criterion(mask, gt_mask)
             
             end_time = time()

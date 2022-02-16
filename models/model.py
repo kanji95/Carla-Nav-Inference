@@ -37,7 +37,7 @@ class SegmentationBaseline(nn.Module):
             nn.Sigmoid(),
         )  
 
-    def forward(self, frames, text, text_mask):
+    def forward(self, frames, text, frame_mask, text_mask):
         
         vision_feat = self.vision_encoder(frames)
         vision_feat = F.normalize(vision_feat, p=2, dim=1) # B x N x C
@@ -70,7 +70,7 @@ class IROSBaseline(nn.Module):
         self.vision_encoder = vision_encoder
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
         
-        self.frame_mask = torch.ones(1, 14*14, dtype=torch.int64)
+        # self.frame_mask = torch.ones(1, 14*14, dtype=torch.int64)
         
         self.pool = nn.AdaptiveMaxPool2d((28, 28))
         self.conv_3x3 = nn.ModuleDict(
@@ -110,7 +110,7 @@ class IROSBaseline(nn.Module):
         self.conv_fuse = nn.Sequential(nn.Conv2d(hidden_dim * 2, hidden_dim, kernel_size=3, stride=1, padding=1), nn.BatchNorm2d(hidden_dim))
         
         self.mm_decoder = nn.Sequential(
-            ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
+            ASPP(in_channels=hidden_dim*3, atrous_rates=[6, 12, 24], out_channels=256),
             ConvUpsample(in_channels=256,
                 out_channels=1,
                 channels=[256, 256, 128],
@@ -123,7 +123,7 @@ class IROSBaseline(nn.Module):
             nn.Sigmoid(),
         )  
 
-    def forward(self, frames, text, text_mask):
+    def forward(self, frames, text, img_mask, text_mask):
         
         image = self.vision_encoder(frames)
         
@@ -132,8 +132,8 @@ class IROSBaseline(nn.Module):
             layer_output = F.relu(self.conv_3x3[key](self.pool(image[key])))
             image_features.append(layer_output)
             
-        B, C, H, W = image_features[i].shape
-        img_mask = repeat(self.frame_mask, "b n -> (repeat b) n", repeat=B)
+        B, C, H, W = image_features[-1].shape
+        # img_mask = repeat(self.frame_mask, "b n -> (repeat b) n", repeat=B)
 
         f_text = self.text_encoder(text)
         f_text = f_text.permute(0, 2, 1)
@@ -142,7 +142,7 @@ class IROSBaseline(nn.Module):
         pos_embed_img = positionalencoding2d(B, d_model=C, height=H, width=W)
         pos_embed_img = pos_embed_img.flatten(2).permute(2, 0, 1)
 
-        pos_embed_txt = positionalencoding1d(B, max_len=text_mask.shape[1])
+        pos_embed_txt = positionalencoding1d(B, d_model=E, max_len=text_mask.shape[1])
         pos_embed_txt = pos_embed_txt.permute(1, 0, 2)
 
         pos_embed = torch.cat([pos_embed_img, pos_embed_txt], dim=0)
@@ -204,7 +204,7 @@ class FullBaseline(nn.Module):
     # next vehicle pos 3d -> (proj trans) 2d next pos
     # offset - 2d offset
     # in eval - 2d to 3d inverse proj trans
-    def forward(self, frames, text, position):
+    def forward(self, frames, text, frame_mask, text_mask, position):
         
         vision_feat = self.vision_encoder(frames)
         text_feat = self.text_encoder(text)
