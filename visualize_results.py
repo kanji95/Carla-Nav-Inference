@@ -62,6 +62,7 @@ frame_mask = torch.ones(1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
 columns = ["Command"]
 
 episodes = glob(val_path + "*")
+episode_num = 0
 for episode in episodes:
 
     command_path = episode + "/command.txt"
@@ -110,7 +111,7 @@ for episode in episodes:
     mask_video = np.uint8(mask_video_overlay * 255)
     gt_mask_video = np.uint8(gt_mask_video_overlay * 255)
 
-    print(command)
+    print(episode_num, command)
 
     wandb.log(
         {
@@ -119,3 +120,5 @@ for episode in episodes:
             "gt_mask": wandb.Video(gt_mask_video, fps=4, caption=command, format="gif"),
         }
     )
+
+    episode_num += 1
