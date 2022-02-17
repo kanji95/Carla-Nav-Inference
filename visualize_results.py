@@ -115,7 +115,7 @@ for episode in episodes:
     wandb.log(
         {
             "video": wandb.Video(frame_video, fps=4, caption=command, format="gif"),
-            "pred_mask": wandb.Video(mask_video, fps=4, format="gif"),
-            "gt_mask": wandb.Video(gt_mask_video, fps=4, format="gif"),
+            "pred_mask": wandb.Video(mask_video, fps=4, caption=command, format="gif"),
+            "gt_mask": wandb.Video(gt_mask_video, fps=4, caption=command, format="gif"),
         }
     )
