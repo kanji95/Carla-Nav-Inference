@@ -13,6 +13,7 @@ import torchvision.transforms as transforms
 from torchvision.models._utils import IntermediateLayerGetter
 
 import timm
+from timesformer.models.vit import TimeSformer
 
 from models.model import *
 from dataloader.carla_loader import *
@@ -51,6 +52,7 @@ class Solver(object):
 
         return_layers = {"layer2": "layer2", "layer3": "layer3", "layer4": "layer4"}
 
+        mode = "image"
         if "vit_" in self.img_backbone:
             img_backbone = timm.create_model(self.img_backbone, pretrained=True)
             visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
@@ -61,6 +63,12 @@ class Solver(object):
             img_backbone = torch.hub.load("facebookresearch/dino:main", "dino_resnet50")
             visual_encoder = IntermediateLayerGetter(img_backbone, return_layers)
             self.network = IROSBaseline(
+                visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
+            )
+        elif "timesformer" in self.img_backbone:
+            mode = "video"
+            visual_encoder = TimeSformer(img_size=224, patch_size=16, num_frames=16)
+            self.network = VideoSegmentationBaseline(
                 visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
             )
 
@@ -116,6 +124,7 @@ class Solver(object):
             dataset_len=100000,
             img_transform=train_transform,
             mask_transform=mask_transform,
+            mode = mode,
         )
         self.val_dataset = CarlaDataset(
             data_root=self.data_root,
@@ -124,6 +133,7 @@ class Solver(object):
             dataset_len=20000,
             img_transform=val_transform,
             mask_transform=mask_transform,
+            mode = mode,
         )
 
         self.train_loader = DataLoader(

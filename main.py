@@ -116,7 +116,8 @@ if __name__ == "__main__":
             "vit_small_patch16_224",
             "vit_tiny_patch16_384",
             "vit_small_patch16_384",
-            "dino_resnet50"
+            "dino_resnet50",
+            "timesformer"
         ],
         type=str,
     )
