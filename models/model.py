@@ -79,7 +79,7 @@ class VideoSegmentationBaseline(nn.Module):
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
         
         self.mm_fusion = nn.Sequential(
-            nn.Conv3d(hidden_dim, hidden_dim, kernel_size=1, stride=1),
+            nn.Conv3d(hidden_dim*2, hidden_dim, kernel_size=1, stride=1),
             nn.ReLU(),
             nn.AdaptiveAvgPool3d((1, None, None))
         )
@@ -102,17 +102,17 @@ class VideoSegmentationBaseline(nn.Module):
         
         vision_feat, _ = self.vision_encoder(frames) # B, N, C
         vision_feat = F.normalize(vision_feat, p=2, dim=1) # B x N x C
-        vision_feat = rearrange(vision_feat, "b (n h w) c -> b c n h w", n=8, h=14, w=14)
+        vision_feat = rearrange(vision_feat, "b (n h w) c -> b c n h w", n=16, h=14, w=14)
         
         text_feat = self.text_encoder(text) # B x L x C
         text_feat = F.normalize(text_feat, p=2, dim=1) # B x L x C
         text_feat = text_feat * text_mask[:, :, None]
         text_feat = text_feat.mean(dim=1)
-        text_feat = repeat(text_feat, "b c -> b c n h w", n=8, h=14, w=14)
+        text_feat = repeat(text_feat, "b c -> b c n h w", n=16, h=14, w=14)
         
         fused_feat = torch.cat([vision_feat, text_feat], dim=1)
         fused_feat = self.mm_fusion(fused_feat)
-        fused_feat = rearrange("b c 1 h w -> b c h w")
+        fused_feat = rearrange(fused_feat, "b c 1 h w -> b c h w")
         
         segm_mask = self.mm_decoder(fused_feat) #.squeeze(1)
 
