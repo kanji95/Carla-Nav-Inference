@@ -52,7 +52,7 @@ class Solver(object):
 
         return_layers = {"layer2": "layer2", "layer3": "layer3", "layer4": "layer4"}
 
-        mode = "image"
+        self.mode = "image"
         if "vit_" in self.img_backbone:
             img_backbone = timm.create_model(self.img_backbone, pretrained=True)
             visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
@@ -69,7 +69,7 @@ class Solver(object):
                 visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
             )
         elif "timesformer" in self.img_backbone:
-            mode = "video"
+            self.mode = "video"
             visual_encoder = TimeSformer(img_size=224, patch_size=16, num_frames=16)
             self.network = VideoSegmentationBaseline(
                 visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
@@ -140,7 +140,7 @@ class Solver(object):
             dataset_len=100000,
             img_transform=train_transform,
             mask_transform=mask_transform,
-            mode=mode,
+            mode=self.mode,
         )
         self.val_dataset = CarlaDataset(
             data_root=self.data_root,
@@ -149,7 +149,7 @@ class Solver(object):
             dataset_len=20000,
             img_transform=val_transform,
             mask_transform=mask_transform,
-            mode=mode,
+            mode=self.mode,
         )
 
         self.train_loader = DataLoader(
@@ -276,13 +276,14 @@ class Solver(object):
             total_loss += float(loss.item())
 
             if step % 500 == 0:
-                log_predicitons(
-                    batch["orig_frame"],
-                    batch["orig_text"],
-                    mask.detach().cpu(),
-                    gt_mask.detach().cpu(),
-                    title="training",
-                )
+                if self.mode == "image":
+                    log_frame_predicitons(
+                        batch["orig_frame"],
+                        batch["orig_text"],
+                        mask.detach().cpu(),
+                        gt_mask.detach().cpu(),
+                        title="training",
+                    )
 
             if iterId % 100 == 0 and step != 0:
                 # import pdb; pdb.set_trace()
@@ -367,13 +368,14 @@ class Solver(object):
             total_loss += float(loss.item())
 
             if step % 500 == 0:
-                log_predicitons(
-                    batch["orig_frame"],
-                    batch["orig_text"],
-                    mask.detach().cpu(),
-                    gt_mask.detach().cpu(),
-                    title="validation",
-                )
+                if self.mode == "image":
+                    log_frame_predicitons(
+                        batch["orig_frame"],
+                        batch["orig_text"],
+                        mask.detach().cpu(),
+                        gt_mask.detach().cpu(),
+                        title="validation",
+                    )
             if step % 50 == 0:
                 print(mask.min(), mask.max())
 

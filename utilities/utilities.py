@@ -91,7 +91,7 @@ def grad_check(named_parameters):
     plt.close()
 
 @torch.no_grad()
-def log_predicitons(front_cam_image, lang_command, pred_mask, gt_mask, title="train", k=4
+def log_frame_predicitons(front_cam_image, lang_command, pred_mask, gt_mask, title="train", k=4
 ):
     indices = np.random.choice(range(pred_mask.shape[0]), size=k, replace=False)
 
