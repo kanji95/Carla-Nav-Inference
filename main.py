@@ -66,7 +66,7 @@ def main(args):
             epochs_without_improvement += 1
             print(f"Epochs without Improvement: {epochs_without_improvement}")
 
-            if epochs_without_improvement == 30:
+            if epochs_without_improvement == 6:
                 print(
                     f"{epochs_without_improvement} epochs without improvement, Stopping Training!"
                 )
