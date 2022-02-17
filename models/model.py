@@ -10,6 +10,7 @@ from einops import rearrange, repeat
 from .transformer import *
 from .position_encoding import *
 from .mask_decoder import *
+from timesformer.models.vit import TimeSformer
 
 
 # simplest thing should be to predict a segmentation mask first
