@@ -92,8 +92,8 @@ class Solver(object):
                 transforms.Resize((self.image_dim, self.image_dim)),
                 transforms.RandomGrayscale(p=0.3),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
-                                     0.229, 0.224, 0.225]),
+                # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                #                      0.229, 0.224, 0.225]),
             ]
         )
 
@@ -101,8 +101,8 @@ class Solver(object):
             [
                 transforms.Resize((self.image_dim, self.image_dim)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
-                                     0.229, 0.224, 0.225]),
+                # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
+                #                      0.229, 0.224, 0.225]),
             ]
         )
 
@@ -357,4 +357,4 @@ class Solver(object):
             f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} overall_IOU {val_IOU:.4f} pointing_game {val_pg:.4f}"
         )
 
-        return val_IOU, val_loss
+        return val_pg, val_loss

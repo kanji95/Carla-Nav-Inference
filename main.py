@@ -38,19 +38,19 @@ def main(args):
     print("Initializing Solver!")
     solver = Solver(args)
 
-    best_IOU = 0
+    best_pg = 0
     epochs_without_improvement = 0
     for epoch in range(args.epochs):
         solver.train(epoch)
-        val_IOU, val_loss = solver.evaluate(epoch)
+        val_pg, val_loss = solver.evaluate(epoch)
 
         solver.lr_scheduler.step(val_loss)
 
-        if val_IOU > best_IOU:
-            best_IOU = val_IOU
+        if val_pg > best_pg:
+            best_pg = val_pg
 
             print(
-                f"Saving Checkpoint at epoch {epoch}, best validation accuracy is {best_IOU}!"
+                f"Saving Checkpoint at epoch {epoch}, best validation accuracy is {best_pg}!"
             )
             if args.save:
                 torch.save(
@@ -62,7 +62,7 @@ def main(args):
                     model_filename,
                 )
             epochs_without_improvement = 0
-        elif val_IOU <= best_IOU and epoch != args.epochs - 1:
+        elif val_pg <= best_pg and epoch != args.epochs - 1:
             epochs_without_improvement += 1
             print(f"Epochs without Improvement: {epochs_without_improvement}")
 
