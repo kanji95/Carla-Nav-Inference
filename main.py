@@ -118,13 +118,19 @@ if __name__ == "__main__":
             "vit_small_patch16_384",
             "dino_resnet50",
             "timesformer"
+            "deeplabv3_resnet50",
+            "deeplabv3_resnet101",
+            "deeplabv3_mobilenet_v3_large"
         ],
         type=str,
     )
 
-    parser.add_argument("--image_dim", type=int, default=224, help="Image Dimension")
-    parser.add_argument("--mask_dim", type=int, default=112, help="Mask Dimension")
-    parser.add_argument("--hidden_dim", type=int, default=256, help="Hidden Dimension")
+    parser.add_argument("--image_dim", type=int,
+                        default=224, help="Image Dimension")
+    parser.add_argument("--mask_dim", type=int,
+                        default=112, help="Mask Dimension")
+    parser.add_argument("--hidden_dim", type=int,
+                        default=256, help="Hidden Dimension")
 
     parser.add_argument("--grad_check", default=False, action="store_true")
     parser.add_argument("--save_dir", type=str, default="./saved_model")

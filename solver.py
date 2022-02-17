@@ -57,7 +57,10 @@ class Solver(object):
             img_backbone = timm.create_model(self.img_backbone, pretrained=True)
             visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
             self.network = SegmentationBaseline(
-                visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
+                visual_encoder,
+                hidden_dim=self.hidden_dim,
+                mask_dim=self.mask_dim,
+                backbone=self.img_backbone,
             )
         elif "dino_resnet50" in self.img_backbone:
             img_backbone = torch.hub.load("facebookresearch/dino:main", "dino_resnet50")
@@ -70,6 +73,19 @@ class Solver(object):
             visual_encoder = TimeSformer(img_size=224, patch_size=16, num_frames=16)
             self.network = VideoSegmentationBaseline(
                 visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
+            )
+        elif "deeplabv3_" in self.img_backbone:
+            img_backbone = torch.hub.load(
+                "pytorch/vision:v0.10.0", self.img_backbone, pretrained=True
+            )
+            visual_encoder = nn.Sequential(
+                *list(img_backbone._modules["backbone"].children())
+            )
+            self.network = SegmentationBaseline(
+                visual_encoder,
+                hidden_dim=self.hidden_dim,
+                mask_dim=self.mask_dim,
+                backbone=self.img_backbone,
             )
 
         wandb.watch(self.network, log="all")
@@ -124,7 +140,7 @@ class Solver(object):
             dataset_len=100000,
             img_transform=train_transform,
             mask_transform=mask_transform,
-            mode = mode,
+            mode=mode,
         )
         self.val_dataset = CarlaDataset(
             data_root=self.data_root,
@@ -133,7 +149,7 @@ class Solver(object):
             dataset_len=20000,
             img_transform=val_transform,
             mask_transform=mask_transform,
-            mode = mode,
+            mode=mode,
         )
 
         self.train_loader = DataLoader(
@@ -272,7 +288,7 @@ class Solver(object):
                 # import pdb; pdb.set_trace()
                 print(mask.min(), mask.max())
                 gc.collect()
-                memoryUse = py.memory_info()[0] / 2.0 ** 20
+                memoryUse = py.memory_info()[0] / 2.0**20
                 timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
                 curr_loss = total_loss / (step + 1)
                 curr_IOU = total_inter / total_union
@@ -362,7 +378,7 @@ class Solver(object):
                 print(mask.min(), mask.max())
 
                 gc.collect()
-                memoryUse = py.memory_info()[0] / 2.0 ** 20
+                memoryUse = py.memory_info()[0] / 2.0**20
 
                 timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
 
