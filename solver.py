@@ -21,7 +21,6 @@ from utilities.utilities import *
 
 
 class Solver(object):
-
     def __init__(self, args):
         self.args = args
 
@@ -59,18 +58,24 @@ class Solver(object):
             img_backbone = timm.create_model(
                 self.img_backbone, pretrained=True)
             visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
+            self.network = SegmentationBaseline(
+                visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
+            )
         elif "dino_resnet50" in self.img_backbone:
             img_backbone = torch.hub.load(
-                'facebookresearch/dino:main', 'dino_resnet50')
+                "facebookresearch/dino:main", "dino_resnet50")
             visual_encoder = IntermediateLayerGetter(
                 img_backbone, return_layers)
+            self.network = IROSBaseline(
+                visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
+            )
         elif "deeplabv3_" in self.img_backbone:
             img_backbone = torch.hub.load(
                 'pytorch/vision:v0.10.0', self.img_backbone, pretrained=True)
             visual_encoder = img_backbone._modules['backbone']
-
-        self.network = IROSBaseline(
-            visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim)
+            self.network = SegmentationBaseline(
+                visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
+            )
 
         wandb.watch(self.network, log="all")
 
@@ -118,22 +123,38 @@ class Solver(object):
         )
 
         self.train_dataset = CarlaDataset(
-            data_root=self.data_root, glove_path=self.glove_path, split="train", dataset_len=100000,
-            img_transform=train_transform, mask_transform=mask_transform
+            data_root=self.data_root,
+            glove_path=self.glove_path,
+            split="train",
+            dataset_len=100000,
+            img_transform=train_transform,
+            mask_transform=mask_transform,
         )
         self.val_dataset = CarlaDataset(
-            data_root=self.data_root, glove_path=self.glove_path, split="val", dataset_len=20000,
-            img_transform=val_transform, mask_transform=mask_transform
+            data_root=self.data_root,
+            glove_path=self.glove_path,
+            split="val",
+            dataset_len=20000,
+            img_transform=val_transform,
+            mask_transform=mask_transform,
         )
 
-        self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size,
-                                       num_workers=self.num_workers, pin_memory=True, drop_last=False,
-                                       )
-        self.val_loader = DataLoader(self.val_dataset, batch_size=self.batch_size,
-                                     num_workers=self.num_workers, pin_memory=True, drop_last=False,
-                                     )
+        self.train_loader = DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True,
+            drop_last=False,
+        )
+        self.val_loader = DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True,
+            drop_last=False,
+        )
 
-        self.criterion = nn.BCELoss(reduction='mean')
+        self.criterion = nn.BCELoss(reduction="mean")
 
     def initialize_optimizer(self):
         params = list(
@@ -147,17 +168,31 @@ class Solver(object):
             optimizer = Adam(params, lr=self.lr,
                              weight_decay=self.weight_decay)
         elif self.args.optimizer == "SGD":
-            optimizer = SGD(params, lr=self.lr, momentum=0.8,
-                            weight_decay=self.weight_decay)
+            optimizer = SGD(
+                params, lr=self.lr, momentum=0.8, weight_decay=self.weight_decay
+            )
         elif self.args.optimizer == "RMSprop":
-            optimizer = RMSprop(params, lr=self.lr, alpha=0.99, eps=1e-08,
-                                weight_decay=self.weight_decay, momentum=0.8, centered=False)
+            optimizer = RMSprop(
+                params,
+                lr=self.lr,
+                alpha=0.99,
+                eps=1e-08,
+                weight_decay=self.weight_decay,
+                momentum=0.8,
+                centered=False,
+            )
         elif self.args.optimizer == "Rprop":
-            optimizer = Rprop(params, lr=self.lr, etas=(
-                0.5, 1.2), step_sizes=(1e-06, 50))
+            optimizer = Rprop(
+                params, lr=self.lr, etas=(0.5, 1.2), step_sizes=(1e-06, 50)
+            )
         elif self.args.optimizer == "RAdam":
-            optimizer = RAdam(params, lr=self.lr, betas=(
-                0.9, 0.999), eps=1e-08, weight_decay=self.weight_decay)
+            optimizer = RAdam(
+                params,
+                lr=self.lr,
+                betas=(0.9, 0.999),
+                eps=1e-08,
+                weight_decay=self.weight_decay,
+            )
         elif self.args.optimizer == "ASGD":
             optimizer = ASGD(params, lr=self.lr,
                              weight_decay=self.weight_decay)
@@ -200,8 +235,9 @@ class Solver(object):
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
-                frame_mask = torch.ones(
-                    batch_size, 14*14, dtype=torch.int64).cuda(non_blocking=True)
+                frame_mask = torch.ones(batch_size, 14 * 14, dtype=torch.int64).cuda(
+                    non_blocking=True
+                )
                 num_samples += batch_size
 
             start_time = time()
@@ -299,8 +335,9 @@ class Solver(object):
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
 
             batch_size = frame.shape[0]
-            frame_mask = torch.ones(
-                batch_size, 14*14, dtype=torch.int64).cuda(non_blocking=True)
+            frame_mask = torch.ones(batch_size, 14 * 14, dtype=torch.int64).cuda(
+                non_blocking=True
+            )
             num_samples += batch_size
 
             start_time = time()
