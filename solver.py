@@ -64,6 +64,10 @@ class Solver(object):
                 'facebookresearch/dino:main', 'dino_resnet50')
             visual_encoder = IntermediateLayerGetter(
                 img_backbone, return_layers)
+        elif "deeplabv3_" in self.img_backbone:
+            img_backbone = torch.hub.load(
+                'pytorch/vision:v0.10.0', self.img_backbone, pretrained=True)
+            visual_encoder = img_backbone._modules['backbone']
 
         self.network = IROSBaseline(
             visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim)
@@ -196,13 +200,14 @@ class Solver(object):
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
-                frame_mask = torch.ones(batch_size, 14*14, dtype=torch.int64).cuda(non_blocking=True)
+                frame_mask = torch.ones(
+                    batch_size, 14*14, dtype=torch.int64).cuda(non_blocking=True)
                 num_samples += batch_size
 
             start_time = time()
-            
+
             mask = self.network(frame, text, frame_mask, text_mask)
-            
+
             loss = self.criterion(mask, gt_mask)
             loss.backward()
 
@@ -294,11 +299,12 @@ class Solver(object):
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
 
             batch_size = frame.shape[0]
-            frame_mask = torch.ones(batch_size, 14*14, dtype=torch.int64).cuda(non_blocking=True)
+            frame_mask = torch.ones(
+                batch_size, 14*14, dtype=torch.int64).cuda(non_blocking=True)
             num_samples += batch_size
 
             start_time = time()
-            
+
             mask = self.network(frame, text, frame_mask, text_mask)
 
             loss = self.criterion(mask, gt_mask)
