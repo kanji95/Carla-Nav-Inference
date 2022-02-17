@@ -16,9 +16,10 @@ from .mask_decoder import *
 class SegmentationBaseline(nn.Module):
     """Some Information about MyModule"""
 
-    def __init__(self, vision_encoder, hidden_dim=384, mask_dim=112):
+    def __init__(self, vision_encoder, img_backbone, hidden_dim=384, mask_dim=112):
         super(SegmentationBaseline, self).__init__()
 
+        self.img_backbone = img_backbone
         self.vision_encoder = vision_encoder
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
 
@@ -42,8 +43,14 @@ class SegmentationBaseline(nn.Module):
     def forward(self, frames, text, frame_mask, text_mask):
 
         vision_feat = self.vision_encoder(frames)
+        if self.img_backbone.startswith('deeplabv3_'):
+            vision_feat = vision_feat.view(
+                vision_feat.shape[0], vision_feat.shape[1], -1)
+            vision_feat = vision_feat.transpose(1, 2).contiguous()
+
         vision_feat = F.normalize(vision_feat, p=2, dim=1)  # B x N x C
         vision_dim = int(vision_feat.shape[1]**.5)
+
         # vision_feat = rearrange(vision_feat, "b (h w) c -> b c h w", h=14, w=14)
 
         text_feat = self.text_encoder(text)  # B x L x C

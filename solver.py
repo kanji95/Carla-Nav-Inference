@@ -59,7 +59,7 @@ class Solver(object):
                 self.img_backbone, pretrained=True)
             visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
             self.network = SegmentationBaseline(
-                visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
+                visual_encoder, self.img_backbone, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
             )
         elif "dino_resnet50" in self.img_backbone:
             img_backbone = torch.hub.load(
@@ -72,9 +72,10 @@ class Solver(object):
         elif "deeplabv3_" in self.img_backbone:
             img_backbone = torch.hub.load(
                 'pytorch/vision:v0.10.0', self.img_backbone, pretrained=True)
-            visual_encoder = img_backbone._modules['backbone']
+            visual_encoder = nn.Sequential(
+                *list(img_backbone._modules['backbone'].children()))
             self.network = SegmentationBaseline(
-                visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
+                visual_encoder, self.img_backbone, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
             )
 
         wandb.watch(self.network, log="all")
