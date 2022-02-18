@@ -151,7 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("--threshold", type=float,
                         default=0.4, help="mask threshold")
 
-    parser.add_argument("--save", default=True, action="store_true")
+    parser.add_argument("--save", default=False, action="store_true")
 
     args = parser.parse_args()
 
