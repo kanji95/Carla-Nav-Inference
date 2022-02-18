@@ -13,6 +13,7 @@ import torchvision.transforms as transforms
 from torchvision.models._utils import IntermediateLayerGetter
 
 import timm
+from timesformer.models.vit import VisionTransformer
 
 from models.model import *
 from dataloader.carla_loader import *
@@ -24,8 +25,7 @@ class Solver(object):
     def __init__(self, args):
         self.args = args
 
-        self.experiment = wandb.init(
-            project="Language Navigation", config=self.args)
+        self.experiment = wandb.init(project="Language Navigation", config=self.args)
 
         self.epochs = self.args.epochs
         self.batch_size = self.args.batch_size
@@ -41,41 +41,54 @@ class Solver(object):
         self.image_dim = self.args.image_dim
         self.mask_dim = self.args.mask_dim
         self.hidden_dim = self.args.hidden_dim
+        self.num_frames = self.args.num_frames
+        self.patch_size = self.args.patch_size
 
         self.grad_check = self.args.grad_check
 
         self.threshold = self.args.threshold
 
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.num_gpu = torch.cuda.device_count()
         print(f"Using {self.device} with {self.num_gpu} GPUS!")
 
-        return_layers = {"layer2": "layer2",
-                         "layer3": "layer3", "layer4": "layer4"}
+        return_layers = {"layer2": "layer2", "layer3": "layer3", "layer4": "layer4"}
 
+        self.mode = "image"
         if "vit_" in self.img_backbone:
-            img_backbone = timm.create_model(
-                self.img_backbone, pretrained=True)
+            img_backbone = timm.create_model(self.img_backbone, pretrained=True)
             visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
             self.network = SegmentationBaseline(
-                visual_encoder, self.img_backbone, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
+                visual_encoder,
+                hidden_dim=self.hidden_dim,
+                mask_dim=self.mask_dim,
+                backbone=self.img_backbone,
             )
         elif "dino_resnet50" in self.img_backbone:
-            img_backbone = torch.hub.load(
-                "facebookresearch/dino:main", "dino_resnet50")
-            visual_encoder = IntermediateLayerGetter(
-                img_backbone, return_layers)
+            img_backbone = torch.hub.load("facebookresearch/dino:main", "dino_resnet50")
+            visual_encoder = IntermediateLayerGetter(img_backbone, return_layers)
             self.network = IROSBaseline(
                 visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
             )
+        elif "timesformer" in self.img_backbone:
+            self.mode = "video"
+            spatial_dim = self.image_dim//self.patch_size
+            visual_encoder = VisionTransformer(img_size=self.image_dim, patch_size=self.patch_size, embed_dim=self.hidden_dim, depth=2, num_heads=8, num_frames=self.num_frames)
+            self.network = VideoSegmentationBaseline(
+                visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim, spatial_dim=spatial_dim, num_frames=self.num_frames,
+            )
         elif "deeplabv3_" in self.img_backbone:
             img_backbone = torch.hub.load(
-                'pytorch/vision:v0.10.0', self.img_backbone, pretrained=True)
+                "pytorch/vision:v0.10.0", self.img_backbone, pretrained=True
+            )
             visual_encoder = nn.Sequential(
-                *list(img_backbone._modules['backbone'].children()))
+                *list(img_backbone._modules["backbone"].children())
+            )
             self.network = SegmentationBaseline(
-                visual_encoder, self.img_backbone, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
+                visual_encoder,
+                hidden_dim=self.hidden_dim,
+                mask_dim=self.mask_dim,
+                backbone=self.img_backbone,
             )
 
         wandb.watch(self.network, log="all")
@@ -130,6 +143,7 @@ class Solver(object):
             dataset_len=100000,
             img_transform=train_transform,
             mask_transform=mask_transform,
+            mode=self.mode,
         )
         self.val_dataset = CarlaDataset(
             data_root=self.data_root,
@@ -138,6 +152,7 @@ class Solver(object):
             dataset_len=20000,
             img_transform=val_transform,
             mask_transform=mask_transform,
+            mode=self.mode,
         )
 
         self.train_loader = DataLoader(
@@ -158,16 +173,13 @@ class Solver(object):
         self.criterion = nn.BCELoss(reduction="mean")
 
     def initialize_optimizer(self):
-        params = list(
-            [p for p in self.network.parameters() if p.requires_grad])
+        params = list([p for p in self.network.parameters() if p.requires_grad])
 
         print(f"Using {self.args.optimizer} optimizer!!")
         if self.args.optimizer == "AdamW":
-            optimizer = AdamW(params, lr=self.lr,
-                              weight_decay=self.weight_decay)
+            optimizer = AdamW(params, lr=self.lr, weight_decay=self.weight_decay)
         elif self.args.optimizer == "Adam":
-            optimizer = Adam(params, lr=self.lr,
-                             weight_decay=self.weight_decay)
+            optimizer = Adam(params, lr=self.lr, weight_decay=self.weight_decay)
         elif self.args.optimizer == "SGD":
             optimizer = SGD(
                 params, lr=self.lr, momentum=0.8, weight_decay=self.weight_decay
@@ -195,15 +207,13 @@ class Solver(object):
                 weight_decay=self.weight_decay,
             )
         elif self.args.optimizer == "ASGD":
-            optimizer = ASGD(params, lr=self.lr,
-                             weight_decay=self.weight_decay)
+            optimizer = ASGD(params, lr=self.lr, weight_decay=self.weight_decay)
         return optimizer
 
     def log_parameter_info(self):
         total_parameters = 0
         for name, child in self.network.named_children():
-            num_params = sum([p.numel()
-                             for p in child.parameters() if p.requires_grad])
+            num_params = sum([p.numel() for p in child.parameters() if p.requires_grad])
             if num_params > 0:
                 print(f"No. of params in {name}: {num_params}")
                 total_parameters += num_params
@@ -269,19 +279,28 @@ class Solver(object):
             total_loss += float(loss.item())
 
             if step % 500 == 0:
-                log_predicitons(
-                    batch["orig_frame"],
-                    batch["orig_text"],
-                    mask.detach().cpu(),
-                    gt_mask.detach().cpu(),
-                    title="training",
-                )
+                if self.mode == "image":
+                    log_frame_predicitons(
+                        batch["orig_frame"],
+                        batch["orig_text"],
+                        mask.detach().cpu(),
+                        gt_mask.detach().cpu(),
+                        title="training",
+                    )
+                else:
+                    log_video_predicitons(
+                        batch["orig_frame"],
+                        batch["orig_text"],
+                        mask.detach().cpu(),
+                        gt_mask.detach().cpu(),
+                        title="training",
+                    )
 
             if iterId % 100 == 0 and step != 0:
                 # import pdb; pdb.set_trace()
                 print(mask.min(), mask.max())
                 gc.collect()
-                memoryUse = py.memory_info()[0] / 2.0 ** 20
+                memoryUse = py.memory_info()[0] / 2.0**20
                 timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
                 curr_loss = total_loss / (step + 1)
                 curr_IOU = total_inter / total_union
@@ -360,18 +379,27 @@ class Solver(object):
             total_loss += float(loss.item())
 
             if step % 500 == 0:
-                log_predicitons(
-                    batch["orig_frame"],
-                    batch["orig_text"],
-                    mask.detach().cpu(),
-                    gt_mask.detach().cpu(),
-                    title="validation",
-                )
+                if self.mode == "image":
+                    log_frame_predicitons(
+                        batch["orig_frame"],
+                        batch["orig_text"],
+                        mask.detach().cpu(),
+                        gt_mask.detach().cpu(),
+                        title="validation",
+                    )
+                else:
+                    log_video_predicitons(
+                        batch["orig_frame"],
+                        batch["orig_text"],
+                        mask.detach().cpu(),
+                        gt_mask.detach().cpu(),
+                        title="validation",
+                    )
             if step % 50 == 0:
                 print(mask.min(), mask.max())
 
                 gc.collect()
-                memoryUse = py.memory_info()[0] / 2.0 ** 20
+                memoryUse = py.memory_info()[0] / 2.0**20
 
                 timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
 

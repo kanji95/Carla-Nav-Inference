@@ -91,7 +91,37 @@ def grad_check(named_parameters):
     plt.close()
 
 @torch.no_grad()
-def log_predicitons(front_cam_image, lang_command, pred_mask, gt_mask, title="train", k=4
+def log_frame_predicitons(front_cam_image, lang_command, pred_mask, gt_mask, title="train", k=4
+):
+    indices = np.random.choice(range(pred_mask.shape[0]), size=k, replace=False)
+
+    figure, axes = plt.subplots(nrows=k, ncols=3)
+    for i, index in enumerate(indices):
+        index = indices[i]
+        
+        orig_img = front_cam_image[index]
+        axes[i, 0].imshow(orig_img)
+        axes[i, 0].set_title(lang_command[index], fontsize=5)
+        axes[i, 0].set_axis_off()
+
+        mask_pred = rearrange(pred_mask[index], "c h w -> h w c")
+        mask_pred = np.uint8(mask_pred * 255)
+        axes[i, 1].imshow(mask_pred)
+        axes[i, 1].set_title("Predicted Mask", fontsize=5)
+        axes[i, 1].set_axis_off()
+        
+        mask_gt = rearrange(gt_mask[index], "c h w -> h w c")
+        mask_gt = np.uint8(mask_gt * 255)
+        axes[i, 2].imshow(mask_gt)
+        axes[i, 2].set_title("GT Mask", fontsize=5)
+        axes[i, 2].set_axis_off()
+
+    figure.tight_layout()
+    wandb.log({f"{title}_segmentation": wandb.Image(figure)}, commit=True)
+    plt.close(figure)
+
+@torch.no_grad()
+def log_video_predicitons(front_cam_image, lang_command, pred_mask, gt_mask, title="train", k=4
 ):
     indices = np.random.choice(range(pred_mask.shape[0]), size=k, replace=False)
 

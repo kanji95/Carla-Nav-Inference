@@ -17,18 +17,18 @@ from timesformer.models.vit import TimeSformer
 class SegmentationBaseline(nn.Module):
     """Some Information about MyModule"""
 
-    def __init__(self, vision_encoder, img_backbone, hidden_dim=384, mask_dim=112):
+    def __init__(self, vision_encoder, hidden_dim=384, mask_dim=112, backbone="vit"):
         super(SegmentationBaseline, self).__init__()
 
-        self.img_backbone = img_backbone
+        self.backbone = backbone
+        
         self.vision_encoder = vision_encoder
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
 
         # self.mm_fusion = None
 
         self.mm_decoder = nn.Sequential(
-            ASPP(in_channels=hidden_dim, atrous_rates=[
-                 6, 12, 24], out_channels=256),
+            ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
             ConvUpsample(in_channels=256,
                          out_channels=1,
                          channels=[256, 256, 128],
@@ -44,10 +44,8 @@ class SegmentationBaseline(nn.Module):
     def forward(self, frames, text, frame_mask, text_mask):
 
         vision_feat = self.vision_encoder(frames)
-        if self.img_backbone.startswith('deeplabv3_'):
-            vision_feat = vision_feat.view(
-                vision_feat.shape[0], vision_feat.shape[1], -1)
-            vision_feat = vision_feat.transpose(1, 2).contiguous()
+        if self.backbone.startswith('deeplabv3_'):
+            vision_feat = rearrange(vision_feat, "b c h w -> b (h w) c")
 
         vision_feat = F.normalize(vision_feat, p=2, dim=1)  # B x N x C
         vision_dim = int(vision_feat.shape[1]**.5)
@@ -60,19 +58,71 @@ class SegmentationBaseline(nn.Module):
 
         # import pdb; pdb.set_trace()
         # print(vision_feat.shape, text_feat.shape)
-        cross_attn = torch.bmm(vision_feat, text_feat.transpose(
-            1, 2).contiguous())  # B x N x L
+        cross_attn = torch.bmm(vision_feat, text_feat.transpose(1, 2).contiguous())  # B x N x L
         cross_attn = cross_attn.softmax(dim=-1)
         attn_feat = cross_attn @ text_feat  # B x N x C
 
         fused_feat = vision_feat * attn_feat
-        fused_feat = rearrange(
-            fused_feat, "b (h w) c -> b c h w", h=vision_dim, w=vision_dim)
+        
+        fused_feat = rearrange(fused_feat, "b (h w) c -> b c h w", h=vision_dim, w=vision_dim)
 
         segm_mask = self.mm_decoder(fused_feat)  # .squeeze(1)
 
         return segm_mask
 
+class VideoSegmentationBaseline(nn.Module):
+    """Some Information about MyModule"""
+    def __init__(self, vision_encoder, hidden_dim=768, mask_dim=112, spatial_dim=14, num_frames=16):
+        super(VideoSegmentationBaseline, self).__init__()
+        
+        self.spatial_dim = spatial_dim
+        self.num_frames = num_frames
+        
+        self.vision_encoder = vision_encoder
+        self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
+        
+        # self.mm_fusion = nn.Sequential(
+        #     nn.Conv3d(hidden_dim*2, hidden_dim, kernel_size=1, stride=1),
+        #     nn.ReLU(),
+        #     nn.AdaptiveAvgPool3d((1, None, None))
+        # )
+        
+        self.mm_decoder = nn.Sequential(
+            ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
+            ConvUpsample(in_channels=256,
+                out_channels=1,
+                channels=[256, 256, 128],
+                upsample=[True, True, True],
+                drop=0.2,
+            ),
+            nn.Upsample(
+                size=(mask_dim, mask_dim), mode="bilinear", align_corners=True
+            ),
+            nn.Sigmoid(),
+        )  
+
+    def forward(self, frames, text, frame_mask, text_mask):
+        
+        vision_feat, _ = self.vision_encoder(frames) # B, N, C
+        vision_feat = F.normalize(vision_feat, p=2, dim=1) # B x N x C
+        vision_feat = rearrange(vision_feat, "b (t h w) c -> (b t) (h w) c", t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
+        
+        text_feat = self.text_encoder(text) # B x L x C
+        text_feat = F.normalize(text_feat, p=2, dim=1) # B x L x C
+        text_feat = text_feat * text_mask[:, :, None]
+        text_feat = repeat(text_feat, "b l c -> b t l c", t=self.num_frames)
+        text_feat = rearrange(text_feat, "b t l c -> (b t) l c")
+        
+        cross_attn = torch.bmm(vision_feat, text_feat.transpose(1, 2).contiguous())  # B x N x L
+        cross_attn = cross_attn.softmax(dim=-1)
+        attn_feat = cross_attn @ text_feat  # B x N x C
+
+        fused_feat = vision_feat * attn_feat
+        fused_feat = rearrange(fused_feat, "(b t) (h w) c -> b c t h w", t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
+        
+        segm_mask = self.mm_decoder(fused_feat[:, :, -1]) #.squeeze(1)
+
+        return segm_mask
 
 class IROSBaseline(nn.Module):
     """Some Information about MyModule"""

@@ -53,6 +53,8 @@ class CarlaDataset(Dataset):
         mask_transform=None,
         dataset_len=10000,
         skip=10,
+        sequence_len=16,
+        mode="image",
     ):
         self.data_dir = os.path.join(data_root, split)
 
@@ -61,44 +63,56 @@ class CarlaDataset(Dataset):
 
         self.dataset_len = dataset_len
         self.skip = skip
+        self.sequence_len = sequence_len
+        self.mode = mode
+
         self.episodes = sorted(os.listdir(self.data_dir))
-        #  print(self.episodes)
+
         self.corpus = Corpus(glove_path)
 
     def __len__(self):
         return self.dataset_len
 
-    def __getitem__(self, idx):
-        output = {}
+    def get_video_data(self, image_files, mask_files, num_files):
+        sample_idx = np.random.choice(range(num_files - self.sequence_len))
 
-        # import pdb; pdb.set_trace()
-        episode_dir = os.path.join(
-            self.data_dir, np.random.choice(self.episodes))
-        # print(episode_dir)
+        frames = []
+        orig_frames = []
+        frame_masks = []
 
-        image_files = sorted(glob(episode_dir + f"/images/*.png"))
-        mask_files = sorted(glob(episode_dir + f"/masks/*.png"))
-        matrix_files = sorted(glob(episode_dir + f"/inverse_matrix/*.npy"))
-        position_file = os.path.join(episode_dir, "vehicle_positions.txt")
-        command_path = os.path.join(episode_dir, "command.txt")
+        for index in range(self.sequence_len):
+            img_path = image_files[sample_idx + index]
+            mask_path = mask_files[sample_idx + index]
 
-        num_files = len(image_files)
+            img = Image.open(img_path).convert("RGB")
+            mask = Image.open(mask_path).convert("L")
 
-        vehicle_positions = []
-        with open(position_file, "r") as fhand:
-            for line in fhand:
-                position = np.array(line.split(","), dtype=np.float32)
-                vehicle_positions.append(position)
+            orig_frames.append(np.array(img))
 
-        # print(num_files, episode_dir)
-        sample_idx = np.random.choice(range(self.skip, num_files - self.skip))
+            if self.img_transform:
+                img = self.img_transform(img)
+
+            if self.mask_transform:
+                mask = self.mask_transform(mask)
+                mask[mask > 0] = 1
+
+            frames.append(img)
+            frame_masks.append(mask)
+
+        orig_frames = np.stack(orig_frames, axis=0)
+        frames = torch.stack(frames, dim=1)
+        frame_masks = torch.stack(frame_masks, dim=1)
+        return frames, orig_frames[-1], frame_masks[:, -1]
+
+    def get_image_data(self, image_files, mask_files, num_files):
+        sample_idx = np.random.choice(range(num_files - self.skip))
 
         img_path = image_files[sample_idx]
         mask_path = mask_files[sample_idx]
         img = Image.open(img_path).convert("RGB")
-        mask = Image.open(mask_path).convert('L')
+        mask = Image.open(mask_path).convert("L")
 
-        output["orig_frame"] = np.array(img)
+        orig_image = np.array(img)
 
         if self.img_transform:
             img = self.img_transform(img)
@@ -106,13 +120,47 @@ class CarlaDataset(Dataset):
         if self.mask_transform:
             mask = self.mask_transform(mask)
             mask[mask > 0] = 1
+        return img, orig_image, mask
 
-        output["frame"] = img
-        output["gt_frame"] = mask
+    def __getitem__(self, idx):
+        output = {}
+
+        episode_dir = os.path.join(self.data_dir, np.random.choice(self.episodes))
+
+        image_files = sorted(glob(episode_dir + f"/images/*.png"))
+        mask_files = sorted(glob(episode_dir + f"/masks/*.png"))
+        # matrix_files = sorted(glob(episode_dir + f"/inverse_matrix/*.npy"))
+        # position_file = os.path.join(episode_dir, "vehicle_positions.txt")
+        command_path = os.path.join(episode_dir, "command.txt")
+
+        num_files = len(image_files)
+
+        # vehicle_positions = []
+        # with open(position_file, "r") as fhand:
+        #     for line in fhand:
+        #         position = np.array(line.split(","), dtype=np.float32)
+        #         vehicle_positions.append(position)
+        # print(num_files, episode_dir)
+
+        if self.mode == "image":
+            frames, orig_frames, frame_masks = self.get_image_data(
+                image_files, mask_files, num_files
+            )
+        elif self.mode == "video":
+            frames, orig_frames, frame_masks = self.get_video_data(
+                image_files, mask_files, num_files
+            )
+        else:
+            raise NotImplementedError(f"{self.mode} mode not implemented!")
+
+        output["orig_frame"] = orig_frames
+        output["frame"] = frames
+        output["gt_frame"] = frame_masks
 
         command = open(command_path, "r").read()
-        command = re.sub(r'[^\w\s]', '', command)
+        command = re.sub(r"[^\w\s]", "", command)
         output["orig_text"] = command
+
         # print(output["orig_text"])
         # output["vehicle_position"] = vehicle_positions[sample_idx]
         # output["matrix"] = np.load(matrix_files[sample_idx])

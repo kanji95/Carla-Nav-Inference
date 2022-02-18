@@ -126,6 +126,7 @@ if __name__ == "__main__":
             "vit_tiny_patch16_384",
             "vit_small_patch16_384",
             "dino_resnet50",
+            "timesformer",
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",
             "deeplabv3_mobilenet_v3_large"
@@ -139,6 +140,10 @@ if __name__ == "__main__":
                         default=112, help="Mask Dimension")
     parser.add_argument("--hidden_dim", type=int,
                         default=256, help="Hidden Dimension")
+    parser.add_argument("--num_frames", type=int,
+                        default=16, help="Frames of Video")
+    parser.add_argument("--patch_size", type=int,
+                        default=16, help="Patch Size of Video Frame for ViT")
 
     parser.add_argument("--grad_check", default=False, action="store_true")
     parser.add_argument("--save_dir", type=str, default="./saved_model")
