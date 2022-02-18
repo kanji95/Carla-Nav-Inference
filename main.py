@@ -32,7 +32,7 @@ def main(args):
 
     model_filename = os.path.join(
         save_path,
-        f'{datetime.now().strftime("%d_%b_%H-%M")}.pth',
+        f'{args.model}_{args.img_backbone}_{datetime.now().strftime("%d_%b_%H-%M")}.pth',
     )
 
     print("Initializing Solver!")
@@ -109,6 +109,15 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--model",
+        default='baseline',
+        choices=[
+            'baseline'
+        ],
+        type=str,
+    )
+
+    parser.add_argument(
         "--img_backbone",
         default="vit_tiny_patch16_224",
         choices=[
@@ -137,7 +146,7 @@ if __name__ == "__main__":
     parser.add_argument("--threshold", type=float,
                         default=0.4, help="mask threshold")
 
-    parser.add_argument("--save", default=False, action="store_true")
+    parser.add_argument("--save", default=True, action="store_true")
 
     args = parser.parse_args()
 
