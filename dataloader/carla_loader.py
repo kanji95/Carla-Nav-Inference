@@ -102,7 +102,7 @@ class CarlaDataset(Dataset):
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
         frame_masks = torch.stack(frame_masks, dim=1)
-        return frames, orig_frames, frame_masks[:, -1]
+        return frames, orig_frames[-1], frame_masks[:, -1]
 
     def get_image_data(self, image_files, mask_files, num_files):
         sample_idx = np.random.choice(range(num_files - self.skip))

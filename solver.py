@@ -13,7 +13,7 @@ import torchvision.transforms as transforms
 from torchvision.models._utils import IntermediateLayerGetter
 
 import timm
-from timesformer.models.vit import TimeSformer
+from timesformer.models.vit import VisionTransformer
 
 from models.model import *
 from dataloader.carla_loader import *
@@ -41,6 +41,8 @@ class Solver(object):
         self.image_dim = self.args.image_dim
         self.mask_dim = self.args.mask_dim
         self.hidden_dim = self.args.hidden_dim
+        self.num_frames = self.args.num_frames
+        self.patch_size = self.args.patch_size
 
         self.grad_check = self.args.grad_check
 
@@ -70,9 +72,10 @@ class Solver(object):
             )
         elif "timesformer" in self.img_backbone:
             self.mode = "video"
-            visual_encoder = TimeSformer(img_size=224, patch_size=16, num_frames=16)
+            spatial_dim = self.image_dim//self.patch_size
+            visual_encoder = VisionTransformer(img_size=self.image_dim, patch_size=self.patch_size, embed_dim=self.hidden_dim, depth=2, num_heads=8, num_frames=self.num_frames)
             self.network = VideoSegmentationBaseline(
-                visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim
+                visual_encoder, hidden_dim=self.hidden_dim, mask_dim=self.mask_dim, spatial_dim=spatial_dim, num_frames=self.num_frames,
             )
         elif "deeplabv3_" in self.img_backbone:
             img_backbone = torch.hub.load(
@@ -284,6 +287,14 @@ class Solver(object):
                         gt_mask.detach().cpu(),
                         title="training",
                     )
+                else:
+                    log_video_predicitons(
+                        batch["orig_frame"],
+                        batch["orig_text"],
+                        mask.detach().cpu(),
+                        gt_mask.detach().cpu(),
+                        title="training",
+                    )
 
             if iterId % 100 == 0 and step != 0:
                 # import pdb; pdb.set_trace()
@@ -370,6 +381,14 @@ class Solver(object):
             if step % 500 == 0:
                 if self.mode == "image":
                     log_frame_predicitons(
+                        batch["orig_frame"],
+                        batch["orig_text"],
+                        mask.detach().cpu(),
+                        gt_mask.detach().cpu(),
+                        title="validation",
+                    )
+                else:
+                    log_video_predicitons(
                         batch["orig_frame"],
                         batch["orig_text"],
                         mask.detach().cpu(),
