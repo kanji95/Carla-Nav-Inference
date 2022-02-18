@@ -32,7 +32,7 @@ def main(args):
 
     model_filename = os.path.join(
         save_path,
-        f'{args.img_backbone}_{datetime.now().strftime("%d_%b_%H-%M")}.pth',
+        f'{args.model}_{args.img_backbone}_{datetime.now().strftime("%d_%b_%H-%M")}.pth',
     )
 
     print("Initializing Solver!")
@@ -108,6 +108,15 @@ if __name__ == "__main__":
         default="/ssd_scratch/cvit/kanishk/glove",
         type=str,
         help="dataset name",
+    )
+
+    parser.add_argument(
+        "--model",
+        default='baseline',
+        choices=[
+            'baseline'
+        ],
+        type=str,
     )
 
     parser.add_argument(
