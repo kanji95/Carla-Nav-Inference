@@ -32,7 +32,7 @@ def main(args):
 
     model_filename = os.path.join(
         save_path,
-        f'{datetime.now().strftime("%d_%b_%H-%M")}.pth',
+        f'{args.img_backbone}_{datetime.now().strftime("%d_%b_%H-%M")}.pth',
     )
 
     print("Initializing Solver!")
