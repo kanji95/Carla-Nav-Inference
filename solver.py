@@ -143,6 +143,7 @@ class Solver(object):
             dataset_len=100000,
             img_transform=train_transform,
             mask_transform=mask_transform,
+            sequence_len=self.num_frames,
             mode=self.mode,
         )
         self.val_dataset = CarlaDataset(
@@ -152,6 +153,7 @@ class Solver(object):
             dataset_len=20000,
             img_transform=val_transform,
             mask_transform=mask_transform,
+            sequence_len=self.num_frames,
             mode=self.mode,
         )
 

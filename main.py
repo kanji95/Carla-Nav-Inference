@@ -40,6 +40,8 @@ def main(args):
 
     best_pg = 0
     epochs_without_improvement = 0
+    print(f"Training Iterations: {len(solver.train_loader)}, Validation Iterations: {len(solver.val_loader)}")
+
     for epoch in range(args.epochs):
         solver.train(epoch)
         val_pg, val_loss = solver.evaluate(epoch)

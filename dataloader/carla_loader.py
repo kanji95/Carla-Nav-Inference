@@ -66,6 +66,9 @@ class CarlaDataset(Dataset):
         self.sequence_len = sequence_len
         self.mode = mode
 
+        if self.mode == "video":
+            self.dataset_len = self.dataset_len//self.sequence_len
+
         self.episodes = sorted(os.listdir(self.data_dir))
 
         self.corpus = Corpus(glove_path)
