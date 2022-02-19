@@ -27,7 +27,7 @@ def main(args):
 
     val_path = os.path.join(args.data_root, 'val/')
     glove_path = args.glove_path
-    checkpoint_path = './saved_model/baseline_deeplabv3_resnet50_18_Feb_06-11.pth'
+    checkpoint_path = args.checkpoint
 
     corpus = Corpus(glove_path)
 
@@ -173,23 +173,6 @@ def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="VLN Navigation")
-    parser.add_argument("--seed", default=420, type=int, help="random seed")
-    parser.add_argument("--epochs", default=200, type=int, help="epoch size")
-
-    parser.add_argument("--batch_size", default=100,
-                        type=int, help="batch size")
-    parser.add_argument("--num_workers", type=int,
-                        default=10, help="number of workers")
-
-    parser.add_argument("--lr", default=1e-4, type=float, help="learning rate")
-    parser.add_argument("--weight_decay", default=1e-3, type=float)
-    parser.add_argument("--gamma", default=0.7, type=float)
-    parser.add_argument(
-        "--optimizer",
-        default="AdamW",
-        choices=["AdamW", "Adam", "SGD", "RMSprop", "Rprop", "ASGD", "RAdam"],
-        type=str,
-    )
 
     parser.add_argument(
         "--data_root",
@@ -242,8 +225,7 @@ if __name__ == "__main__":
     parser.add_argument("--patch_size", type=int,
                         default=16, help="Patch Size of Video Frame for ViT")
 
-    parser.add_argument("--grad_check", default=False, action="store_true")
-    parser.add_argument("--save_dir", type=str, default="./saved_model")
+    parser.add_argument("--checkpoint", type=str)
 
     parser.add_argument("--threshold", type=float,
                         default=0.4, help="mask threshold")
