@@ -13,6 +13,33 @@ from torch.utils.data import Dataset
 
 from .word_utils import Corpus
 
+def world_to_pixel(K, rgb_matrix, destination,  curr_position):
+    point_3d = np.ones((4, destination.shape[1]))
+    point_3d[0] = destination[0]
+    point_3d[1] = destination[1]
+    point_3d[2] = curr_position[2]
+
+    # point_3d = np.array([destination[0], destination[1], curr_position[2], 1])
+    point_3d = np.round(point_3d, decimals=2)
+    # print("3D world coordinate: ", point_3d)
+
+    cam_coords = rgb_matrix @ point_3d
+    # cam_coords = rgb_matrix @ point_3d[:, None]
+    cam_coords = np.array([cam_coords[1], cam_coords[2]*-1, cam_coords[0]])
+
+    cam_coords = cam_coords[:, cam_coords[2, :] > 0]
+    points_2d = np.dot(K, cam_coords)
+
+    points_2d = np.array([
+        points_2d[0, :] / points_2d[2, :],
+        points_2d[1, :] / points_2d[2, :],
+        points_2d[2, :]]
+    )
+    points_2d = points_2d.reshape(3, -1)
+    points_2d = np.round(points_2d, decimals=2)
+    return points_2d
+
+
 class CarlaDataset(Dataset):
     """Some Information about CarlaDataset"""
 
@@ -208,7 +235,7 @@ class CarlaFullDataset(Dataset):
     # Convert the current position and next position to pixel coordinates 
     # using the current camera transformation matrix 
     # the coordinates should be rescaled (original image resolution to resized image resolution) and normalized
-    def get_image_data(self, image_files, mask_files, matrix_files, vehicle_positions):
+    def get_image_data(self, K, image_files, mask_files, matrix_files, vehicle_positions):
         
         num_files = len(image_files)
         
@@ -227,7 +254,34 @@ class CarlaFullDataset(Dataset):
         if self.mask_transform:
             mask = self.mask_transform(mask)
             mask[mask > 0] = 1
-        return img, orig_image, mask
+
+        curr_position = vehicle_positions[sample_idx]
+        next_position = vehicle_positions[sample_idx + 1]
+        rgb_matrix = np.load(matrix_files[sample_idx])
+
+        # Convert the current position and next position to pixel coordinates
+        # using the current camera transformation matrix
+        curr_position = np.array(curr_position).reshape(-1, 1)
+        next_position = np.array(next_position).reshape(-1, 1)
+
+        curr_position_2d = world_to_pixel(K, rgb_matrix, curr_position, curr_position)
+        next_position_2d = world_to_pixel(K, rgb_matrix, next_position, curr_position)
+
+        # Rescale the coordinates to the original image resolution
+        curr_position_2d = np.array(
+            [
+                curr_position_2d[0] * img.size[1] / orig_image.shape[0],
+                curr_position_2d[1] * img.size[0] / orig_image.shape[1],
+            ]
+        )
+        next_position_2d = np.array(
+            [
+                next_position_2d[0] * img.size[1] / orig_image.shape[0],
+                next_position_2d[1] * img.size[0] / orig_image.shape[1],
+            ]
+        )
+
+        return img, orig_image, mask, curr_position_2d, next_position_2d
 
     def __getitem__(self, idx):
         output = {}
