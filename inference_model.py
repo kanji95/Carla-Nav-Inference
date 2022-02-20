@@ -827,9 +827,6 @@ class CameraManager(object):
                 mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
                 mask_np = mask_np.reshape(mask_np.shape[0], mask_np.shape[1])
                 print(mask_np.shape, mask_np.max(), mask_np.min())
-                pprint(mask_np)
-                mask_np = cv2.resize(
-                    (mask_np*255).astype(np.uint8), (1280, 720))
 
                 region = best_pixel(mask_np, threshold)
                 pixel_to_world(image, weak_dc, weak_agent,
@@ -991,7 +988,6 @@ def pixel_to_world(image, weak_ref, weak_agent, screen_pos, K, destination, set_
     new_destination = carla.Location(
         x=pos_3d_[0], y=pos_3d_[1], z=destination.z)
 
-    target_number += 1
     if set_destination:
         agent_weak.set_destination(new_destination)
 
@@ -1455,10 +1451,14 @@ def game_loop(args):
             handled = pygame.mouse.get_pressed()[0]
 
             if agent.done() and command_given:
-                command_given = False
-                print('Done')
-
-                saving = [True, False, False]
+                if target_number >= 3:
+                    command_given = False
+                    saving = [True, True, False]
+                    print('Episode Done')
+                else:
+                    print('Done')
+                    saving = [True, False, False]
+                    target_number += 1
 
             if agent.target_destination:
                 destination = agent.target_destination
