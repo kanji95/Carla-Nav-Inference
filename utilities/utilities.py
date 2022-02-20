@@ -91,7 +91,7 @@ def grad_check(named_parameters):
     plt.close()
 
 @torch.no_grad()
-def log_frame_predicitons(front_cam_image, lang_command, pred_mask, gt_mask, gt_traj_mask, title="train", k=4
+def log_frame_predicitons(front_cam_image, lang_command, pred_mask, gt_mask, gt_traj_mask, episode_num, sample_idx, title="train", k=4
 ):
     indices = np.random.choice(range(pred_mask.shape[0]), size=k, replace=False)
 
@@ -107,7 +107,7 @@ def log_frame_predicitons(front_cam_image, lang_command, pred_mask, gt_mask, gt_
         mask_pred = rearrange(pred_mask[index], "c h w -> h w c")
         mask_pred = np.uint8(mask_pred * 255)
         axes[i, 1].imshow(mask_pred)
-        axes[i, 1].set_title("Predicted Mask", fontsize=5)
+        axes[i, 1].set_title(f"episode_{episode_num[index]}_idx_{sample_idx[index]}", fontsize=5)
         axes[i, 1].set_axis_off()
         
         mask_gt = rearrange(gt_mask[index], "c h w -> h w c")

@@ -293,6 +293,8 @@ class Solver(object):
                         mask.detach().cpu(),
                         gt_mask.detach().cpu(),
                         gt_traj_mask.detach().cpu(),
+                        batch["episode"],
+                        batch["sample_idx"],
                         title="training",
                     )
                 else:
@@ -395,6 +397,8 @@ class Solver(object):
                         mask.detach().cpu(),
                         gt_mask.detach().cpu(),
                         gt_traj_mask.detach().cpu(),
+                        batch["episode"],
+                        batch["sample_idx"],
                         title="validation",
                     )
                 else:
