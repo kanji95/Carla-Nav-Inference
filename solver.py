@@ -250,6 +250,7 @@ class Solver(object):
                 text = batch["text"].cuda(non_blocking=True)
                 text_mask = batch["text_mask"].cuda(non_blocking=True)
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
+                gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
                 frame_mask = torch.ones(batch_size, 14 * 14, dtype=torch.int64).cuda(
@@ -291,6 +292,7 @@ class Solver(object):
                         batch["orig_text"],
                         mask.detach().cpu(),
                         gt_mask.detach().cpu(),
+                        gt_traj_mask.detach().cpu(),
                         title="training",
                     )
                 else:
@@ -359,6 +361,7 @@ class Solver(object):
             text = batch["text"].cuda(non_blocking=True)
             text_mask = batch["text_mask"].cuda(non_blocking=True)
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
+            gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
             batch_size = frame.shape[0]
             frame_mask = torch.ones(batch_size, 14 * 14, dtype=torch.int64).cuda(
@@ -391,6 +394,7 @@ class Solver(object):
                         batch["orig_text"],
                         mask.detach().cpu(),
                         gt_mask.detach().cpu(),
+                        gt_traj_mask.detach().cpu(),
                         title="validation",
                     )
                 else:
