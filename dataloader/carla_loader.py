@@ -259,7 +259,7 @@ class CarlaFullDataset(Dataset):
         
         sample_idx = np.random.choice(range(num_files - self.skip - T))
         
-        while vehicle_positions[sample_idx] == vehicle_positions[sample_idx + 1]:
+        while np.allclose(np.array(vehicle_positions[sample_idx]), np.array(vehicle_positions[sample_idx + 1])):
             sample_idx = np.random.choice(range(num_files - self.skip - T))
 
         img_path = image_files[sample_idx]
