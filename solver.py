@@ -136,7 +136,7 @@ class Solver(object):
             ]
         )
 
-        self.train_dataset = CarlaDataset(
+        self.train_dataset = CarlaFullDataset(
             data_root=self.data_root,
             glove_path=self.glove_path,
             split="train",
@@ -145,8 +145,10 @@ class Solver(object):
             mask_transform=mask_transform,
             sequence_len=self.num_frames,
             mode=self.mode,
+            image_dim=self.image_dim,
+            mask_dim=self.mask_dim
         )
-        self.val_dataset = CarlaDataset(
+        self.val_dataset = CarlaFullDataset(
             data_root=self.data_root,
             glove_path=self.glove_path,
             split="val",
@@ -155,6 +157,8 @@ class Solver(object):
             mask_transform=mask_transform,
             sequence_len=self.num_frames,
             mode=self.mode,
+            image_dim=self.image_dim,
+            mask_dim=self.mask_dim
         )
 
         self.train_loader = DataLoader(
