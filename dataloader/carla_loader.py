@@ -254,6 +254,9 @@ class CarlaFullDataset(Dataset):
         num_files = len(image_files)
         
         sample_idx = np.random.choice(range(num_files - self.skip - 1))
+        
+        while vehicle_positions[sample_idx] == vehicle_positions[sample_idx + 1]:
+            sample_idx = np.random.choice(range(num_files - self.skip - 1))
 
         img_path = image_files[sample_idx]
         mask_path = mask_files[sample_idx]
