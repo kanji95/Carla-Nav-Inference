@@ -1294,7 +1294,7 @@ def game_loop(args):
 
         experiment = wandb.init(project="Language Navigation", dir="/tmp")
 
-        val_path = os.path.join(args.data_root, 'val/')
+        # val_path = os.path.join(args.data_root, 'val/')
         glove_path = args.glove_path
         checkpoint_path = args.checkpoint
 
@@ -1349,8 +1349,8 @@ def game_loop(args):
             )
         wandb.watch(network, log="all")
 
+        network = nn.DataParallel(network)
         if num_gpu > 1:
-            network = nn.DataParallel(network)
             print("Using DataParallel mode!")
         network.to(device)
 
@@ -1610,6 +1610,57 @@ def main():
         help='Set seed for repeating executions (default: None)',
         default=None,
         type=int)
+
+    argparser.add_argument(
+        "--glove_path",
+        default="/ssd_scratch/cvit/kanishk/glove",
+        type=str,
+        help="dataset name",
+    )
+
+    argparser.add_argument(
+        "--model",
+        default='baseline',
+        choices=[
+            'baseline'
+        ],
+        type=str,
+    )
+
+    argparser.add_argument(
+        "--img_backbone",
+        default="vit_tiny_patch16_224",
+        choices=[
+            "vit_tiny_patch16_224",
+            "vit_small_patch16_224",
+            "vit_tiny_patch16_384",
+            "vit_small_patch16_384",
+            "dino_resnet50",
+            "timesformer",
+            "deeplabv3_resnet50",
+            "deeplabv3_resnet101",
+            "deeplabv3_mobilenet_v3_large"
+        ],
+        type=str,
+    )
+
+    argparser.add_argument("--image_dim", type=int,
+                           default=448, help="Image Dimension")
+    argparser.add_argument("--mask_dim", type=int,
+                           default=448, help="Mask Dimension")
+    argparser.add_argument("--hidden_dim", type=int,
+                           default=256, help="Hidden Dimension")
+    argparser.add_argument("--num_frames", type=int,
+                           default=16, help="Frames of Video")
+    argparser.add_argument("--patch_size", type=int,
+                           default=16, help="Patch Size of Video Frame for ViT")
+
+    argparser.add_argument("--checkpoint", type=str)
+
+    argparser.add_argument("--threshold", type=float,
+                           default=0.4, help="mask threshold")
+
+    argparser.add_argument("--save", default=False, action="store_true")
 
     args = argparser.parse_args()
 
