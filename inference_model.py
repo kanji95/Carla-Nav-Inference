@@ -827,9 +827,6 @@ class CameraManager(object):
                 mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
                 mask_np = mask_np.reshape(mask_np.shape[0], mask_np.shape[1])
                 print(mask_np.shape, mask_np.max(), mask_np.min())
-                pprint(mask_np)
-                mask_np = cv2.resize(
-                    (mask_np*255).astype(np.uint8), (1280, 720))
 
                 region = best_pixel(mask_np, threshold)
                 pixel_to_world(image, weak_dc, weak_agent,
