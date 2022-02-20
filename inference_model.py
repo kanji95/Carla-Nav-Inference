@@ -12,6 +12,8 @@
 
 from __future__ import print_function
 import shutil
+
+from cv2 import threshold
 from agents.navigation.basic_agent import BasicAgent  # pylint: disable=import-error
 from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
 from carla import ColorConverter as cc
@@ -49,6 +51,7 @@ from dataloader.word_utils import Corpus
 
 
 import cv2
+from skimage import measure
 import queue
 import matplotlib.pyplot as plt
 from PIL import Image, ImageFile
@@ -763,6 +766,19 @@ class CameraManager(object):
         global agent
         global depth_camera
         global target_number
+        global frame_count
+        global weak_dc
+        global weak_agent
+        global K
+        global destination
+
+        global network
+        global corpus
+        global img_transform
+        global phrase
+        global phrase_mask
+        global frame_mask
+        global threshold
 
         self = weak_self()
         if not self:
@@ -788,13 +804,11 @@ class CameraManager(object):
             array = array[:, :, :3]
             array = array[:, :, ::-1]
             self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+
         if self.recording and command_given and saving[0]:
             os.makedirs(f'_out/{episode_number}', exist_ok=True)
             os.makedirs(f'_out/{episode_number}/images', exist_ok=True)
             os.makedirs(f'_out/{episode_number}/inverse_matrix', exist_ok=True)
-
-            # np.save(f'_out/{episode_number}/inverse_matrix/{image.frame:08d}.npy',
-            #         np.array(self.sensor.get_transform().get_inverse_matrix()))
 
             np.save(f'_out/{episode_number}/inverse_matrix/{image.frame:08d}.npy',
                     np.array(image.transform.get_inverse_matrix()))
@@ -804,7 +818,19 @@ class CameraManager(object):
                 img, (image.height, image.width, 4))  # RGBA format
             img = img[:, :, :]  # BGR
 
-            # im = Image.fromarray(img)
+            if frame_count % 20 == 0:
+                im = Image.fromarray(img)
+
+                frame = img_transform(image).cuda(
+                    non_blocking=True).unsqueeze(0)
+                mask = network(frame, phrase, frame_mask, phrase_mask)
+                mask_np = mask.detach().cpu().numpy()
+                mask_np = cv2.resize(mask_np, (1920, 1080))
+
+                region = best_pixel(mask_np, threshold)
+                pixel_to_world(image, weak_dc, weak_agent,
+                               region, K, destination)
+
             # im.save(f'_out/{episode_number}/images/{image.frame:08d}.png')
             cv2.imwrite(
                 f'_out/{episode_number}/images/{image.frame:08d}.png', img)
@@ -816,6 +842,7 @@ class CameraManager(object):
             with open(f'_out/{episode_number}/target_positions.txt', 'a+') as f:
                 f.write(
                     f'{agent.target_destination.x},{agent.target_destination.y},{agent.target_destination.z},{target_number}\n')
+            frame_count += 1
 
 
 def get_actor_blueprints(world, filter, generation):
@@ -842,6 +869,22 @@ def get_actor_blueprints(world, filter, generation):
     except:
         print("   Warning! Actor Generation is not valid. No actor will be spawned.")
         return []
+
+
+def best_pixel(segmentation_map, threshold):
+    segmentation_map[segmentation_map < threshold] = 0
+    labeler = segmentation_map.copy()
+    labeler[labeler >= threshold] = 1
+    labels, num_labels = measure.label(labeler, return_num=True)
+    count = list()
+    for l in range(num_labels):
+        count.append([l+1, np.sum(segmentation_map[labels == l+1])])
+    count = np.array(count)
+    largest_label = count[0, np.argmax(count[:, 1])]
+    segmentation_map[labels != largest_label] = 0
+    pos = (np.argmax(
+        segmentation_map@np.arange(segmentation_map.shape[1])), np.argmax(np.arange(segmentation_map.shape[0])@segmentation_map))
+    return pos
 
 
 def world_to_pixel(K, rgb_matrix, destination,  curr_position):
@@ -986,6 +1029,19 @@ def game_loop(args):
     global agent
     global depth_camera
     global target_number
+    global frame_count
+    global weak_dc
+    global weak_agent
+    global K
+    global destination
+
+    global network
+    global corpus
+    global img_transform
+    global phrase
+    global phrase_mask
+    global frame_mask
+    global threshold
 
     pygame.init()
     pygame.font.init()
@@ -1243,6 +1299,10 @@ def game_loop(args):
         checkpoint_path = args.checkpoint
 
         corpus = Corpus(glove_path)
+        frame_mask = torch.ones(
+            1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
+
+        threshold = args.threshold
 
         return_layers = {"layer2": "layer2",
                          "layer3": "layer3", "layer4": "layer4"}
@@ -1326,7 +1386,11 @@ def game_loop(args):
         else:
             episode_number = max([int(x) for x in os.listdir(temp_dir)])
         target_number = 0
+        frame_count = 0
         checked = False
+
+        weak_dc = weakref.ref(depth_camera)
+        weak_agent = weakref.ref(agent)
 
         while True:
             clock.tick()
@@ -1353,15 +1417,23 @@ def game_loop(args):
                     if saving[1]:
                         saving[1] = False
                         target_number = 0
+                        frame_count = 0
                         episode_number += 1
                         os.makedirs(f'_out/{episode_number}', exist_ok=True)
                         command = input('Enter Command: ')
-                        command_given = True
                         # command = 'a'
                         with open(f'_out/{episode_number}/command.txt', 'w') as f:
                             f.write(command)
                         np.save(
                             f'_out/{episode_number}/camera_intrinsic.npy', K)
+                        command = re.sub(r"[^\w\s]", "", command)
+
+                        phrase, phrase_mask = corpus.tokenize(command)
+                        phrase = phrase.unsqueeze(0)
+                        phrase_mask = phrase_mask.unsqueeze(0)
+
+                        command_given = True
+
                     # episode_number = -episode_number
 
                 # screen_pos = pygame.mouse.get_pos()
@@ -1564,6 +1636,10 @@ if __name__ == '__main__':
     global agent
     global depth_camera
     global target_number
+    global frame_count
+    global network
+    global weak_dc
+    global weak_agent
 
     command_given = False
     saving = [True, True, False]
