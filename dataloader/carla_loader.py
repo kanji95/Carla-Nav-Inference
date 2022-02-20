@@ -31,7 +31,7 @@ def world_to_pixel(K, rgb_matrix, destination,  curr_position):
     cam_coords = np.array([cam_coords[1], cam_coords[2]*-1, cam_coords[0]])
 
     # cam_coords = cam_coords[:, cam_coords[2, :] > 0]
-    cam_coords[2] = abs(cam_coords[2])
+    # cam_coords[2] = abs(cam_coords[2])
     points_2d = np.dot(K, cam_coords)
 
     points_2d = np.array([
@@ -42,6 +42,10 @@ def world_to_pixel(K, rgb_matrix, destination,  curr_position):
     points_2d = points_2d.reshape(3, -1)
     points_2d = np.round(points_2d, decimals=2)
     return points_2d
+
+
+def get_curve_length(points):
+    return np.sum([np.linalg.norm(points[i + 1] - points[i])  for i in range(len(points) - 1)])
 
 
 class CarlaDataset(Dataset):
@@ -181,7 +185,7 @@ class CarlaFullDataset(Dataset):
         img_transform=None,
         mask_transform=None,
         dataset_len=10000,
-        skip=10,
+        skip=20,
         sequence_len=16,
         mode="image",
         image_dim=224, 
@@ -253,7 +257,7 @@ class CarlaFullDataset(Dataset):
         
         num_files = len(image_files)
         
-        sample_idx = np.random.choice(range(num_files - self.skip - 1))
+        sample_idx = np.random.choice(range(num_files - self.skip))
 
         img_path = image_files[sample_idx]
         mask_path = mask_files[sample_idx]
@@ -271,11 +275,11 @@ class CarlaFullDataset(Dataset):
         
         rgb_matrix = np.load(matrix_files[sample_idx])
         
-        pixel_coordinates = []
+        pixel_coordinates = [np.array([0, 0])]
         position_0 = vehicle_positions[sample_idx]
         position_0 = np.array(position_0).reshape(-1, 1)
-        # import pdb; pdb.set_trace()
-        for t in range(T):
+
+        for t in range(num_files - sample_idx - 1):
             position_t = vehicle_positions[sample_idx + t]
             position_t = np.array(position_t).reshape(-1, 1)
 
@@ -283,29 +287,33 @@ class CarlaFullDataset(Dataset):
             # using the current camera transformation matrix
             pixel_t_2d = world_to_pixel(K, rgb_matrix, position_t, position_0)
 
-            # print(pixel_t_2d.shape, pixel_t_2d)
             if pixel_t_2d.shape[-1] == 0:
                 continue
-                # import pdb; pdb.set_trace()
-                # print("Check")
-            # print(pixel_t_2d)
-            # Rescale the coordinates to the new image resolution
+
             pixel_t_2d = np.array(
                 [
-                    int(pixel_t_2d[0] * self.mask_dim / orig_image.shape[0]),
-                    int(pixel_t_2d[1] * self.mask_dim / orig_image.shape[1]),
+                    int(pixel_t_2d[0]),
+                    int(pixel_t_2d[1]),
                 ]
             )
-            
-            pixel_coordinates.append(pixel_t_2d)
-        
-        pixel_coordinates = np.vstack(pixel_coordinates)[:, None]
-        
-        traj_mask = np.zeros((self.mask_dim, self.mask_dim))
-        traj_mask = cv2.polylines(traj_mask, [pixel_coordinates], isClosed=False, color=(1), thickness=5)
-        traj_mask = transforms.ToTensor()(traj_mask)
+            diff = np.linalg.norm(pixel_t_2d - pixel_coordinates[-1])
+            # print(t, diff)
 
-        return img, orig_image, mask, traj_mask
+            if diff > 20:
+                pixel_coordinates.append(pixel_t_2d)
+
+            if len(pixel_coordinates) > T:
+                break
+        
+        pixel_coordinates = np.vstack(pixel_coordinates[1:])[:, None]
+        
+        traj_mask = np.zeros((orig_image.shape[0], orig_image.shape[1]))
+        traj_mask = cv2.polylines(traj_mask, [pixel_coordinates], isClosed=False, color=(255), thickness=25)
+        traj_mask = Image.fromarray(traj_mask)
+        traj_mask = self.mask_transform(traj_mask)
+        traj_mask[traj_mask > 0] = 1
+
+        return img, orig_image, mask, traj_mask, sample_idx
 
     def __getitem__(self, idx):
         output = {}
@@ -327,12 +335,13 @@ class CarlaFullDataset(Dataset):
                 position = np.array(line.split(","), dtype=np.float32)
                 vehicle_positions.append(position)
                 
-        print(len(image_files), len(mask_files), len(matrix_files), len(vehicle_positions), episode_dir)
-        assert len(image_files) == len(mask_files) == len(matrix_files) == len(vehicle_positions)
+        # print(len(image_files), len(mask_files), len(matrix_files), len(vehicle_positions), episode_dir)
+        # assert len(image_files) == len(mask_files) == len(matrix_files) == len(vehicle_positions)
             
         traj_mask = None
+        sample_idx = None
         if self.mode == "image":
-            frames, orig_frames, frame_masks, traj_mask = self.get_image_data(
+            frames, orig_frames, frame_masks, traj_mask, sample_idx = self.get_image_data(
                 K, image_files, mask_files, matrix_files, vehicle_positions
             )
         elif self.mode == "video":
@@ -346,14 +355,12 @@ class CarlaFullDataset(Dataset):
         output["frame"] = frames
         output["gt_frame"] = frame_masks
         output["gt_traj_mask"] = traj_mask
+        output["episode"] = episode_dir.split("/")[-1]
+        output["sample_idx"] = sample_idx
 
         command = open(command_path, "r").read()
         command = re.sub(r"[^\w\s]", "", command)
         output["orig_text"] = command
-
-        # output["vehicle_position"] = vehicle_positions[sample_idx]
-        # output["matrix"] = np.load(matrix_files[sample_idx])
-        # output["next_vehicle_position"] = vehicle_positions[sample_idx + 1]
 
         tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
         output["text"] = tokens
