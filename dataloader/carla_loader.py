@@ -30,7 +30,8 @@ def world_to_pixel(K, rgb_matrix, destination,  curr_position):
     # cam_coords = rgb_matrix @ point_3d[:, None]
     cam_coords = np.array([cam_coords[1], cam_coords[2]*-1, cam_coords[0]])
 
-    cam_coords = cam_coords[:, cam_coords[2, :] > 0]
+    # cam_coords = cam_coords[:, cam_coords[2, :] > 0]
+    cam_coords[2] = abs(cam_coords[2])
     points_2d = np.dot(K, cam_coords)
 
     points_2d = np.array([
@@ -273,6 +274,7 @@ class CarlaFullDataset(Dataset):
         pixel_coordinates = []
         position_0 = vehicle_positions[sample_idx]
         position_0 = np.array(position_0).reshape(-1, 1)
+        # import pdb; pdb.set_trace()
         for t in range(T):
             position_t = vehicle_positions[sample_idx + t]
             position_t = np.array(position_t).reshape(-1, 1)
@@ -281,11 +283,17 @@ class CarlaFullDataset(Dataset):
             # using the current camera transformation matrix
             pixel_t_2d = world_to_pixel(K, rgb_matrix, position_t, position_0)
 
+            # print(pixel_t_2d.shape, pixel_t_2d)
+            if pixel_t_2d.shape[-1] == 0:
+                continue
+                # import pdb; pdb.set_trace()
+                # print("Check")
+            # print(pixel_t_2d)
             # Rescale the coordinates to the new image resolution
             pixel_t_2d = np.array(
                 [
-                    int(pixel_t_2d[0] * img.size[1] / orig_image.shape[0]),
-                    int(pixel_t_2d[1] * img.size[0] / orig_image.shape[1]),
+                    int(pixel_t_2d[0] * self.mask_dim / orig_image.shape[0]),
+                    int(pixel_t_2d[1] * self.mask_dim / orig_image.shape[1]),
                 ]
             )
             
@@ -309,6 +317,9 @@ class CarlaFullDataset(Dataset):
         matrix_files = sorted(glob(episode_dir + f"/inverse_matrix/*.npy"))
         position_file = os.path.join(episode_dir, "vehicle_positions.txt")
         command_path = os.path.join(episode_dir, "command.txt")
+        intrinsic_path = os.path.join(episode_dir, "camera_intrinsic.npy")
+
+        K = np.load(intrinsic_path)
 
         vehicle_positions = []
         with open(position_file, "r") as fhand:
@@ -316,11 +327,13 @@ class CarlaFullDataset(Dataset):
                 position = np.array(line.split(","), dtype=np.float32)
                 vehicle_positions.append(position)
                 
+        print(len(image_files), len(mask_files), len(matrix_files), len(vehicle_positions), episode_dir)
         assert len(image_files) == len(mask_files) == len(matrix_files) == len(vehicle_positions)
-
+            
+        traj_mask = None
         if self.mode == "image":
             frames, orig_frames, frame_masks, traj_mask = self.get_image_data(
-                image_files, mask_files, matrix_files, vehicle_positions
+                K, image_files, mask_files, matrix_files, vehicle_positions
             )
         elif self.mode == "video":
             frames, orig_frames, frame_masks = self.get_video_data(

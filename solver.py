@@ -285,7 +285,7 @@ class Solver(object):
 
             total_loss += float(loss.item())
 
-            if step % 500 == 0:
+            if step % 50 == 0:
                 if self.mode == "image":
                     log_frame_predicitons(
                         batch["orig_frame"],

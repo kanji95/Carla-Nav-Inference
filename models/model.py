@@ -58,6 +58,7 @@ class SegmentationBaseline(nn.Module):
 
         # import pdb; pdb.set_trace()
         # print(vision_feat.shape, text_feat.shape)
+
         cross_attn = torch.bmm(vision_feat, text_feat.transpose(1, 2).contiguous())  # B x N x L
         cross_attn = cross_attn.softmax(dim=-1)
         attn_feat = cross_attn @ text_feat  # B x N x C
