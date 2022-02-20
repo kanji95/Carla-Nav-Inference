@@ -818,14 +818,18 @@ class CameraManager(object):
                 img, (image.height, image.width, 4))  # RGBA format
             img = img[:, :, :]  # BGR
 
-            if frame_count % 20 == 0:
-                im = Image.fromarray(img)
+            if frame_count % 20 == 0 and target_number < 5:
+                im = Image.fromarray(img[:, :, :3])
 
-                frame = img_transform(image).cuda(
+                frame = img_transform(im).cuda(
                     non_blocking=True).unsqueeze(0)
                 mask = network(frame, phrase, frame_mask, phrase_mask)
-                mask_np = mask.detach().cpu().numpy()
-                mask_np = cv2.resize(mask_np, (1920, 1080))
+                mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
+                mask_np = mask_np.reshape(mask_np.shape[0], mask_np.shape[1])
+                print(mask_np.shape, mask_np.max(), mask_np.min())
+                pprint(mask_np)
+                mask_np = cv2.resize(
+                    (mask_np*255).astype(np.uint8), (1280, 720))
 
                 region = best_pixel(mask_np, threshold)
                 pixel_to_world(image, weak_dc, weak_agent,
@@ -884,7 +888,7 @@ def best_pixel(segmentation_map, threshold):
     segmentation_map[labels != largest_label] = 0
     pos = (np.argmax(
         segmentation_map@np.arange(segmentation_map.shape[1])), np.argmax(np.arange(segmentation_map.shape[0])@segmentation_map))
-    return pos
+    return (pos[1], pos[0])
 
 
 def world_to_pixel(K, rgb_matrix, destination,  curr_position):
@@ -1294,7 +1298,7 @@ def game_loop(args):
 
         experiment = wandb.init(project="Language Navigation", dir="/tmp")
 
-        val_path = os.path.join(args.data_root, 'val/')
+        # val_path = os.path.join(args.data_root, 'val/')
         glove_path = args.glove_path
         checkpoint_path = args.checkpoint
 
@@ -1349,8 +1353,8 @@ def game_loop(args):
             )
         wandb.watch(network, log="all")
 
+        network = nn.DataParallel(network)
         if num_gpu > 1:
-            network = nn.DataParallel(network)
             print("Using DataParallel mode!")
         network.to(device)
 
@@ -1610,6 +1614,57 @@ def main():
         help='Set seed for repeating executions (default: None)',
         default=None,
         type=int)
+
+    argparser.add_argument(
+        "--glove_path",
+        default="/ssd_scratch/cvit/kanishk/glove",
+        type=str,
+        help="dataset name",
+    )
+
+    argparser.add_argument(
+        "--model",
+        default='baseline',
+        choices=[
+            'baseline'
+        ],
+        type=str,
+    )
+
+    argparser.add_argument(
+        "--img_backbone",
+        default="vit_tiny_patch16_224",
+        choices=[
+            "vit_tiny_patch16_224",
+            "vit_small_patch16_224",
+            "vit_tiny_patch16_384",
+            "vit_small_patch16_384",
+            "dino_resnet50",
+            "timesformer",
+            "deeplabv3_resnet50",
+            "deeplabv3_resnet101",
+            "deeplabv3_mobilenet_v3_large"
+        ],
+        type=str,
+    )
+
+    argparser.add_argument("--image_dim", type=int,
+                           default=448, help="Image Dimension")
+    argparser.add_argument("--mask_dim", type=int,
+                           default=448, help="Mask Dimension")
+    argparser.add_argument("--hidden_dim", type=int,
+                           default=256, help="Hidden Dimension")
+    argparser.add_argument("--num_frames", type=int,
+                           default=16, help="Frames of Video")
+    argparser.add_argument("--patch_size", type=int,
+                           default=16, help="Patch Size of Video Frame for ViT")
+
+    argparser.add_argument("--checkpoint", type=str)
+
+    argparser.add_argument("--threshold", type=float,
+                           default=0.4, help="mask threshold")
+
+    argparser.add_argument("--save", default=False, action="store_true")
 
     args = argparser.parse_args()
 

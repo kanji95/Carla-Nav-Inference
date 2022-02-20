@@ -8,3 +8,4 @@ models/__pycache__/
 wandb/
 saved_model/
 test.py
+_out/
