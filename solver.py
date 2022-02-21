@@ -279,7 +279,8 @@ class Solver(object):
 
             mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
 
-            loss = self.criterion(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            # loss = self.criterion(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            loss = self.combo_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             loss.backward()
 
             if iterId % 1000 == 0 and self.grad_check:
@@ -410,7 +411,8 @@ class Solver(object):
 
             mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
 
-            loss = self.criterion(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            # loss = self.criterion(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            loss = self.combo_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
 
             end_time = time()
             elapsed_time = end_time - start_time

@@ -145,6 +145,10 @@ if __name__ == "__main__":
         "/ssd_scratch/cvit/kanishk/glove",
         "train",
     )
+    ignore_episodes = []
     for episode in dataset.episodes:
-        dataset.get_data(episode)
+        ret = dataset.get_data(episode)
+        if ret.isnumeric():
+            ignore_episodes.append(ret)
     print()
+    print(ignore_episodes)
