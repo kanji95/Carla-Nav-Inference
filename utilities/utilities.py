@@ -91,11 +91,11 @@ def grad_check(named_parameters):
     plt.close()
 
 @torch.no_grad()
-def log_frame_predicitons(front_cam_image, lang_command, pred_mask, gt_mask, gt_traj_mask, episode_num, sample_idx, title="train", k=4
+def log_frame_predicitons(front_cam_image, lang_command, pred_mask, traj_mask, gt_mask, gt_traj_mask, episode_num, sample_idx, title="train", k=4
 ):
     indices = np.random.choice(range(pred_mask.shape[0]), size=k, replace=False)
 
-    figure, axes = plt.subplots(nrows=k, ncols=4)
+    figure, axes = plt.subplots(nrows=k, ncols=5)
     for i, index in enumerate(indices):
         index = indices[i]
         
@@ -116,11 +116,17 @@ def log_frame_predicitons(front_cam_image, lang_command, pred_mask, gt_mask, gt_
         axes[i, 2].set_title("GT Mask", fontsize=5)
         axes[i, 2].set_axis_off()
 
+        traj_pred = rearrange(traj_mask[index], "c h w -> h w c")
+        traj_pred = np.uint8(traj_pred * 255)
+        axes[i, 3].imshow(traj_pred)
+        axes[i, 3].set_title(f"Predicted Trajectory", fontsize=5)
+        axes[i, 3].set_axis_off()
+
         traj_mask_gt = rearrange(gt_traj_mask[index], "c h w -> h w c")
         traj_mask_gt = np.uint8(traj_mask_gt * 255)
-        axes[i, 3].imshow(traj_mask_gt)
-        axes[i, 3].set_title("GT Traj Mask", fontsize=5)
-        axes[i, 3].set_axis_off()
+        axes[i, 4].imshow(traj_mask_gt)
+        axes[i, 4].set_title("GT Traj Mask", fontsize=5)
+        axes[i, 4].set_axis_off()
 
     figure.tight_layout()
     wandb.log({f"{title}_segmentation": wandb.Image(figure)}, commit=True)

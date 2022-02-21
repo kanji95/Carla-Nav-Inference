@@ -60,10 +60,11 @@ class Solver(object):
         if "vit_" in self.img_backbone:
             img_backbone = timm.create_model(self.img_backbone, pretrained=True)
             visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
-            self.network = SegmentationBaseline(
+            self.network = JointSegmentationBaseline(
                 visual_encoder,
                 hidden_dim=self.hidden_dim,
                 mask_dim=self.mask_dim,
+                traj_dim=self.traj_dim,
                 backbone=self.img_backbone,
             )
         elif "dino_resnet50" in self.img_backbone:
