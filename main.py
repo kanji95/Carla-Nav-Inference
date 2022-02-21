@@ -140,6 +140,8 @@ if __name__ == "__main__":
                         default=224, help="Image Dimension")
     parser.add_argument("--mask_dim", type=int,
                         default=112, help="Mask Dimension")
+    parser.add_argument("--traj_dim", type=int,
+                        default=56, help="Trajectory Mask Dimension")
     parser.add_argument("--hidden_dim", type=int,
                         default=256, help="Hidden Dimension")
     parser.add_argument("--num_frames", type=int,

@@ -195,24 +195,20 @@ class CarlaFullDataset(Dataset):
         split="train",
         img_transform=None,
         mask_transform=None,
+        traj_transform=None,
         dataset_len=10000,
         skip=5,
         sequence_len=16,
         mode="image",
         image_dim=224, 
-        mask_dim=112
+        mask_dim=112,
+        traj_dim=56,
     ):
         self.data_dir = os.path.join(data_root, split)
 
         self.img_transform = img_transform
         self.mask_transform = mask_transform
-        
-        self.traj_transform = transforms.Compose(
-            [
-                transforms.Resize((56, 56)),
-                transforms.ToTensor(),
-            ]
-        )
+        self.traj_transform = traj_transform
 
         self.dataset_len = dataset_len
         self.skip = skip
@@ -301,9 +297,8 @@ class CarlaFullDataset(Dataset):
             sample_idx += 1
             sample_idx %= num_files - T
             if prev_idx == sample_idx:
-                print(image_files)
+                print("remove ", image_files)
                 break
-                # print(matrix_files[sample_idx])
 
         # train -> 109 113 114 121 128 131 132 140 146 15 152 155 156 159 161 166 171 172 177 179 19 195 206 214 215 216 222 230 27 30 31 34 35 49 58 59 61 68 7 72 73 74 81 82 83 86 88 91 92 96 98 54
         # val -> 1 11 14 18 2 25 28 32 33 34 37 39 44 46 5 50 7 
