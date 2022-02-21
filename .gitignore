@@ -9,3 +9,5 @@ wandb/
 saved_model/
 test.py
 _out/
+
+*.ipynb_checkpoints

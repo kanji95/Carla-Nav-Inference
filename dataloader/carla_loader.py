@@ -16,6 +16,11 @@ from torch.utils.data import Dataset
 
 from .word_utils import Corpus
 
+IGNORE = {
+    "train": ['109', '140', '166', '172', '177', '195', '214', '216', '222', '230', '27', '30', '54', '82'],
+    "val": ['1', '44']
+}
+
 def world_to_pixel(K, rgb_matrix, destination,  curr_position):
     point_3d = np.ones((4, destination.shape[1]))
     point_3d[0] = destination[0]
@@ -59,7 +64,7 @@ class CarlaDataset(Dataset):
         img_transform=None,
         mask_transform=None,
         dataset_len=10000,
-        skip=10,
+        skip=5,
         sequence_len=16,
         mode="image",
         image_dim=224, 
@@ -82,6 +87,12 @@ class CarlaDataset(Dataset):
             self.dataset_len = self.dataset_len//self.sequence_len
 
         self.episodes = sorted(os.listdir(self.data_dir))
+        print("Number of episodes before removal: ", len(self.episodes))
+        
+        ## Remove Episodes
+        for episode in IGNORE[split]:
+            self.episodes.remove(episode)
+        print("Number of episodes after removal: ", len(self.episodes))
 
         self.corpus = Corpus(glove_path)
 
@@ -185,7 +196,7 @@ class CarlaFullDataset(Dataset):
         img_transform=None,
         mask_transform=None,
         dataset_len=10000,
-        skip=20,
+        skip=5,
         sequence_len=16,
         mode="image",
         image_dim=224, 
@@ -195,6 +206,13 @@ class CarlaFullDataset(Dataset):
 
         self.img_transform = img_transform
         self.mask_transform = mask_transform
+        
+        self.traj_transform = transforms.Compose(
+            [
+                transforms.Resize((56, 56)),
+                transforms.ToTensor(),
+            ]
+        )
 
         self.dataset_len = dataset_len
         self.skip = skip
@@ -208,6 +226,12 @@ class CarlaFullDataset(Dataset):
             self.dataset_len = self.dataset_len//self.sequence_len
 
         self.episodes = sorted(os.listdir(self.data_dir))
+        print("Number of episodes before removal: ", len(self.episodes))
+        
+        ## Remove Episodes
+        for episode in IGNORE[split]:
+            self.episodes.remove(episode)
+        print("Number of episodes after removal: ", len(self.episodes))
 
         self.corpus = Corpus(glove_path)
 
@@ -271,18 +295,15 @@ class CarlaFullDataset(Dataset):
             # using the current camera transformation matrix
             pixel_t_2d = world_to_pixel(K, rgb_matrix, position_t, position_0)
 
-            if (
-                pixel_t_2d[0] > 0
-                and pixel_t_2d[0] < 1280
-                and pixel_t_2d[1] > 0
-                and pixel_t_2d[1] < 720
-            ):
+            if (0 < pixel_t_2d[0] < 1280) and (0 < pixel_t_2d[1] < 720):
                 break
 
             sample_idx += 1
-            sample_idx %= num_files - self.skip - T
+            sample_idx %= num_files - T
             if prev_idx == sample_idx:
-                print(matrix_files[sample_idx])
+                print(image_files)
+                break
+                # print(matrix_files[sample_idx])
 
         # train -> 109 113 114 121 128 131 132 140 146 15 152 155 156 159 161 166 171 172 177 179 19 195 206 214 215 216 222 230 27 30 31 34 35 49 58 59 61 68 7 72 73 74 81 82 83 86 88 91 92 96 98 54
         # val -> 1 11 14 18 2 25 28 32 33 34 37 39 44 46 5 50 7 
@@ -338,7 +359,7 @@ class CarlaFullDataset(Dataset):
         traj_mask = np.zeros((orig_image.shape[0], orig_image.shape[1]))
         traj_mask = cv2.polylines(traj_mask, [pixel_coordinates], isClosed=False, color=(255), thickness=25)
         traj_mask = Image.fromarray(traj_mask)
-        traj_mask = self.mask_transform(traj_mask)
+        traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
 
         return img, orig_image, mask, traj_mask, sample_idx

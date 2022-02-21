@@ -46,7 +46,7 @@ class CarlaFullDataset(Dataset):
         img_transform=None,
         mask_transform=None,
         dataset_len=10000,
-        skip=20,
+        skip=5,
         sequence_len=16,
         mode="image",
         image_dim=224,
@@ -69,6 +69,7 @@ class CarlaFullDataset(Dataset):
             self.dataset_len = self.dataset_len // self.sequence_len
 
         self.episodes = sorted(os.listdir(self.data_dir))
+        # print(self.episodes)
 
         self.corpus = Corpus(glove_path)
 
@@ -77,6 +78,7 @@ class CarlaFullDataset(Dataset):
     ):
 
         num_files = len(image_files)
+        # print("Number of files: ", num_files)
         sample_idx = np.random.choice(range(num_files - self.skip - T))
 
         prev_idx = sample_idx
@@ -90,17 +92,17 @@ class CarlaFullDataset(Dataset):
             # Convert the current position and next position to pixel coordinates
             # using the current camera transformation matrix
             pixel_t_2d = world_to_pixel(K, rgb_matrix, position_t, position_0)
-
-            if (
-                pixel_t_2d[0] > 0
-                and pixel_t_2d[0] < 1280
-                and pixel_t_2d[1] > 0
-                and pixel_t_2d[1] < 720
-            ):
+            # print("====================")
+            # print(pixel_t_2d)
+            
+            if (0 < pixel_t_2d[0] < 1280) and (0 < pixel_t_2d[1] < 720):
                 break
-
+            
+            # print("before sample idx: ", sample_idx)
             sample_idx += 1
-            sample_idx %= num_files - self.skip - T
+            sample_idx %= num_files - T
+            # print# ("after sample idx: ", sample_idx)
+            # print("====================")
             if prev_idx == sample_idx:
                 return False
 
@@ -133,13 +135,15 @@ class CarlaFullDataset(Dataset):
             is False
         ):
             print(episode, end=" ")
+            return episode
+        return ''
 
 
 if __name__ == "__main__":
     dataset = CarlaFullDataset(
-        "/scratch/ashwin_mittal/dataset/carla_data",
-        "/scratch/ashwin_mittal/glove",
-        "val",
+        "/ssd_scratch/cvit/kanishk/carla_data",
+        "/ssd_scratch/cvit/kanishk/glove",
+        "train",
     )
     for episode in dataset.episodes:
         dataset.get_data(episode)
