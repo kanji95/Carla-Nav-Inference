@@ -259,9 +259,34 @@ class CarlaFullDataset(Dataset):
         
         sample_idx = np.random.choice(range(num_files - self.skip - T))
         
-        while np.allclose(np.array(vehicle_positions[sample_idx]), np.array(vehicle_positions[sample_idx + 1])):
-            sample_idx = np.random.choice(range(num_files - self.skip - T))
+        prev_idx = sample_idx
+        while True:
+            rgb_matrix = np.load(matrix_files[sample_idx])
+            position_0 = vehicle_positions[sample_idx]
+            position_0 = np.array(position_0).reshape(-1, 1)
+            position_t = vehicle_positions[sample_idx + T // 2]
+            position_t = np.array(position_t).reshape(-1, 1)
 
+            # Convert the current position and next position to pixel coordinates
+            # using the current camera transformation matrix
+            pixel_t_2d = world_to_pixel(K, rgb_matrix, position_t, position_0)
+
+            if (
+                pixel_t_2d[0] > 0
+                and pixel_t_2d[0] < 1280
+                and pixel_t_2d[1] > 0
+                and pixel_t_2d[1] < 720
+            ):
+                break
+
+            sample_idx += 1
+            sample_idx %= num_files - self.skip - T
+            if prev_idx == sample_idx:
+                print(matrix_files[sample_idx])
+
+        # train -> 109 113 114 121 128 131 132 140 146 15 152 155 156 159 161 166 171 172 177 179 19 195 206 214 215 216 222 230 27 30 31 34 35 49 58 59 61 68 7 72 73 74 81 82 83 86 88 91 92 96 98 54
+        # val -> 1 11 14 18 2 25 28 32 33 34 37 39 44 46 5 50 7 
+        
         img_path = image_files[sample_idx]
         mask_path = mask_files[sample_idx]
         img = Image.open(img_path).convert("RGB")
