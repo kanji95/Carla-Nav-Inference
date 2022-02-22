@@ -38,10 +38,11 @@ def main(args):
     if "vit_" in args.img_backbone:
         img_backbone = timm.create_model(args.img_backbone, pretrained=True)
         visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
-        network = SegmentationBaseline(
+        network = JointSegmentationBaseline(
             visual_encoder,
             hidden_dim=args.hidden_dim,
             mask_dim=args.mask_dim,
+            traj_dim=args.traj_dim,
             backbone=args.img_backbone,
         )
     elif "dino_resnet50" in args.img_backbone:
@@ -66,10 +67,11 @@ def main(args):
         visual_encoder = nn.Sequential(
             *list(img_backbone._modules["backbone"].children())
         )
-        network = SegmentationBaseline(
+        network = JointSegmentationBaseline(
             visual_encoder,
             hidden_dim=args.hidden_dim,
             mask_dim=args.mask_dim,
+            traj_dim=args.traj_dim,
             backbone=args.img_backbone,
         )
     wandb.watch(network, log="all")
@@ -100,6 +102,13 @@ def main(args):
         ]
     )
 
+    traj_transform = transforms.Compose(
+        [
+            transforms.Resize((args.traj_dim, args.traj_dim)),
+            transforms.ToTensor(),
+        ]
+    )
+
     frame_mask = torch.ones(
         1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
 
@@ -122,6 +131,7 @@ def main(args):
 
         frame_video = []
         mask_video = []
+        traj_video = []
         gt_mask_video = []
 
         for image_file, mask_file in zip(image_files, mask_files):
@@ -133,20 +143,26 @@ def main(args):
             gt_mask = mask_transform(gt_mask).cuda(
                 non_blocking=True).unsqueeze(0)
 
-            mask = network(frame, phrase, frame_mask, phrase_mask)
+            mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
 
             frame_video.append(frame.detach().cpu().numpy())
             mask_video.append(mask.detach().cpu().numpy())
+            traj_video.append(traj_mask.detach().cpu().numpy())
             gt_mask_video.append(gt_mask.detach().cpu().numpy())
 
         frame_video = np.concatenate(frame_video, axis=0)
         mask_video = np.concatenate(mask_video, axis=0)
+        traj_video = np.concatenate(traj_video, axis=0)
         gt_mask_video = np.concatenate(gt_mask_video, axis=0)
 
         # import pdb; pdb.set_trace()
         mask_video_overlay = np.copy(frame_video)
         mask_video_overlay[:, 0] += (mask_video[:, 0]/mask_video.max())
         mask_video_overlay = np.clip(mask_video_overlay, a_min=0., a_max=1.)
+
+        traj_video_overlay = np.copy(frame_video)
+        traj_video_overlay[:, 0] += (traj_video[:, 0]/traj_video.max())
+        traj_video_overlay = np.clip(traj_video_overlay, a_min=0., a_max=1.)
 
         gt_mask_video_overlay = np.copy(frame_video)
         gt_mask_video_overlay[:, 0] += gt_mask_video[:, 0]
@@ -155,6 +171,7 @@ def main(args):
 
         frame_video = np.uint8(frame_video * 255)
         mask_video = np.uint8(mask_video_overlay * 255)
+        traj_video = np.uint8(traj_video_overlay * 255)
         gt_mask_video = np.uint8(gt_mask_video_overlay * 255)
 
         print(episode_num, command)
@@ -163,6 +180,7 @@ def main(args):
             {
                 "video": wandb.Video(frame_video, fps=4, caption=command, format="mp4"),
                 "pred_mask": wandb.Video(mask_video, fps=4, caption=command, format="mp4"),
+                "traj_mask": wandb.Video(traj_video, fps=4, caption=command, format="mp4"),
                 "gt_mask": wandb.Video(gt_mask_video, fps=4, caption=command, format="mp4"),
             }
         )
@@ -218,6 +236,8 @@ if __name__ == "__main__":
                         default=448, help="Image Dimension")
     parser.add_argument("--mask_dim", type=int,
                         default=448, help="Mask Dimension")
+    parser.add_argument("--traj_dim", type=int,
+                        default=56, help="Trajk Dimension")
     parser.add_argument("--hidden_dim", type=int,
                         default=256, help="Hidden Dimension")
     parser.add_argument("--num_frames", type=int,

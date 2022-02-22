@@ -10,3 +10,4 @@ saved_model/
 test.py
 _out/
 *.zip
+*.ipynb_checkpoints

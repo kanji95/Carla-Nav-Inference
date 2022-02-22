@@ -5,13 +5,22 @@ from collections import Iterable
 
 import numpy as np
 import torch
+
+import cv2
 from PIL import Image
 
 from torch.autograd import Variable
 import torch.nn.functional as F
+import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
 from .word_utils import Corpus
+
+IGNORE = {
+    # "train": ['109', '140', '166', '172', '177', '195', '214', '216', '222', '230', '27', '30', '54', '82'],
+    "train": ['107', '138', '164', '170', '175', '193', '211', '213', '219', '227', '238', '248', '250', '254', '260', '270', '28', '283', '284', '285', '288', '293', '298', '305', '52', '80'], 
+    "val": ['1', '44']
+}
 
 def world_to_pixel(K, rgb_matrix, destination,  curr_position):
     point_3d = np.ones((4, destination.shape[1]))
@@ -27,7 +36,8 @@ def world_to_pixel(K, rgb_matrix, destination,  curr_position):
     # cam_coords = rgb_matrix @ point_3d[:, None]
     cam_coords = np.array([cam_coords[1], cam_coords[2]*-1, cam_coords[0]])
 
-    cam_coords = cam_coords[:, cam_coords[2, :] > 0]
+    # cam_coords = cam_coords[:, cam_coords[2, :] > 0]
+    # cam_coords[2] = abs(cam_coords[2])
     points_2d = np.dot(K, cam_coords)
 
     points_2d = np.array([
@@ -38,6 +48,10 @@ def world_to_pixel(K, rgb_matrix, destination,  curr_position):
     points_2d = points_2d.reshape(3, -1)
     points_2d = np.round(points_2d, decimals=2)
     return points_2d
+
+
+def get_curve_length(points):
+    return np.sum([np.linalg.norm(points[i + 1] - points[i])  for i in range(len(points) - 1)])
 
 
 class CarlaDataset(Dataset):
@@ -51,9 +65,11 @@ class CarlaDataset(Dataset):
         img_transform=None,
         mask_transform=None,
         dataset_len=10000,
-        skip=10,
+        skip=5,
         sequence_len=16,
         mode="image",
+        image_dim=224, 
+        mask_dim=112
     ):
         self.data_dir = os.path.join(data_root, split)
 
@@ -64,11 +80,20 @@ class CarlaDataset(Dataset):
         self.skip = skip
         self.sequence_len = sequence_len
         self.mode = mode
+        
+        self.image_dim = image_dim
+        self.mask_dim = mask_dim
 
         if self.mode == "video":
             self.dataset_len = self.dataset_len//self.sequence_len
 
         self.episodes = sorted(os.listdir(self.data_dir))
+        print("Number of episodes before removal: ", len(self.episodes))
+        
+        ## Remove Episodes
+        for episode in IGNORE[split]:
+            self.episodes.remove(episode)
+        print("Number of episodes after removal: ", len(self.episodes))
 
         self.corpus = Corpus(glove_path)
 
@@ -171,25 +196,39 @@ class CarlaFullDataset(Dataset):
         split="train",
         img_transform=None,
         mask_transform=None,
+        traj_transform=None,
         dataset_len=10000,
-        skip=10,
+        skip=5,
         sequence_len=16,
         mode="image",
+        image_dim=224, 
+        mask_dim=112,
+        traj_dim=56,
     ):
         self.data_dir = os.path.join(data_root, split)
 
         self.img_transform = img_transform
         self.mask_transform = mask_transform
+        self.traj_transform = traj_transform
 
         self.dataset_len = dataset_len
         self.skip = skip
         self.sequence_len = sequence_len
         self.mode = mode
+        
+        self.image_dim = image_dim
+        self.mask_dim = mask_dim
 
         if self.mode == "video":
             self.dataset_len = self.dataset_len//self.sequence_len
 
         self.episodes = sorted(os.listdir(self.data_dir))
+        print("Number of episodes before removal: ", len(self.episodes))
+        
+        ## Remove Episodes
+        for episode in IGNORE[split]:
+            self.episodes.remove(episode)
+        print("Number of episodes after removal: ", len(self.episodes))
 
         self.corpus = Corpus(glove_path)
 
@@ -235,12 +274,36 @@ class CarlaFullDataset(Dataset):
     # Convert the current position and next position to pixel coordinates 
     # using the current camera transformation matrix 
     # the coordinates should be rescaled (original image resolution to resized image resolution) and normalized
-    def get_image_data(self, K, image_files, mask_files, matrix_files, vehicle_positions):
+    def get_image_data(self, K, image_files, mask_files, matrix_files, vehicle_positions, T=10):
         
         num_files = len(image_files)
         
-        sample_idx = np.random.choice(range(num_files - self.skip - 1))
+        sample_idx = np.random.choice(range(num_files - self.skip - T))
+        
+        prev_idx = sample_idx
+        while True:
+            rgb_matrix = np.load(matrix_files[sample_idx])
+            position_0 = vehicle_positions[sample_idx]
+            position_0 = np.array(position_0).reshape(-1, 1)
+            position_t = vehicle_positions[sample_idx + T // 2]
+            position_t = np.array(position_t).reshape(-1, 1)
 
+            # Convert the current position and next position to pixel coordinates
+            # using the current camera transformation matrix
+            pixel_t_2d = world_to_pixel(K, rgb_matrix, position_t, position_0)
+
+            if (0 < pixel_t_2d[0] < 1280) and (0 < pixel_t_2d[1] < 720):
+                break
+
+            sample_idx += 1
+            sample_idx %= num_files - T
+            if prev_idx == sample_idx:
+                print("remove ", image_files)
+                break
+
+        # train -> 109 113 114 121 128 131 132 140 146 15 152 155 156 159 161 166 171 172 177 179 19 195 206 214 215 216 222 230 27 30 31 34 35 49 58 59 61 68 7 72 73 74 81 82 83 86 88 91 92 96 98 54
+        # val -> 1 11 14 18 2 25 28 32 33 34 37 39 44 46 5 50 7 
+        
         img_path = image_files[sample_idx]
         mask_path = mask_files[sample_idx]
         img = Image.open(img_path).convert("RGB")
@@ -254,34 +317,48 @@ class CarlaFullDataset(Dataset):
         if self.mask_transform:
             mask = self.mask_transform(mask)
             mask[mask > 0] = 1
-
-        curr_position = vehicle_positions[sample_idx]
-        next_position = vehicle_positions[sample_idx + 1]
+        
         rgb_matrix = np.load(matrix_files[sample_idx])
+        
+        pixel_coordinates = [np.array([0, 0])]
+        position_0 = vehicle_positions[sample_idx]
+        position_0 = np.array(position_0).reshape(-1, 1)
 
-        # Convert the current position and next position to pixel coordinates
-        # using the current camera transformation matrix
-        curr_position = np.array(curr_position).reshape(-1, 1)
-        next_position = np.array(next_position).reshape(-1, 1)
+        for t in range(num_files - sample_idx - 1):
+            position_t = vehicle_positions[sample_idx + t]
+            position_t = np.array(position_t).reshape(-1, 1)
 
-        curr_position_2d = world_to_pixel(K, rgb_matrix, curr_position, curr_position)
-        next_position_2d = world_to_pixel(K, rgb_matrix, next_position, curr_position)
+            # Convert the current position and next position to pixel coordinates
+            # using the current camera transformation matrix
+            pixel_t_2d = world_to_pixel(K, rgb_matrix, position_t, position_0)
 
-        # Rescale the coordinates to the original image resolution
-        curr_position_2d = np.array(
-            [
-                curr_position_2d[0] * img.size[1] / orig_image.shape[0],
-                curr_position_2d[1] * img.size[0] / orig_image.shape[1],
-            ]
-        )
-        next_position_2d = np.array(
-            [
-                next_position_2d[0] * img.size[1] / orig_image.shape[0],
-                next_position_2d[1] * img.size[0] / orig_image.shape[1],
-            ]
-        )
+            if pixel_t_2d.shape[-1] == 0:
+                continue
 
-        return img, orig_image, mask, curr_position_2d, next_position_2d
+            pixel_t_2d = np.array(
+                [
+                    int(pixel_t_2d[0]),
+                    int(pixel_t_2d[1]),
+                ]
+            )
+            diff = np.linalg.norm(pixel_t_2d - pixel_coordinates[-1])
+            # print(t, diff)
+
+            if diff > 20:
+                pixel_coordinates.append(pixel_t_2d)
+
+            if len(pixel_coordinates) > T:
+                break
+        
+        pixel_coordinates = np.vstack(pixel_coordinates[1:])[:, None]
+        
+        traj_mask = np.zeros((orig_image.shape[0], orig_image.shape[1]))
+        traj_mask = cv2.polylines(traj_mask, [pixel_coordinates], isClosed=False, color=(255), thickness=25)
+        traj_mask = Image.fromarray(traj_mask)
+        traj_mask = self.traj_transform(traj_mask)
+        traj_mask[traj_mask > 0] = 1
+
+        return img, orig_image, mask, traj_mask, sample_idx
 
     def __getitem__(self, idx):
         output = {}
@@ -293,6 +370,9 @@ class CarlaFullDataset(Dataset):
         matrix_files = sorted(glob(episode_dir + f"/inverse_matrix/*.npy"))
         position_file = os.path.join(episode_dir, "vehicle_positions.txt")
         command_path = os.path.join(episode_dir, "command.txt")
+        intrinsic_path = os.path.join(episode_dir, "camera_intrinsic.npy")
+
+        K = np.load(intrinsic_path)
 
         vehicle_positions = []
         with open(position_file, "r") as fhand:
@@ -300,11 +380,14 @@ class CarlaFullDataset(Dataset):
                 position = np.array(line.split(","), dtype=np.float32)
                 vehicle_positions.append(position)
                 
-        assert len(image_files) == len(mask_files) == len(matrix_files) == len(vehicle_positions)
-
+        # print(len(image_files), len(mask_files), len(matrix_files), len(vehicle_positions), episode_dir)
+        # assert len(image_files) == len(mask_files) == len(matrix_files) == len(vehicle_positions)
+            
+        traj_mask = None
+        sample_idx = None
         if self.mode == "image":
-            frames, orig_frames, frame_masks = self.get_image_data(
-                image_files, mask_files, matrix_files, vehicle_positions
+            frames, orig_frames, frame_masks, traj_mask, sample_idx = self.get_image_data(
+                K, image_files, mask_files, matrix_files, vehicle_positions
             )
         elif self.mode == "video":
             frames, orig_frames, frame_masks = self.get_video_data(
@@ -316,14 +399,13 @@ class CarlaFullDataset(Dataset):
         output["orig_frame"] = orig_frames
         output["frame"] = frames
         output["gt_frame"] = frame_masks
+        output["gt_traj_mask"] = traj_mask
+        output["episode"] = episode_dir.split("/")[-1]
+        output["sample_idx"] = sample_idx
 
         command = open(command_path, "r").read()
         command = re.sub(r"[^\w\s]", "", command)
         output["orig_text"] = command
-
-        # output["vehicle_position"] = vehicle_positions[sample_idx]
-        # output["matrix"] = np.load(matrix_files[sample_idx])
-        # output["next_vehicle_position"] = vehicle_positions[sample_idx + 1]
 
         tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
         output["text"] = tokens
