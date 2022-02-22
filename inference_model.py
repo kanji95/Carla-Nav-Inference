@@ -287,14 +287,47 @@ class KeyboardControl(object):
     def _is_next_episode_shortcut(key):
         global saving
         global command_given
+        global mask_video
+        global frame_video
+        global target_video
+        global target_number
+        global frame_count
+        global command
         if key == K_d:
             saving[1] = True
+            frame_video = np.concatenate(frame_video, axis=0)
+            mask_video = np.concatenate(mask_video, axis=0)
+            target_video = np.concatenate(target_video, axis=0)
+
+            # import pdb; pdb.set_trace()
+            mask_video_overlay = np.copy(frame_video)
+            mask_video_overlay[:, 0] += (mask_video[:, 0]/mask_video.max())
+            mask_video_overlay = np.clip(
+                mask_video_overlay, a_min=0., a_max=1.)
+
+            frame_video = np.uint8(frame_video * 255)
+            target_video = np.uint8(target_video * 255)
+            mask_video = np.uint8(mask_video_overlay * 255)
+            print(frame_video.shape, mask_video.shape)
+
+            wandb.log(
+                {
+                    "video": wandb.Video(frame_video, fps=1, caption=command, format="mp4"),
+                    "target video": wandb.Video(target_video, fps=1, caption=command, format="mp4"),
+                    "pred_mask": wandb.Video(mask_video, fps=1, caption=command, format="mp4"),
+                }
+            )
+            frame_video = []
+            mask_video = []
+            target_number = 0
+            frame_count = 0
 
     @staticmethod
     def _is_delete_episode_shortcut(key):
         global saving
         global command_given
         if key == K_z:
+            command_given = False
             saving[1] = True
             saving[2] = True
 
@@ -771,6 +804,9 @@ class CameraManager(object):
         global weak_agent
         global K
         global destination
+        global command
+        global world
+        global clock
 
         global network
         global corpus
@@ -779,6 +815,14 @@ class CameraManager(object):
         global phrase_mask
         global frame_mask
         global threshold
+
+        global frame_video
+        global mask_video
+        global target_video
+
+        global frame_pending
+
+        vehicle_matrix = agent._vehicle.get_transform().get_matrix()
 
         self = weak_self()
         if not self:
@@ -806,44 +850,162 @@ class CameraManager(object):
             self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
 
         if self.recording and command_given and saving[0]:
-            os.makedirs(f'_out/{episode_number}', exist_ok=True)
-            os.makedirs(f'_out/{episode_number}/images', exist_ok=True)
-            os.makedirs(f'_out/{episode_number}/inverse_matrix', exist_ok=True)
+            if 'target_destination' in agent.__dict__ and agent.target_destination is not None:
+                os.makedirs(f'_out/{episode_number}', exist_ok=True)
+                os.makedirs(f'_out/{episode_number}/images', exist_ok=True)
+                os.makedirs(
+                    f'_out/{episode_number}/inverse_matrix', exist_ok=True)
 
-            np.save(f'_out/{episode_number}/inverse_matrix/{image.frame:08d}.npy',
-                    np.array(image.transform.get_inverse_matrix()))
+                np.save(f'_out/{episode_number}/inverse_matrix/{image.frame:08d}.npy',
+                        np.array(image.transform.get_inverse_matrix()))
+                img = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+                img = np.reshape(
+                    img, (image.height, image.width, 4))  # RGBA format
+                img = img[:, :, :]  # BGR
+                # im.save(f'_out/{episode_number}/images/{image.frame:08d}.png')
+                cv2.imwrite(
+                    f'_out/{episode_number}/images/{image.frame:08d}.png', img)
+                # image.save_to_disk(
+                #     f'_out/{episode_number}/images/{image.frame:08d}')
+                with open(f'_out/{episode_number}/vehicle_positions.txt', 'a+') as f:
+                    f.write(
+                        f'{agent._vehicle.get_transform().location.x},{agent._vehicle.get_transform().location.y},{agent._vehicle.get_transform().location.z}\n')
+                with open(f'_out/{episode_number}/target_positions.txt', 'a+') as f:
+                    f.write(
+                        f'{agent.target_destination.x},{agent.target_destination.y},{agent.target_destination.z},{target_number}\n')
+            process_network(image, vehicle_matrix)
+            frame_pending = 1
 
-            img = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-            img = np.reshape(
-                img, (image.height, image.width, 4))  # RGBA format
-            img = img[:, :, :]  # BGR
 
-            if frame_count % 20 == 0 and target_number < 5:
-                im = Image.fromarray(img[:, :, :3])
+def process_network(image, vehicle_matrix):
+    global command_given
+    global episode_number
+    global saving
+    global agent
+    global depth_camera
+    global target_number
+    global frame_count
+    global weak_dc
+    global weak_agent
+    global K
+    global destination
+    global command
+    global world
+    global clock
 
-                frame = img_transform(im).cuda(
-                    non_blocking=True).unsqueeze(0)
-                mask = network(frame, phrase, frame_mask, phrase_mask)
-                mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
-                mask_np = mask_np.reshape(mask_np.shape[0], mask_np.shape[1])
-                print(mask_np.shape, mask_np.max(), mask_np.min())
+    global network
+    global corpus
+    global img_transform
+    global phrase
+    global phrase_mask
+    global frame_mask
+    global threshold
 
-                region = best_pixel(mask_np, threshold)
-                pixel_to_world(image, weak_dc, weak_agent,
-                               region, K, destination)
+    global frame_video
+    global mask_video
+    global target_video
 
-            # im.save(f'_out/{episode_number}/images/{image.frame:08d}.png')
-            cv2.imwrite(
-                f'_out/{episode_number}/images/{image.frame:08d}.png', img)
-            # image.save_to_disk(
-            #     f'_out/{episode_number}/images/{image.frame:08d}')
-            with open(f'_out/{episode_number}/vehicle_positions.txt', 'a+') as f:
-                f.write(
-                    f'{agent._vehicle.get_transform().location.x},{agent._vehicle.get_transform().location.y},{agent._vehicle.get_transform().location.z}\n')
-            with open(f'_out/{episode_number}/target_positions.txt', 'a+') as f:
-                f.write(
-                    f'{agent.target_destination.x},{agent.target_destination.y},{agent.target_destination.z},{target_number}\n')
-            frame_count += 1
+    global frame_pending
+
+    img = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+    img = np.reshape(
+        img, (image.height, image.width, 4))  # RGBA format
+    img = img[:, :, :]  # BGR
+
+    if frame_count < 20 and target_number == 0:
+        frame_video = []
+        mask_video = []
+        target_video = []
+
+    if frame_count % 20 == 0 and target_number <= 3:
+        im = Image.fromarray(img[:, :, :3][:, :, ::-1])
+
+        frame = img_transform(im).cuda(
+            non_blocking=True).unsqueeze(0)
+
+        mask = network(frame, phrase, frame_mask, phrase_mask)
+
+        mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
+        mask_np = mask_np.reshape(mask_np.shape[0], mask_np.shape[1])
+        print(mask_np.shape, mask_np.max(), mask_np.min())
+        # mask_np = cv2.resize(mask_np, (1280, 720))
+        region = best_pixel(mask_np, threshold)
+
+        if region != -1:
+
+            region = (region[0]*1280/mask_np.shape[1],
+                      region[1]*720/mask_np.shape[1])
+
+            region = (int(region[0]), int(region[1]))
+
+            pixel_to_world(image, vehicle_matrix, weak_agent,
+                           region, K, destination)
+
+            frame_video.append(frame.detach().cpu().numpy())
+            mask_video.append(mask.detach().cpu().numpy())
+
+            target_vector = np.copy(
+                frame.detach().cpu().numpy()).transpose(2, 3, 1, 0)
+            target_vector = target_vector[:, :, :, 0]
+            target_vector = cv2.resize(target_vector, (1280, 720))
+            target_vector = cv2.circle(
+                np.uint8(target_vector*255), region, 5, (255, 0, 0), thickness=-1)
+            target_vector = np.float32(target_vector)/255
+            target_vector = target_vector.transpose(2, 0, 1)
+            target_vector = target_vector[np.newaxis, :, :, :]
+
+            target_video.append(target_vector)
+
+            print(frame_video[-1].shape, target_video[-1].shape)
+
+        else:
+            frame_video.append(frame.detach().cpu().numpy())
+            mask_video.append(mask.detach().cpu().numpy())
+
+            target_vector = np.copy(
+                frame.detach().cpu().numpy()).transpose(2, 3, 1, 0)
+            target_vector = target_vector[:, :, :, 0]
+            target_vector = cv2.resize(target_vector, (1280, 720))
+            target_vector = np.float32(target_vector)/255
+            target_vector = target_vector.transpose(2, 0, 1)
+            target_vector = target_vector[np.newaxis, :, :, :]
+
+            print(frame_video[-1].shape, target_video[-1].shape)
+            print(f'================SKIPPING THIS TIME================')
+
+    if frame_count > 500:
+        target_number += 1
+        frame_count = 0
+        print(
+            f'------------------INCREMENTING TARGET COUNT TO {target_number}------------------')
+
+    if target_number > 3:
+        frame_video = np.concatenate(frame_video, axis=0)
+        target_video = np.concatenate(target_video, axis=0)
+        mask_video = np.concatenate(mask_video, axis=0)
+
+        # import pdb; pdb.set_trace()
+        mask_video_overlay = np.copy(frame_video)
+        mask_video_overlay[:, 0] += (mask_video[:, 0]/mask_video.max())
+        mask_video_overlay = np.clip(
+            mask_video_overlay, a_min=0., a_max=1.)
+
+        frame_video = np.uint8(frame_video * 255)
+        target_video = np.uint8(target_video * 255)
+        mask_video = np.uint8(mask_video_overlay * 255)
+
+        wandb.log(
+            {
+                "video": wandb.Video(frame_video, fps=1, caption=command, format="mp4"),
+                "target video": wandb.Video(target_video, fps=1, caption=command, format="mp4"),
+                "pred_mask": wandb.Video(mask_video, fps=1, caption=command, format="mp4"),
+            }
+        )
+        frame_video = []
+        mask_video = []
+        target_video = []
+
+    frame_count += 1
 
 
 def get_actor_blueprints(world, filter, generation):
@@ -872,20 +1034,45 @@ def get_actor_blueprints(world, filter, generation):
         return []
 
 
-def best_pixel(segmentation_map, threshold):
-    segmentation_map[segmentation_map < threshold] = 0
-    labeler = segmentation_map.copy()
-    labeler[labeler >= threshold] = 1
-    labels, num_labels = measure.label(labeler, return_num=True)
-    count = list()
-    for l in range(num_labels):
-        count.append([l+1, np.sum(segmentation_map[labels == l+1])])
-    count = np.array(count)
-    largest_label = count[0, np.argmax(count[:, 1])]
-    segmentation_map[labels != largest_label] = 0
-    pos = (np.argmax(
-        segmentation_map@np.arange(segmentation_map.shape[1])), np.argmax(np.arange(segmentation_map.shape[0])@segmentation_map))
-    return (pos[1], pos[0])
+def best_pixel(segmentation_map, threshold, method="weighted_average"):
+    global frame_count
+    global target_number
+
+    # cv2.imshow(f'seg_map', segmentation_map)
+    # cv2.waitKey(10)
+    if method == "weighted_average":
+        segmentation_map[segmentation_map < threshold] = 0
+        labeler = segmentation_map.copy()
+        labeler[labeler >= threshold] = 1
+        labels, num_labels = measure.label(labeler, return_num=True)
+        count = list()
+        for l in range(num_labels):
+            count.append([l+1, np.sum(segmentation_map[labels == l+1])])
+        count = np.array(count)
+        if num_labels == 0:
+            return -1
+        count = count.reshape(num_labels, 2)
+        largest_label = count[np.argmax(count[:, 1]), 0]
+        print(
+            f"================{count[np.argmax(count[:, 1]),1]}================")
+        if count[np.argmax(count[:, 1]), 1] > 100:
+            frame_count = 0 if target_number < 3 else frame_count
+            target_number = 3
+        segmentation_map[labels != largest_label] = 0
+        pos = (np.argmax(
+            segmentation_map@np.arange(segmentation_map.shape[1])), np.argmax(np.arange(segmentation_map.shape[0])@segmentation_map))
+    elif method == "max":
+        pos = np.where(segmentation_map == np.amax(segmentation_map))
+        pos = (pos[0][0], pos[1][0])
+
+    final = (pos[1], pos[0])
+    # final = pos
+    print((final[0]*1280/segmentation_map.shape[1], final[1]
+          * 720/segmentation_map.shape[1]), "------>")
+    print((final[1]*1280/segmentation_map.shape[1], final[0]
+          * 720/segmentation_map.shape[1]), '------>')
+    return final
+    # return pos
 
 
 def world_to_pixel(K, rgb_matrix, destination,  curr_position):
@@ -915,11 +1102,10 @@ def world_to_pixel(K, rgb_matrix, destination,  curr_position):
     return points_2d
 
 
-def pixel_to_world(image, weak_ref, weak_agent, screen_pos, K, destination, set_destination=True):
+def pixel_to_world(image, vehicle_matrix, weak_agent, screen_pos, K, destination, set_destination=True):
     global command_given
     global target_number
 
-    dc_weak = weak_ref()
     agent_weak = weak_agent()
 
     # image.save_to_disk('_out/%06d.jpg' % image.frame)
@@ -932,13 +1118,13 @@ def pixel_to_world(image, weak_ref, weak_agent, screen_pos, K, destination, set_
 
     print(im_array.shape)
 
-    depth_cam_matrix = dc_weak.get_transform().get_matrix()
-    depth_cam_matrix_inv = dc_weak.get_transform().get_inverse_matrix()
+    depth_cam_matrix = image.transform.get_matrix()
+    depth_cam_matrix_inv = image.transform.get_inverse_matrix()
 
     depth_cam_matrix = np.round(np.array(depth_cam_matrix), decimals=2)
     depth_cam_matrix_inv = np.round(np.array(depth_cam_matrix_inv), decimals=2)
 
-    vehicle_matrix = agent_weak._vehicle.get_transform().get_matrix()
+    # vehicle_matrix = agent_weak._vehicle.get_transform().get_matrix()
     # vehicle_matrix_inv = agent_weak._vehicle.get_transform().get_inverse_matrix()
 
     vehicle_matrix = np.round(np.array(vehicle_matrix), decimals=1)
@@ -953,6 +1139,7 @@ def pixel_to_world(image, weak_ref, weak_agent, screen_pos, K, destination, set_
     print("Pixel Coords: ", screen_pos)
 
     R, G, B = im_array[screen_pos[1], screen_pos[0]]
+    print(im_array.shape, 'Screen pos max vals, order: 1,0')
     normalized = (R + G * 256 + B * 256 * 256) / (256 * 256 * 256 - 1)
     depth = 1000 * normalized
 
@@ -991,16 +1178,16 @@ def pixel_to_world(image, weak_ref, weak_agent, screen_pos, K, destination, set_
     if set_destination:
         agent_weak.set_destination(new_destination)
 
-    curr_position = agent._vehicle.get_transform().location
+    # curr_position = agent._vehicle.get_transform().location
 
-    pos = np.array(
-        [curr_position.x, curr_position.y, curr_position.z])
+    # pos = np.array(
+    #     [curr_position.x, curr_position.y, curr_position.z])
 
-    w2px = world_to_pixel(K, depth_cam_matrix_inv, np.array(
-        [agent_weak.target_destination.x, agent_weak.target_destination.y, agent_weak.target_destination.z]).reshape(3, 1), pos).T
+    # w2px = world_to_pixel(K, depth_cam_matrix_inv, np.array(
+    #     [agent_weak.target_destination.x, agent_weak.target_destination.y, agent_weak.target_destination.z]).reshape(3, 1), pos).T
 
     # print(w2px[:,:2]/w2px[:,2])
-    print(w2px)
+    # print(w2px)
 
     command_given = True
     print("=======================================")
@@ -1011,7 +1198,6 @@ def pixel_to_world(image, weak_ref, weak_agent, screen_pos, K, destination, set_
     print("=======================================")
 
     time.sleep(0.5)
-    dc_weak.stop()
 
 # ==============================================================================
 # -- Game Loop ---------------------------------------------------------
@@ -1034,6 +1220,10 @@ def game_loop(args):
     global weak_agent
     global K
     global destination
+    global command
+    global world
+    global clock
+    global frame_pending
 
     global network
     global corpus
@@ -1042,6 +1232,10 @@ def game_loop(args):
     global phrase_mask
     global frame_mask
     global threshold
+
+    global frame_video
+    global target_video
+    global mask_video
 
     pygame.init()
     pygame.font.init()
@@ -1387,6 +1581,7 @@ def game_loop(args):
             episode_number = max([int(x) for x in os.listdir(temp_dir)])
         target_number = 0
         frame_count = 0
+        frame_pending = 0
         checked = False
 
         weak_dc = weakref.ref(depth_camera)
@@ -1434,6 +1629,11 @@ def game_loop(args):
 
                         command_given = True
 
+                        # print('Processing FIRST frame')
+                        # measurements, sensor_data = client.read_data()
+                        # process_network(measurements, sensor_data,
+                        #                 agent._vehicle.get_transform().get_matrix())
+
                     # episode_number = -episode_number
 
                 # screen_pos = pygame.mouse.get_pos()
@@ -1450,8 +1650,47 @@ def game_loop(args):
 
             handled = pygame.mouse.get_pressed()[0]
 
+            # if frame_pending:
+            #     frame_pending = 0
+            #     print('Trying to process frame')
+            #     measurements, sensor_data = client.read_data()
+            #     process_network(measurements, sensor_data,
+            #                     agent._vehicle.get_transform().get_matrix())
+
+            if target_number > 3:
+                saving = [True, True, False]
+                command_given = False
+
+                frame_video = np.concatenate(frame_video, axis=0)
+                mask_video = np.concatenate(mask_video, axis=0)
+                target_video = np.concatenate(target_video, axis=0)
+
+                # import pdb; pdb.set_trace()
+                mask_video_overlay = np.copy(frame_video)
+                mask_video_overlay[:, 0] += (mask_video[:, 0]/mask_video.max())
+                mask_video_overlay = np.clip(
+                    mask_video_overlay, a_min=0., a_max=1.)
+
+                frame_video = np.uint8(frame_video * 255)
+                target_video = np.uint8(target_video * 255)
+                mask_video = np.uint8(mask_video_overlay * 255)
+                print(frame_video.shape, mask_video.shape)
+
+                wandb.log(
+                    {
+                        "video": wandb.Video(frame_video, fps=1, caption=command, format="mp4"),
+                        "target video": wandb.Video(target_video, fps=1, caption=command, format="mp4"),
+                        "pred_mask": wandb.Video(mask_video, fps=1, caption=command, format="mp4"),
+                    }
+                )
+                frame_video = []
+                mask_video = []
+                target_video = []
+                target_number = 0
+                frame_count = 0
+
             if agent.done() and command_given:
-                if target_number >= 3:
+                if target_number > 3:
                     command_given = False
                     saving = [True, True, False]
                     print('Episode Done')
@@ -1484,7 +1723,7 @@ def game_loop(args):
                 rgb_matrix = rgb_camera.get_transform().get_inverse_matrix()[
                     :3]
 
-                curr_position = agent._vehicle.get_transform().location
+                curr_position = rgb_camera.get_transform().location
 
                 pos = np.array(
                     [curr_position.x, curr_position.y, curr_position.z])
@@ -1530,7 +1769,7 @@ def game_loop(args):
                     # pass
 
     finally:
-
+        cv2.destroyAllWindows()
         print('\ndestroying %d actors' % len(actor_list))
         client.apply_batch_sync([carla.command.DestroyActor(x)
                                 for x in actor_list])
@@ -1695,6 +1934,7 @@ if __name__ == '__main__':
     global network
     global weak_dc
     global weak_agent
+    global frame_pending
 
     command_given = False
     saving = [True, True, False]
