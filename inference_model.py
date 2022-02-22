@@ -13,7 +13,6 @@
 from __future__ import print_function
 import shutil
 
-from cv2 import threshold
 from agents.navigation.basic_agent import BasicAgent  # pylint: disable=import-error
 from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
 from carla import ColorConverter as cc
@@ -770,8 +769,8 @@ class CameraManager(object):
             # We need to pass the lambda a weak reference to
             # self to avoid circular reference.
             weak_self = weakref.ref(self)
-            self.sensor.listen(
-                lambda image: CameraManager._parse_image(weak_self, image))
+            self.sensor.listen(lambda image:
+                               camera_manager_listen_event(image, [rgb_cam_queue.put, lambda image: CameraManager._parse_image(weak_self, image)]))
         if notify:
             self.hud.notification(self.sensors[index][2])
         self.index = index
@@ -815,6 +814,7 @@ class CameraManager(object):
         global phrase_mask
         global frame_mask
         global threshold
+        global confidence
 
         global frame_video
         global mask_video
@@ -822,7 +822,8 @@ class CameraManager(object):
 
         global frame_pending
 
-        vehicle_matrix = agent._vehicle.get_transform().get_matrix()
+        global depth_cam_queue
+        global rgb_cam_queue
 
         self = weak_self()
         if not self:
@@ -873,11 +874,16 @@ class CameraManager(object):
                 with open(f'_out/{episode_number}/target_positions.txt', 'a+') as f:
                     f.write(
                         f'{agent.target_destination.x},{agent.target_destination.y},{agent.target_destination.z},{target_number}\n')
-            process_network(image, vehicle_matrix)
+
             frame_pending = 1
 
 
-def process_network(image, vehicle_matrix):
+def camera_manager_listen_event(image, functions):
+    for f in functions:
+        f(image)
+
+
+def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
     global command_given
     global episode_number
     global saving
@@ -900,6 +906,7 @@ def process_network(image, vehicle_matrix):
     global phrase_mask
     global frame_mask
     global threshold
+    global confidence
 
     global frame_video
     global mask_video
@@ -929,16 +936,23 @@ def process_network(image, vehicle_matrix):
         mask_np = mask_np.reshape(mask_np.shape[0], mask_np.shape[1])
         print(mask_np.shape, mask_np.max(), mask_np.min())
         # mask_np = cv2.resize(mask_np, (1280, 720))
-        region = best_pixel(mask_np, threshold)
+        pixel_out = best_pixel(mask_np, threshold, confidence)
 
-        if region != -1:
+        if pixel_out != -1:
+
+            probs, region = pixel_out
 
             region = (region[0]*1280/mask_np.shape[1],
                       region[1]*720/mask_np.shape[1])
 
             region = (int(region[0]), int(region[1]))
 
-            pixel_to_world(image, vehicle_matrix, weak_agent,
+            if probs > confidence:
+                color = (0, 0, 255)
+            else:
+                color = (255, 0, 0)
+
+            pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
                            region, K, destination)
 
             frame_video.append(frame.detach().cpu().numpy())
@@ -949,7 +963,7 @@ def process_network(image, vehicle_matrix):
             target_vector = target_vector[:, :, :, 0]
             target_vector = cv2.resize(target_vector, (1280, 720))
             target_vector = cv2.circle(
-                np.uint8(target_vector*255), region, 5, (255, 0, 0), thickness=-1)
+                np.uint8(target_vector*255), region, 5, color, thickness=-1)
             target_vector = np.float32(target_vector)/255
             target_vector = target_vector.transpose(2, 0, 1)
             target_vector = target_vector[np.newaxis, :, :, :]
@@ -969,6 +983,7 @@ def process_network(image, vehicle_matrix):
             target_vector = np.float32(target_vector)/255
             target_vector = target_vector.transpose(2, 0, 1)
             target_vector = target_vector[np.newaxis, :, :, :]
+            target_video.append(target_vector)
 
             print(frame_video[-1].shape, target_video[-1].shape)
             print(f'================SKIPPING THIS TIME================')
@@ -1034,7 +1049,7 @@ def get_actor_blueprints(world, filter, generation):
         return []
 
 
-def best_pixel(segmentation_map, threshold, method="weighted_average"):
+def best_pixel(segmentation_map, threshold, confidence, method="weighted_average"):
     global frame_count
     global target_number
 
@@ -1055,15 +1070,31 @@ def best_pixel(segmentation_map, threshold, method="weighted_average"):
         largest_label = count[np.argmax(count[:, 1]), 0]
         print(
             f"================{count[np.argmax(count[:, 1]),1]}================")
-        if count[np.argmax(count[:, 1]), 1] > 100:
+        if count[np.argmax(count[:, 1]), 1] > confidence:
             frame_count = 0 if target_number < 3 else frame_count
             target_number = 3
         segmentation_map[labels != largest_label] = 0
         pos = (np.argmax(
             segmentation_map@np.arange(segmentation_map.shape[1])), np.argmax(np.arange(segmentation_map.shape[0])@segmentation_map))
+        ret_count = count[np.argmax(count[:, 1]), 1]
     elif method == "max":
         pos = np.where(segmentation_map == np.amax(segmentation_map))
         pos = (pos[0][0], pos[1][0])
+
+        labeler = segmentation_map.copy()
+        labeler[labeler >= threshold] = 1
+        labels, num_labels = measure.label(labeler, return_num=True)
+        count = list()
+        for l in range(num_labels):
+            count.append([l+1, np.sum(segmentation_map[labels == l+1])])
+        count = np.array(count)
+        if num_labels == 0:
+            return -1
+
+        ret_count = np.sum(segmentation_map[labels == labels[pos]])
+        if ret_count > confidence:
+            frame_count = 0 if target_number < 3 else frame_count
+            target_number = 3
 
     final = (pos[1], pos[0])
     # final = pos
@@ -1071,7 +1102,7 @@ def best_pixel(segmentation_map, threshold, method="weighted_average"):
           * 720/segmentation_map.shape[1]), "------>")
     print((final[1]*1280/segmentation_map.shape[1], final[0]
           * 720/segmentation_map.shape[1]), '------>')
-    return final
+    return (ret_count, final)
     # return pos
 
 
@@ -1102,7 +1133,7 @@ def world_to_pixel(K, rgb_matrix, destination,  curr_position):
     return points_2d
 
 
-def pixel_to_world(image, vehicle_matrix, weak_agent, screen_pos, K, destination, set_destination=True):
+def pixel_to_world(image, vehicle_matrix, vehicle_location, weak_agent, screen_pos, K, destination, set_destination=True):
     global command_given
     global target_number
 
@@ -1121,19 +1152,19 @@ def pixel_to_world(image, vehicle_matrix, weak_agent, screen_pos, K, destination
     depth_cam_matrix = image.transform.get_matrix()
     depth_cam_matrix_inv = image.transform.get_inverse_matrix()
 
-    depth_cam_matrix = np.round(np.array(depth_cam_matrix), decimals=2)
-    depth_cam_matrix_inv = np.round(np.array(depth_cam_matrix_inv), decimals=2)
+    depth_cam_matrix = np.array(depth_cam_matrix)
+    depth_cam_matrix_inv = np.array(depth_cam_matrix_inv)
 
     # vehicle_matrix = agent_weak._vehicle.get_transform().get_matrix()
     # vehicle_matrix_inv = agent_weak._vehicle.get_transform().get_inverse_matrix()
 
-    vehicle_matrix = np.round(np.array(vehicle_matrix), decimals=1)
+    vehicle_matrix = np.array(vehicle_matrix)
 
     print("=========================")
     print("Depth Camera Matrix:")
-    # pprint(depth_cam_matrix)
+    pprint(depth_cam_matrix)
     print("Vehicle Matrix:")
-    # pprint(vehicle_matrix)
+    pprint(vehicle_matrix)
     print("=========================")
 
     print("Pixel Coords: ", screen_pos)
@@ -1173,7 +1204,7 @@ def pixel_to_world(image, vehicle_matrix, weak_agent, screen_pos, K, destination
     xyz_pos = xyz_pos.reshape(-1)
 
     new_destination = carla.Location(
-        x=pos_3d_[0], y=pos_3d_[1], z=destination.z)
+        x=pos_3d_[0], y=pos_3d_[1], z=vehicle_location.z)
 
     if set_destination:
         agent_weak.set_destination(new_destination)
@@ -1232,10 +1263,17 @@ def game_loop(args):
     global phrase_mask
     global frame_mask
     global threshold
+    global confidence
 
     global frame_video
     global target_video
     global mask_video
+
+    global depth_cam_queue
+    global rgb_cam_queue
+
+    depth_cam_queue = queue.Queue()
+    rgb_cam_queue = queue.Queue()
 
     pygame.init()
     pygame.font.init()
@@ -1497,6 +1535,7 @@ def game_loop(args):
             1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
 
         threshold = args.threshold
+        confidence = args.confidence
 
         return_layers = {"layer2": "layer2",
                          "layer3": "layer3", "layer4": "layer4"}
@@ -1587,6 +1626,8 @@ def game_loop(args):
         weak_dc = weakref.ref(depth_camera)
         weak_agent = weakref.ref(agent)
 
+        depth_camera.listen(depth_cam_queue.put)
+
         while True:
             clock.tick()
             if args.sync:
@@ -1631,6 +1672,7 @@ def game_loop(args):
 
                         # print('Processing FIRST frame')
                         # measurements, sensor_data = client.read_data()
+                        # print(type(sensor_data))
                         # process_network(measurements, sensor_data,
                         #                 agent._vehicle.get_transform().get_matrix())
 
@@ -1650,12 +1692,19 @@ def game_loop(args):
 
             handled = pygame.mouse.get_pressed()[0]
 
-            # if frame_pending:
-            #     frame_pending = 0
-            #     print('Trying to process frame')
-            #     measurements, sensor_data = client.read_data()
-            #     process_network(measurements, sensor_data,
-            #                     agent._vehicle.get_transform().get_matrix())
+            if not depth_cam_queue.empty() and not rgb_cam_queue.empty():
+                depth_cam_data = depth_cam_queue.get()
+                rgb_cam_data = rgb_cam_queue.get()
+                vehicle_transform = agent._vehicle.get_transform()
+                vehicle_matrix = vehicle_transform.get_matrix()
+                vehicle_location = vehicle_transform.location
+                if command_given:
+                    start = time.time()
+                    process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
+                                    vehicle_location)
+                    end = time.time()
+                    if frame_count % 20 == 1:
+                        print(f'Network took {end-start}')
 
             if target_number > 3:
                 saving = [True, True, False]
@@ -1902,6 +1951,9 @@ def main():
 
     argparser.add_argument("--threshold", type=float,
                            default=0.4, help="mask threshold")
+
+    argparser.add_argument("--confidence", type=float,
+                           default=100, help="mask confidence")
 
     argparser.add_argument("--save", default=False, action="store_true")
 
