@@ -194,9 +194,75 @@ class VideoSegmentationBaseline(nn.Module):
         fused_feat = vision_feat * attn_feat
         fused_feat = rearrange(fused_feat, "(b t) (h w) c -> b c t h w", t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
         
-        segm_mask = self.mm_decoder(fused_feat[:, :, -1]) #.squeeze(1)
+        segm_mask = self.mm_decoder(fused_feat.mean(dim=2)) #.squeeze(1)
 
         return segm_mask
+    
+class JointVideoSegmentationBaseline(nn.Module):
+    """Some Information about MyModule"""
+    def __init__(self, vision_encoder, hidden_dim=768, mask_dim=112, traj_dim=56, spatial_dim=14, num_frames=16):
+        super(JointVideoSegmentationBaseline, self).__init__()
+        
+        self.spatial_dim = spatial_dim
+        self.num_frames = num_frames
+        
+        self.vision_encoder = vision_encoder
+        self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
+        
+        self.mm_decoder = nn.Sequential(
+            ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
+            ConvUpsample(in_channels=256,
+                out_channels=2,
+                channels=[256, 256, 128],
+                upsample=[True, True, True],
+                drop=0.2,
+            ),
+            nn.Upsample(
+                size=(mask_dim, mask_dim), mode="bilinear", align_corners=True
+            ),
+            nn.Sigmoid(),
+        )  
+        
+        self.traj_decoder = nn.Sequential(
+            ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
+            ConvUpsample(in_channels=256,
+                         out_channels=1,
+                         channels=[256, 256],
+                         upsample=[True, True],
+                         drop=0.2,
+                         ),
+            nn.Upsample(
+                size=(traj_dim, traj_dim), mode="bilinear", align_corners=True
+            ),
+            nn.Sigmoid(),
+        )
+        
+        
+
+    def forward(self, frames, text, frame_mask, text_mask):
+        
+        vision_feat, _ = self.vision_encoder(frames) # B, N, C
+        vision_feat = F.normalize(vision_feat, p=2, dim=1) # B x N x C
+        vision_feat = rearrange(vision_feat, "b (t h w) c -> (b t) (h w) c", t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
+        
+        text_feat = self.text_encoder(text) # B x L x C
+        text_feat = F.normalize(text_feat, p=2, dim=1) # B x L x C
+        text_feat = text_feat * text_mask[:, :, None]
+        text_feat = repeat(text_feat, "b l c -> b t l c", t=self.num_frames)
+        text_feat = rearrange(text_feat, "b t l c -> (b t) l c")
+        
+        cross_attn = torch.bmm(vision_feat, text_feat.transpose(1, 2).contiguous())  # B x N x L
+        cross_attn = cross_attn.softmax(dim=-1)
+        attn_feat = cross_attn @ text_feat  # B x N x C
+
+        fused_feat = vision_feat * attn_feat
+        fused_feat = rearrange(fused_feat, "(b t) (h w) c -> b c t h w", t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
+        fused_feat = fused_feat.mean(dim=2)
+        
+        segm_mask = self.mm_decoder(fused_feat) #.squeeze(1)
+        traj_mask = self.traj_decoder(fused_feat)
+
+        return segm_mask, traj_mask
 
 class IROSBaseline(nn.Module):
     """Some Information about MyModule"""
