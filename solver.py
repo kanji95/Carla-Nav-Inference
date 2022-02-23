@@ -132,14 +132,14 @@ class Solver(object):
                 #                      0.229, 0.224, 0.225]),
             ]
         )
-        
+
         mask_transform = transforms.Compose(
             [
                 transforms.Resize((self.mask_dim, self.mask_dim)),
                 transforms.ToTensor(),
             ]
         )
-        
+
         traj_transform = transforms.Compose(
             [
                 transforms.Resize((self.traj_dim, self.traj_dim)),
@@ -159,7 +159,7 @@ class Solver(object):
             mode=self.mode,
             image_dim=self.image_dim,
             mask_dim=self.mask_dim,
-            traj_dim=self.traj_dim
+            traj_dim=self.traj_dim,
         )
         self.val_dataset = CarlaFullDataset(
             data_root=self.data_root,
@@ -173,7 +173,7 @@ class Solver(object):
             mode=self.mode,
             image_dim=self.image_dim,
             mask_dim=self.mask_dim,
-            traj_dim=self.traj_dim
+            traj_dim=self.traj_dim,
         )
 
         self.train_loader = DataLoader(
@@ -254,6 +254,9 @@ class Solver(object):
         total_inter_mask, total_union_mask = 0, 0
         total_inter_traj, total_union_traj = 0, 0
         total_pg_mask, total_pg_traj = 0, 0
+        total_it_mask, total_it_traj = 0, 0
+        total_rk_mask, total_rk_traj = 0, 0
+        total_ds_mask, total_ds_traj = 0, 0
 
         data_len = len(self.train_loader)
 
@@ -280,7 +283,9 @@ class Solver(object):
             mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
 
             # loss = self.criterion(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
-            loss = self.combo_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
+                traj_mask, gt_traj_mask
+            )
             loss.backward()
 
             if iterId % 1000 == 0 and self.grad_check:
@@ -295,20 +300,31 @@ class Solver(object):
 
             with torch.no_grad():
                 inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
-                inter_traj, union_traj = compute_mask_IOU(traj_mask, gt_traj_mask, self.threshold)
+                inter_traj, union_traj = compute_mask_IOU(
+                    traj_mask, gt_traj_mask, self.threshold
+                )
 
             total_inter_mask += inter_mask.item()
             total_union_mask += union_mask.item()
-            
+
             total_inter_traj += inter_traj.item()
             total_union_traj += union_traj.item()
 
             total_pg_mask += pointing_game(mask, gt_mask)
             total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
 
+            total_it_mask += intersection_at_t(mask, gt_mask)
+            total_it_traj += intersection_at_t(traj_mask, gt_traj_mask)
+
+            total_rk_mask += recall_at_k(mask, gt_mask)
+            total_rk_traj += recall_at_k(traj_mask, gt_traj_mask)
+
+            total_ds_mask += dice_score(mask, gt_mask)
+            total_ds_traj += dice_score(traj_mask, gt_traj_mask)
+
             total_loss += float(loss.item())
 
-            if step % 50 == 0:
+            if step % 100 == 0:
                 if self.mode == "image":
                     log_frame_predicitons(
                         batch["orig_frame"],
@@ -330,22 +346,35 @@ class Solver(object):
                         title="training",
                     )
 
-            if iterId % 100 == 0 and step != 0:
+            if iterId % 500 == 0 and step != 0:
                 # import pdb; pdb.set_trace()
                 print(mask.min(), mask.max())
                 gc.collect()
-                memoryUse = py.memory_info()[0] / 2.0**20
+                memoryUse = py.memory_info()[0] / 2.0 ** 20
                 timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
                 curr_loss = total_loss / (step + 1)
-                
+
                 curr_IOU_mask = total_inter_mask / total_union_mask
                 curr_IOU_traj = total_inter_traj / total_union_traj
-                
+
                 curr_pg_mask = total_pg_mask / num_samples
                 curr_pg_traj = total_pg_traj / num_samples
-                
+
+                # curr_it_mask = total_it_mask / num_samples
+                # curr_it_traj = total_it_traj / num_samples
+
+                # curr_rk_mask = total_rk_mask / num_samples
+                # curr_rk_traj = total_rk_traj / num_samples
+
+                # curr_ds_mask = total_ds_mask / num_samples
+                # curr_ds_traj = total_ds_traj / num_samples
+
                 lr = self.optimizer.param_groups[0]["lr"]
 
+                # print(
+                #     f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} Mask IT {curr_it_mask:.4f} Traj IT {curr_it_traj:.4f} Mask RK {curr_rk_mask:.4f} Traj RK {curr_rk_traj:.4f} Mask DS {curr_ds_mask:.4f} Traj DS {curr_ds_traj:.4f} memory_use {memoryUse:.3f}MB lr {lr:.7f} elapsed {elapsed_time:.2f}"
+                # )
+                
                 print(
                     f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} memory_use {memoryUse:.3f}MB lr {lr:.7f} elapsed {elapsed_time:.2f}"
                 )
@@ -356,12 +385,21 @@ class Solver(object):
         timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
 
         train_loss = total_loss / data_len
-        
+
         train_IOU_mask = total_inter_mask / total_union_mask
         train_IOU_traj = total_inter_traj / total_union_traj
-        
+
         train_pg_mask = total_pg_mask / num_samples
         train_pg_traj = total_pg_traj / num_samples
+
+        train_it_mask = total_it_mask / num_samples
+        train_it_traj = total_it_traj / num_samples
+
+        train_rk_mask = total_rk_mask / num_samples
+        train_rk_traj = total_rk_traj / num_samples
+
+        train_ds_mask = total_ds_mask / num_samples
+        train_ds_traj = total_ds_traj / num_samples
 
         wandb.log(
             {
@@ -370,11 +408,17 @@ class Solver(object):
                 "Traj IOU": train_IOU_traj,
                 "Mask PG": train_pg_mask,
                 "Traj PG": train_pg_traj,
+                "Mask IT": train_it_mask,
+                "Traj IT": train_it_traj,
+                "Mask RK": train_rk_mask,
+                "Traj RK": train_rk_traj,
+                "Mask DS": train_ds_mask,
+                "Traj DS": train_ds_traj,
             }
         )
 
         print(
-            f"{timestamp} FINISHED Epoch:{epochId:2d} loss {train_loss:.4f} Mask IOU {train_IOU_mask:.4f} Traj IOU {train_IOU_traj:.4f} Mask PG {train_pg_mask:.4f} Traj PG {train_pg_traj:.4f} elapsed {epoch_time:.2f}"
+            f"{timestamp} FINISHED Epoch:{epochId:2d} loss {train_loss:.4f} Mask IOU {train_IOU_mask:.4f} Traj IOU {train_IOU_traj:.4f} Mask PG {train_pg_mask:.4f} Traj PG {train_pg_traj:.4f} Mask IT {train_it_mask:.4f} Traj IT {train_it_traj:.4f} Mask RK {train_rk_mask:.4f} Traj RK {train_rk_traj:.4f} Mask DS {train_ds_mask:.4f} Traj DS {train_ds_traj:.4f} elapsed {epoch_time:.2f}"
         )
 
     @torch.no_grad()
@@ -389,6 +433,9 @@ class Solver(object):
         total_inter_mask, total_union_mask = 0, 0
         total_inter_traj, total_union_traj = 0, 0
         total_pg_mask, total_pg_traj = 0, 0
+        total_it_mask, total_it_traj = 0, 0
+        total_rk_mask, total_rk_traj = 0, 0
+        total_ds_mask, total_ds_traj = 0, 0
 
         data_len = len(self.val_loader)
 
@@ -412,22 +459,35 @@ class Solver(object):
             mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
 
             # loss = self.criterion(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
-            loss = self.combo_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
+                traj_mask, gt_traj_mask
+            )
 
             end_time = time()
             elapsed_time = end_time - start_time
 
             inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
-            inter_traj, union_traj = compute_mask_IOU(traj_mask, gt_traj_mask, self.threshold)
+            inter_traj, union_traj = compute_mask_IOU(
+                traj_mask, gt_traj_mask, self.threshold
+            )
 
             total_inter_mask += inter_mask.item()
             total_union_mask += union_mask.item()
-            
+
             total_inter_traj += inter_traj.item()
             total_union_traj += union_traj.item()
 
             total_pg_mask += pointing_game(mask, gt_mask)
             total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
+
+            total_it_mask += intersection_at_t(mask, gt_mask)
+            total_it_traj += intersection_at_t(traj_mask, gt_traj_mask)
+
+            total_rk_mask += recall_at_k(mask, gt_mask)
+            total_rk_traj += recall_at_k(traj_mask, gt_traj_mask)
+
+            total_ds_mask += dice_score(mask, gt_mask)
+            total_ds_traj += dice_score(traj_mask, gt_traj_mask)
 
             total_loss += float(loss.item())
 
@@ -456,29 +516,51 @@ class Solver(object):
                 print(mask.min(), mask.max())
 
                 gc.collect()
-                memoryUse = py.memory_info()[0] / 2.0**20
+                memoryUse = py.memory_info()[0] / 2.0 ** 20
 
                 timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
 
                 curr_loss = total_loss / (step + 1)
-                
+
                 curr_IOU_mask = total_inter_mask / total_union_mask
                 curr_IOU_traj = total_inter_traj / total_union_traj
-                
+
                 curr_pg_mask = total_pg_mask / num_samples
                 curr_pg_traj = total_pg_traj / num_samples
 
+                # curr_it_mask = total_it_mask / num_samples
+                # curr_it_traj = total_it_traj / num_samples
+
+                # curr_rk_mask = total_rk_mask / num_samples
+                # curr_rk_traj = total_rk_traj / num_samples
+
+                # curr_ds_mask = total_ds_mask / num_samples
+                # curr_ds_traj = total_ds_traj / num_samples
+
+                # print(
+                #     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} Mask IT {curr_it_mask:.4f} Traj IT {curr_it_traj:.4f} Mask RK {curr_rk_mask:.4f} Traj RK {curr_rk_traj:.4f} Mask DS {curr_ds_mask:.4f} Traj DS {curr_ds_traj:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
+                # )
+                
                 print(
                     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 )
 
         val_loss = total_loss / data_len
-        
+
         val_IOU_mask = total_inter_mask / total_union_mask
         val_IOU_traj = total_inter_traj / total_union_traj
-        
+
         val_pg_mask = total_pg_mask / num_samples
         val_pg_traj = total_pg_traj / num_samples
+
+        val_it_mask = total_it_mask / num_samples
+        val_it_traj = total_it_traj / num_samples
+
+        val_rk_mask = total_rk_mask / num_samples
+        val_rk_traj = total_rk_traj / num_samples
+
+        val_ds_mask = total_ds_mask / num_samples
+        val_ds_traj = total_ds_traj / num_samples
 
         timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
 
@@ -489,11 +571,17 @@ class Solver(object):
                 "val_Traj_IOU": val_IOU_traj,
                 "val_Mask_PG": val_pg_mask,
                 "val_Traj_PG": val_pg_traj,
+                "val_Mask_IT": val_it_mask,
+                "val_Traj_IT": val_it_traj,
+                "val_Mask_RK": val_rk_mask,
+                "val_Traj_RK": val_rk_traj,
+                "val_Mask_DS": val_ds_mask,
+                "val_Traj_DS": val_ds_traj,
             }
         )
 
         print(
-            f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} Mask_IOU {val_IOU_mask:.4f} Traj_IOU {val_IOU_traj:.4f} Mask_PG {val_pg_mask:.4f} Traj_PG {val_pg_traj:.4f}"
+            f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} Mask_IOU {val_IOU_mask:.4f} Traj_IOU {val_IOU_traj:.4f} Mask_PG {val_pg_mask:.4f} Traj_PG {val_pg_traj:.4f} Mask IT {val_it_mask:.4f} Traj IT {val_it_traj:.4f} Mask RK {val_rk_mask:.4f} Traj RK {val_rk_traj:.4f} Mask DS {val_ds_mask:.4f} Traj DS {val_ds_traj:.4f}"
         )
 
         return val_pg_mask, val_loss
