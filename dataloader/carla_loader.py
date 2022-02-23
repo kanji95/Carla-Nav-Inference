@@ -1,4 +1,3 @@
-from msilib import sequence
 import os
 from random import sample
 import re
@@ -245,7 +244,7 @@ class CarlaFullDataset(Dataset):
         
         num_files = len(image_files)
         
-        sample_idx = np.random.choice(range(num_files - self.skip))
+        sample_idx = np.random.choice(range(num_files - self.skip - T))
         
         prev_idx = sample_idx
         while True:
@@ -474,8 +473,8 @@ class CarlaFullDataset(Dataset):
                 K, image_files, mask_files, matrix_files, vehicle_positions, target_positions
             )
         elif self.mode == "video":
-            frames, orig_frames, frame_masks = self.get_video_data(
-                image_files, mask_files
+            frames, orig_frames, frame_masks, traj_mask, sample_idx = self.get_video_data(
+                K, image_files, mask_files, matrix_files, vehicle_positions, target_positions
             )
         else:
             raise NotImplementedError(f"{self.mode} mode not implemented!")
