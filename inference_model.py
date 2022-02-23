@@ -290,17 +290,23 @@ class KeyboardControl(object):
         global frame_video
         global target_video
         global target_number
+        global pred_found
         global frame_count
         global command
         if key == K_d:
-            saving[1] = True
+            command_given = False
+            saving = [True, True, False]
+            print('Episode Done')
+            pred_found = 0
+
             frame_video = np.concatenate(frame_video, axis=0)
             mask_video = np.concatenate(mask_video, axis=0)
             target_video = np.concatenate(target_video, axis=0)
 
             # import pdb; pdb.set_trace()
             mask_video_overlay = np.copy(frame_video)
-            mask_video_overlay[:, 0] += (mask_video[:, 0]/mask_video.max())
+            mask_video_overlay[:,
+                               0] += (mask_video[:, 0]/mask_video.max())
             mask_video_overlay = np.clip(
                 mask_video_overlay, a_min=0., a_max=1.)
 
@@ -318,8 +324,7 @@ class KeyboardControl(object):
             )
             frame_video = []
             mask_video = []
-            target_number = 0
-            frame_count = 0
+            target_video = []
 
     @staticmethod
     def _is_delete_episode_shortcut(key):
@@ -798,6 +803,7 @@ class CameraManager(object):
         global agent
         global depth_camera
         global target_number
+        global pred_found
         global frame_count
         global weak_dc
         global weak_agent
@@ -890,6 +896,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
     global agent
     global depth_camera
     global target_number
+    global pred_found
     global frame_count
     global weak_dc
     global weak_agent
@@ -995,30 +1002,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
             f'------------------INCREMENTING TARGET COUNT TO {target_number}------------------')
 
     if target_number > 3:
-        frame_video = np.concatenate(frame_video, axis=0)
-        target_video = np.concatenate(target_video, axis=0)
-        mask_video = np.concatenate(mask_video, axis=0)
-
-        # import pdb; pdb.set_trace()
-        mask_video_overlay = np.copy(frame_video)
-        mask_video_overlay[:, 0] += (mask_video[:, 0]/mask_video.max())
-        mask_video_overlay = np.clip(
-            mask_video_overlay, a_min=0., a_max=1.)
-
-        frame_video = np.uint8(frame_video * 255)
-        target_video = np.uint8(target_video * 255)
-        mask_video = np.uint8(mask_video_overlay * 255)
-
-        wandb.log(
-            {
-                "video": wandb.Video(frame_video, fps=1, caption=command, format="mp4"),
-                "target video": wandb.Video(target_video, fps=1, caption=command, format="mp4"),
-                "pred_mask": wandb.Video(mask_video, fps=1, caption=command, format="mp4"),
-            }
-        )
-        frame_video = []
-        mask_video = []
-        target_video = []
+        pred_found = 1
 
     frame_count += 1
 
@@ -1052,6 +1036,7 @@ def get_actor_blueprints(world, filter, generation):
 def best_pixel(segmentation_map, threshold, confidence, method="weighted_average"):
     global frame_count
     global target_number
+    global pred_found
 
     # cv2.imshow(f'seg_map', segmentation_map)
     # cv2.waitKey(10)
@@ -1071,8 +1056,7 @@ def best_pixel(segmentation_map, threshold, confidence, method="weighted_average
         print(
             f"================{count[np.argmax(count[:, 1]),1]}================")
         if count[np.argmax(count[:, 1]), 1] > confidence:
-            frame_count = 0 if target_number < 3 else frame_count
-            target_number = 3
+            pred_found = 1
         segmentation_map[labels != largest_label] = 0
         pos = (np.argmax(
             segmentation_map@np.arange(segmentation_map.shape[1])), np.argmax(np.arange(segmentation_map.shape[0])@segmentation_map))
@@ -1093,8 +1077,7 @@ def best_pixel(segmentation_map, threshold, confidence, method="weighted_average
 
         ret_count = np.sum(segmentation_map[labels == labels[pos]])
         if ret_count > confidence:
-            frame_count = 0 if target_number < 3 else frame_count
-            target_number = 3
+            pred_found = 1
 
     final = (pos[1], pos[0])
     # final = pos
@@ -1264,6 +1247,8 @@ def game_loop(args):
     global frame_mask
     global threshold
     global confidence
+
+    global pred_found
 
     global frame_video
     global target_video
@@ -1621,6 +1606,7 @@ def game_loop(args):
         target_number = 0
         frame_count = 0
         frame_pending = 0
+        pred_found = 0
         checked = False
 
         weak_dc = weakref.ref(depth_camera)
@@ -1653,6 +1639,7 @@ def game_loop(args):
                     if saving[1]:
                         saving[1] = False
                         target_number = 0
+                        pred_found = 0
                         frame_count = 0
                         episode_number += 1
                         os.makedirs(f'_out/{episode_number}', exist_ok=True)
@@ -1698,7 +1685,7 @@ def game_loop(args):
                 vehicle_transform = agent._vehicle.get_transform()
                 vehicle_matrix = vehicle_transform.get_matrix()
                 vehicle_location = vehicle_transform.location
-                if command_given:
+                if command_given and not pred_found:
                     start = time.time()
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
                                     vehicle_location)
@@ -1707,42 +1694,44 @@ def game_loop(args):
                         print(f'Network took {end-start}')
 
             if target_number > 3:
-                saving = [True, True, False]
-                command_given = False
-
-                frame_video = np.concatenate(frame_video, axis=0)
-                mask_video = np.concatenate(mask_video, axis=0)
-                target_video = np.concatenate(target_video, axis=0)
-
-                # import pdb; pdb.set_trace()
-                mask_video_overlay = np.copy(frame_video)
-                mask_video_overlay[:, 0] += (mask_video[:, 0]/mask_video.max())
-                mask_video_overlay = np.clip(
-                    mask_video_overlay, a_min=0., a_max=1.)
-
-                frame_video = np.uint8(frame_video * 255)
-                target_video = np.uint8(target_video * 255)
-                mask_video = np.uint8(mask_video_overlay * 255)
-                print(frame_video.shape, mask_video.shape)
-
-                wandb.log(
-                    {
-                        "video": wandb.Video(frame_video, fps=1, caption=command, format="mp4"),
-                        "target video": wandb.Video(target_video, fps=1, caption=command, format="mp4"),
-                        "pred_mask": wandb.Video(mask_video, fps=1, caption=command, format="mp4"),
-                    }
-                )
-                frame_video = []
-                mask_video = []
-                target_video = []
+                pred_found = 1
                 target_number = 0
                 frame_count = 0
 
             if agent.done() and command_given:
-                if target_number > 3:
+                if pred_found:
                     command_given = False
                     saving = [True, True, False]
                     print('Episode Done')
+                    pred_found = 0
+
+                    frame_video = np.concatenate(frame_video, axis=0)
+                    mask_video = np.concatenate(mask_video, axis=0)
+                    target_video = np.concatenate(target_video, axis=0)
+
+                    # import pdb; pdb.set_trace()
+                    mask_video_overlay = np.copy(frame_video)
+                    mask_video_overlay[:,
+                                       0] += (mask_video[:, 0]/mask_video.max())
+                    mask_video_overlay = np.clip(
+                        mask_video_overlay, a_min=0., a_max=1.)
+
+                    frame_video = np.uint8(frame_video * 255)
+                    target_video = np.uint8(target_video * 255)
+                    mask_video = np.uint8(mask_video_overlay * 255)
+                    print(frame_video.shape, mask_video.shape)
+
+                    wandb.log(
+                        {
+                            "video": wandb.Video(frame_video, fps=1, caption=command, format="mp4"),
+                            "target video": wandb.Video(target_video, fps=1, caption=command, format="mp4"),
+                            "pred_mask": wandb.Video(mask_video, fps=1, caption=command, format="mp4"),
+                        }
+                    )
+                    frame_video = []
+                    mask_video = []
+                    target_video = []
+
                 else:
                     print('Done')
                     saving = [True, False, False]
@@ -1982,6 +1971,7 @@ if __name__ == '__main__':
     global agent
     global depth_camera
     global target_number
+    global pred_found
     global frame_count
     global network
     global weak_dc
