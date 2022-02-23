@@ -95,6 +95,8 @@ def log_frame_predicitons(front_cam_image, lang_command, pred_mask, traj_mask, g
 ):
     indices = np.random.choice(range(pred_mask.shape[0]), size=k, replace=False)
 
+    _, c, h, w = pred_mask.shape
+
     figure, axes = plt.subplots(nrows=k, ncols=5)
     for i, index in enumerate(indices):
         index = indices[i]
@@ -105,13 +107,23 @@ def log_frame_predicitons(front_cam_image, lang_command, pred_mask, traj_mask, g
         axes[i, 0].set_axis_off()
 
         mask_pred = rearrange(pred_mask[index], "c h w -> h w c")
-        mask_pred = np.uint8(mask_pred * 255)
+
+        mask_pred_ = np.zeros((h, w, 3))
+        mask_pred_[:, :, 0] = mask_pred[:, :, 0] * 255  # red
+        mask_pred_[:, :, 2] = mask_pred[:, :, 1] * 255  # blue
+        mask_pred = np.uint8(mask_pred_)
+
         axes[i, 1].imshow(mask_pred)
         axes[i, 1].set_title(f"episode_{episode_num[index]}_idx_{sample_idx[index]}", fontsize=5)
         axes[i, 1].set_axis_off()
         
         mask_gt = rearrange(gt_mask[index], "c h w -> h w c")
-        mask_gt = np.uint8(mask_gt * 255)
+
+        mask_gt_ = np.zeros((h, w, 3))
+        mask_gt_[:, :, 1] = mask_gt[:, :, 0] * 255  # lime
+        mask_gt_[:, :, 1] = mask_gt[:, :, 1] * 100  # dark green
+        mask_gt = np.uint8(mask_gt_)
+
         axes[i, 2].imshow(mask_gt)
         axes[i, 2].set_title("GT Mask", fontsize=5)
         axes[i, 2].set_axis_off()

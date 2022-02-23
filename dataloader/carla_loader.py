@@ -325,12 +325,14 @@ class CarlaFullDataset(Dataset):
             mask[mask > 0] = 1
             
         mask_ = torch.zeros_like(mask)
-        mask_ = repeat(mask_, "1 c h w -> 1 (repeat c) h w", repeat=2)
+        # print(mask_.shape)
+        # import pdb; pdb.set_trace()
+        mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
         
         if curr_click_idx == final_click_idx:
-            mask_[:, 1] = mask[:, 0]
+            mask_[1] = mask[0]
         else:
-            mask_[:, 0] = mask[:, 0]
+            mask_[0] = mask[0]
             
         mask = mask_
         
