@@ -4,20 +4,22 @@ from glob import glob
 from collections import Iterable
 
 import numpy as np
-import torch
+import pandas as pd
 
 import cv2
 from PIL import Image
 
+import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
+from einops import repeat
+
 from .word_utils import Corpus
 
 IGNORE = {
-    # "train": ['109', '140', '166', '172', '177', '195', '214', '216', '222', '230', '27', '30', '54', '82'],
     "train": ['107', '138', '164', '170', '175', '193', '211', '213', '219', '227', '238', '248', '250', '254', '260', '270', '28', '283', '284', '285', '288', '293', '298', '305', '52', '80'], 
     "val": ['1', '44']
 }
@@ -218,6 +220,7 @@ class CarlaFullDataset(Dataset):
         
         self.image_dim = image_dim
         self.mask_dim = mask_dim
+        self.traj_dim = traj_dim
 
         if self.mode == "video":
             self.dataset_len = self.dataset_len//self.sequence_len
@@ -274,7 +277,7 @@ class CarlaFullDataset(Dataset):
     # Convert the current position and next position to pixel coordinates 
     # using the current camera transformation matrix 
     # the coordinates should be rescaled (original image resolution to resized image resolution) and normalized
-    def get_image_data(self, K, image_files, mask_files, matrix_files, vehicle_positions, T=10):
+    def get_image_data(self, K, image_files, mask_files, matrix_files, vehicle_positions, target_positions, T=10):
         
         num_files = len(image_files)
         
@@ -308,6 +311,9 @@ class CarlaFullDataset(Dataset):
         mask_path = mask_files[sample_idx]
         img = Image.open(img_path).convert("RGB")
         mask = Image.open(mask_path).convert("L")
+        
+        final_click_idx = target_positions['click_no'].max()
+        curr_click_idx = target_positions.iloc[sample_idx].to_list()[-1]
 
         orig_image = np.array(img)
 
@@ -317,16 +323,29 @@ class CarlaFullDataset(Dataset):
         if self.mask_transform:
             mask = self.mask_transform(mask)
             mask[mask > 0] = 1
+            
+        mask_ = torch.zeros_like(mask)
+        mask_ = repeat(mask_, "1 c h w -> 1 (repeat c) h w", repeat=2)
+        
+        if curr_click_idx == final_click_idx:
+            mask_[:, 1] = mask
+        else:
+            mask_[:, 0] = mask
+            
+        mask = mask_
         
         rgb_matrix = np.load(matrix_files[sample_idx])
         
         pixel_coordinates = [np.array([0, 0])]
         position_0 = vehicle_positions[sample_idx]
         position_0 = np.array(position_0).reshape(-1, 1)
+        
 
         for t in range(num_files - sample_idx - 1):
             position_t = vehicle_positions[sample_idx + t]
             position_t = np.array(position_t).reshape(-1, 1)
+            
+            # tgt_position_t = target_positions.iloc[sample_idx + t].to_list()
 
             # Convert the current position and next position to pixel coordinates
             # using the current camera transformation matrix
@@ -371,6 +390,7 @@ class CarlaFullDataset(Dataset):
         position_file = os.path.join(episode_dir, "vehicle_positions.txt")
         command_path = os.path.join(episode_dir, "command.txt")
         intrinsic_path = os.path.join(episode_dir, "camera_intrinsic.npy")
+        target_path = os.path.join(episode_dir, "target_positions.txt")
 
         K = np.load(intrinsic_path)
 
@@ -379,7 +399,10 @@ class CarlaFullDataset(Dataset):
             for line in fhand:
                 position = np.array(line.split(","), dtype=np.float32)
                 vehicle_positions.append(position)
-                
+        
+        target_positions = pd.read_csv(target_path, names=['x', 'y', 'z', 'click_no'])
+        # last_target_idx = target_positions['click_no'].max()
+        
         # print(len(image_files), len(mask_files), len(matrix_files), len(vehicle_positions), episode_dir)
         # assert len(image_files) == len(mask_files) == len(matrix_files) == len(vehicle_positions)
             
@@ -387,7 +410,7 @@ class CarlaFullDataset(Dataset):
         sample_idx = None
         if self.mode == "image":
             frames, orig_frames, frame_masks, traj_mask, sample_idx = self.get_image_data(
-                K, image_files, mask_files, matrix_files, vehicle_positions
+                K, image_files, mask_files, matrix_files, vehicle_positions, target_positions
             )
         elif self.mode == "video":
             frames, orig_frames, frame_masks = self.get_video_data(
@@ -412,3 +435,7 @@ class CarlaFullDataset(Dataset):
         output["text_mask"] = phrase_mask
 
         return output
+
+
+# if __name__ == "__main__":
+    
