@@ -342,7 +342,11 @@ class Solver(object):
                         batch["orig_frame"],
                         batch["orig_text"],
                         mask.detach().cpu(),
+                        traj_mask.detach().cpu(),
                         gt_mask.detach().cpu(),
+                        gt_traj_mask.detach().cpu(),
+                        batch["episode"],
+                        batch["sample_idx"],
                         title="training",
                     )
 
@@ -509,10 +513,14 @@ class Solver(object):
                         batch["orig_frame"],
                         batch["orig_text"],
                         mask.detach().cpu(),
+                        traj_mask.detach().cpu(),
                         gt_mask.detach().cpu(),
+                        gt_traj_mask.detach().cpu(),
+                        batch["episode"],
+                        batch["sample_idx"],
                         title="validation",
                     )
-            if step % 50 == 0:
+            if step % 100 == 0:
                 print(mask.min(), mask.max())
 
                 gc.collect()
