@@ -11,6 +11,7 @@
 # CarlaUE4.exe -windowed -carla-server -quality-level=Low
 
 from __future__ import print_function
+from einops import rearrange
 import shutil
 
 from agents.navigation.basic_agent import BasicAgent  # pylint: disable=import-error
@@ -55,6 +56,7 @@ import queue
 import matplotlib.pyplot as plt
 from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 
 try:
     import pygame
@@ -288,11 +290,13 @@ class KeyboardControl(object):
         global command_given
         global mask_video
         global frame_video
+        global traj_mask_video
         global target_video
         global target_number
         global pred_found
         global frame_count
         global command
+
         if key == K_d:
             command_given = False
             saving = [True, True, False]
@@ -300,31 +304,39 @@ class KeyboardControl(object):
             pred_found = 0
 
             frame_video = np.concatenate(frame_video, axis=0)
-            mask_video = np.concatenate(mask_video, axis=0)
             target_video = np.concatenate(target_video, axis=0)
+            mask_video = np.concatenate(mask_video, axis=0)
+            traj_mask_video = np.concatenate(traj_mask_video, axis=0)
 
             # import pdb; pdb.set_trace()
             mask_video_overlay = np.copy(frame_video)
-            mask_video_overlay[:,
-                               0] += (mask_video[:, 0]/mask_video.max())
+            mask_video_overlay[:, 0] += (mask_video[:, 0]/mask_video.max())
             mask_video_overlay = np.clip(
                 mask_video_overlay, a_min=0., a_max=1.)
+
+            traj_mask_video_overlay = np.copy(frame_video)
+            traj_mask_video_overlay[:,
+                                    0] += (traj_mask_video[:, 0]/traj_mask_video.max())
+            traj_mask_video_overlay = np.clip(
+                traj_mask_video_overlay, a_min=0., a_max=1.)
 
             frame_video = np.uint8(frame_video * 255)
             target_video = np.uint8(target_video * 255)
             mask_video = np.uint8(mask_video_overlay * 255)
-            print(frame_video.shape, mask_video.shape)
+            traj_mask_video = np.uint8(traj_mask_video_overlay * 255)
 
             wandb.log(
                 {
                     "video": wandb.Video(frame_video, fps=1, caption=command, format="mp4"),
                     "target video": wandb.Video(target_video, fps=1, caption=command, format="mp4"),
                     "pred_mask": wandb.Video(mask_video, fps=1, caption=command, format="mp4"),
+                    "traj_mask": wandb.Video(traj_mask_video, fps=1, caption=command, format="mp4"),
                 }
             )
             frame_video = []
             mask_video = []
             target_video = []
+            traj_mask_video = []
 
     @staticmethod
     def _is_delete_episode_shortcut(key):
@@ -823,6 +835,7 @@ class CameraManager(object):
         global confidence
 
         global frame_video
+        global traj_mask_video
         global mask_video
         global target_video
 
@@ -916,6 +929,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
     global confidence
 
     global frame_video
+    global traj_mask_video
     global mask_video
     global target_video
 
@@ -929,6 +943,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
     if frame_count < 20 and target_number == 0:
         frame_video = []
         mask_video = []
+        traj_mask_video = []
         target_video = []
 
     if frame_count % 20 == 0 and target_number <= 3:
@@ -937,11 +952,15 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
         frame = img_transform(im).cuda(
             non_blocking=True).unsqueeze(0)
 
-        mask = network(frame, phrase, frame_mask, phrase_mask)
+        mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
 
         mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
         mask_np = mask_np.reshape(mask_np.shape[0], mask_np.shape[1])
         print(mask_np.shape, mask_np.max(), mask_np.min())
+
+        traj_mask_np = traj_mask.detach().cpu()
+        traj_mask_np = rearrange(traj_mask_np, "1 1 h w -> h w")
+
         # mask_np = cv2.resize(mask_np, (1280, 720))
         pixel_out = best_pixel(mask_np, threshold, confidence)
 
@@ -964,6 +983,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
 
             frame_video.append(frame.detach().cpu().numpy())
             mask_video.append(mask.detach().cpu().numpy())
+            traj_mask_video.append(traj_mask.detach().cpu())
 
             target_vector = np.copy(
                 frame.detach().cpu().numpy()).transpose(2, 3, 1, 0)
@@ -982,6 +1002,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
         else:
             frame_video.append(frame.detach().cpu().numpy())
             mask_video.append(mask.detach().cpu().numpy())
+            traj_mask_video.append(traj_mask.detach().cpu())
 
             target_vector = np.copy(
                 frame.detach().cpu().numpy()).transpose(2, 3, 1, 0)
@@ -1251,6 +1272,7 @@ def game_loop(args):
     global pred_found
 
     global frame_video
+    global traj_mask_video
     global target_video
     global mask_video
 
@@ -1530,10 +1552,11 @@ def game_loop(args):
             img_backbone = timm.create_model(
                 args.img_backbone, pretrained=True)
             visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
-            network = SegmentationBaseline(
+            network = JointSegmentationBaseline(
                 visual_encoder,
                 hidden_dim=args.hidden_dim,
                 mask_dim=args.mask_dim,
+                traj_dim=args.traj_dim,
                 backbone=args.img_backbone,
             )
         elif "dino_resnet50" in args.img_backbone:
@@ -1706,8 +1729,9 @@ def game_loop(args):
                     pred_found = 0
 
                     frame_video = np.concatenate(frame_video, axis=0)
-                    mask_video = np.concatenate(mask_video, axis=0)
                     target_video = np.concatenate(target_video, axis=0)
+                    mask_video = np.concatenate(mask_video, axis=0)
+                    traj_mask_video = np.concatenate(traj_mask_video, axis=0)
 
                     # import pdb; pdb.set_trace()
                     mask_video_overlay = np.copy(frame_video)
@@ -1716,21 +1740,29 @@ def game_loop(args):
                     mask_video_overlay = np.clip(
                         mask_video_overlay, a_min=0., a_max=1.)
 
+                    traj_mask_video_overlay = np.copy(frame_video)
+                    traj_mask_video_overlay[:,
+                                            0] += (traj_mask_video[:, 0]/traj_mask_video.max())
+                    traj_mask_video_overlay = np.clip(
+                        traj_mask_video_overlay, a_min=0., a_max=1.)
+
                     frame_video = np.uint8(frame_video * 255)
                     target_video = np.uint8(target_video * 255)
                     mask_video = np.uint8(mask_video_overlay * 255)
-                    print(frame_video.shape, mask_video.shape)
+                    traj_mask_video = np.uint8(traj_mask_video_overlay * 255)
 
                     wandb.log(
                         {
                             "video": wandb.Video(frame_video, fps=1, caption=command, format="mp4"),
                             "target video": wandb.Video(target_video, fps=1, caption=command, format="mp4"),
                             "pred_mask": wandb.Video(mask_video, fps=1, caption=command, format="mp4"),
+                            "traj_mask": wandb.Video(traj_mask_video, fps=1, caption=command, format="mp4"),
                         }
                     )
                     frame_video = []
                     mask_video = []
                     target_video = []
+                    traj_mask_video = []
 
                 else:
                     print('Done')
@@ -1929,6 +1961,8 @@ def main():
                            default=448, help="Image Dimension")
     argparser.add_argument("--mask_dim", type=int,
                            default=448, help="Mask Dimension")
+    argparser.add_argument("--traj_dim", type=int,
+                           default=448, help="Traj Dimension")
     argparser.add_argument("--hidden_dim", type=int,
                            default=256, help="Hidden Dimension")
     argparser.add_argument("--num_frames", type=int,
