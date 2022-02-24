@@ -37,6 +37,8 @@ class Solver(object):
 
         self.data_root = self.args.data_root
         self.glove_path = self.args.glove_path
+        
+        self.loss_func = self.args.loss_func
 
         self.img_backbone = self.args.img_backbone
         self.image_dim = self.args.image_dim
@@ -198,9 +200,9 @@ class Solver(object):
             drop_last=False,
         )
 
-        self.criterion = nn.BCELoss(reduction="mean")
+        self.bce_loss = nn.BCELoss(reduction="mean")
         self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
-        self.cross_entropy = CELoss()
+        self.class_level_loss = ClassLevelLoss(beta=0.6)
 
     def initialize_optimizer(self):
         params = list([p for p in self.network.parameters() if p.requires_grad])
@@ -290,10 +292,15 @@ class Solver(object):
 
             mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
 
-            # loss = self.criterion(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
-            loss = self.combo_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
-            # import pdb; pdb.set_trace()
-            # loss = self.cross_entropy(mask, gt_mask.squeeze(1)) + self.combo_loss(traj_mask, gt_traj_mask)
+            if self.loss_func == "bce":
+                loss = self.bce_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            elif self.loss_func == "combo":
+                loss = self.combo_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            elif self.loss_func == "class_level":
+                loss = self.class_level_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            else:
+                raise NotImplementedError(f"{self.loss_func} not implemented!") 
+            
             loss.backward()
 
             if iterId % 1000 == 0 and self.grad_check:
@@ -470,9 +477,14 @@ class Solver(object):
 
             mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
 
-            # loss = self.criterion(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
-            loss = self.combo_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
-            # loss = self.cross_entropy(mask, gt_mask.squeeze(1)) + self.combo_loss(traj_mask, gt_traj_mask)
+            if self.loss_func == "bce":
+                loss = self.bce_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            elif self.loss_func == "combo":
+                loss = self.combo_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            elif self.loss_func == "class_level":
+                loss = self.class_level_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            else:
+                raise NotImplementedError(f"{self.loss_func} not implemented!") 
 
             end_time = time()
             elapsed_time = end_time - start_time

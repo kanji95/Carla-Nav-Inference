@@ -66,14 +66,16 @@ class ComboLoss(nn.Module):
         return combo
 
 
-class CELoss(nn.Module):
-    def __init__(self):
-        super(CELoss, self).__init__()
+class ClassLevelLoss(nn.Module):
+    def __init__(self, beta=0.6):
+        super(ClassLevelLoss, self).__init__()
+        
+        self.criterion = nn.BCELoss()
+        self.beta = beta
 
+    # B, C, H, W
     def forward(self, inputs, targets):
-        # inputs = inputs.flatten(1)
-        # targets = targets.flatten(1)
-
-        return - (targets * torch.log(inputs)).mean()
+        
+        return self.beta * self.criterion(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.criterion(inputs[:, 1], targets[:, 1])
 
         
