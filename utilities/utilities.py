@@ -179,10 +179,14 @@ def log_video_predicitons(front_cam_image, lang_command, pred_mask, traj_mask, g
         mask_gt = rearrange(gt_mask[index], "c h w -> h w c")
 
         mask_gt_ = np.zeros((h, w, 3))
-        if mask_gt[:, :, 0].max() > mask_gt[:, :, 1].max():
-            mask_gt_[:, :, 1] = mask_gt[:, :, 0] * 255  # lime
+        if mask_gt.max() == 2:
+            mask_gt_[:, :, 1] = mask_gt[:, :, 0] * 100  # dark green
         else:
-            mask_gt_[:, :, 1] = mask_gt[:, :, 1] * 100  # dark green
+            mask_gt_[:, :, 1] = mask_gt[:, :, 0] * 255  # lime
+        # if mask_gt[:, :, 0].max() > mask_gt[:, :, 1].max():
+        #     mask_gt_[:, :, 1] = mask_gt[:, :, 0] * 255  # lime
+        # else:
+        #     mask_gt_[:, :, 1] = mask_gt[:, :, 1] * 100  # dark green
 
         # mask_gt_[:, :, 0] = mask_gt[:, :, 0] * 100  # dark red
         # mask_gt_[:, :, 1] = mask_gt[:, :, 1] * 100  # dark green
