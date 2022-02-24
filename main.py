@@ -34,6 +34,8 @@ def main(args):
         save_path,
         f'{args.model}_{args.img_backbone}_{datetime.now().strftime("%d_%b_%H-%M")}.pth',
     )
+    
+    print(f"================= Model Filename: {model_filename} =================")
 
     print("Initializing Solver!")
     solver = Solver(args)
