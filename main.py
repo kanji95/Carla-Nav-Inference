@@ -75,6 +75,12 @@ def main(args):
                     f"{epochs_without_improvement} epochs without improvement, Stopping Training!"
                 )
                 break
+    
+    if args.save:
+        print(f"Current Model Name {model_filename}")
+        new_filename = f"{args.model}_{args.img_backbone}_{best_pg:.5f}.pth"
+        os.rename(model_filename, new_filename)
+        print(f"Renamed to {new_filename}!")
 
 
 if __name__ == "__main__":
