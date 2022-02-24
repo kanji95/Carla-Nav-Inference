@@ -942,12 +942,25 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
 
     global new_destination
 
+    global video_queue
+
     global args
 
     img = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
     img = np.reshape(
         img, (image.height, image.width, 4))  # RGBA format
     img = img[:, :, :]  # BGR
+
+    im = Image.fromarray(img[:, :, :3][:, :, ::-1])
+
+    frame = img_transform(im)
+
+    if args.img_backbone == 'timesformer':
+        if frame_count == 0:
+            video_queue = [frame]*args.num_frames
+        else:
+            video_queue.pop()
+            video_queue.append(frame)
 
     if frame_count < args.sampling and target_number == 0:
         frame_video = []
@@ -956,12 +969,17 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
         target_video = []
 
     if frame_count % args.sampling == 0 and target_number <= 3:
-        im = Image.fromarray(img[:, :, :3][:, :, ::-1])
 
-        frame = img_transform(im).cuda(
+        frame = frame.cuda(
             non_blocking=True).unsqueeze(0)
 
-        mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
+        if 'timesformer' not in args.img_backbone:
+            mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
+        else:
+            video_frames = torch.stack(video_queue, dim=1).cuda(
+                non_blocking=True).unsqueeze(0)
+            mask, traj_mask = network(
+                video_frames, phrase, frame_mask, phrase_mask)
 
         print('Output shapes:')
         print(mask.shape)
