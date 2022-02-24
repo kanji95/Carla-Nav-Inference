@@ -64,3 +64,16 @@ class ComboLoss(nn.Module):
         assert not torch.isnan(combo).any()
 
         return combo
+
+
+class CELoss(nn.Module):
+    def __init__(self):
+        super(CELoss, self).__init__()
+
+    def forward(self, inputs, targets):
+        # inputs = inputs.flatten(1)
+        # targets = targets.flatten(1)
+
+        return - (targets * torch.log(inputs)).mean()
+
+        
