@@ -1018,7 +1018,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
 
             probs, region = pixel_out
 
-            print(f'probs = probability')
+            print(f'probs = {probs} with pred_found = {pred_found}')
 
             region = (region[0]*1280/mask_np.shape[1],
                       region[1]*720/mask_np.shape[1])
@@ -1028,7 +1028,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
             color = (255, 0, 0)
 
             ########### STOPPING CRITERIA START ################
-            if args.stop_criteria == 'confidence':
+            if args.stop_criteria == 'confidence' and args.target != 'network':
                 if probs >= confidence:
                     color = (0, 0, 255)
                     pred_found = 1
