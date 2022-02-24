@@ -136,6 +136,15 @@ if __name__ == "__main__":
         type=str,
     )
 
+    parser.add_argument(
+        "--loss_func",
+        default='bce',
+        choices=[
+            'bce', 'combo', 'class_level'
+        ],
+        type=str,
+    )
+    
     parser.add_argument("--image_dim", type=int,
                         default=224, help="Image Dimension")
     parser.add_argument("--mask_dim", type=int,
