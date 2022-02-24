@@ -52,6 +52,8 @@ from dataloader.word_utils import Corpus
 
 import cv2
 from skimage import measure
+from skimage.morphology import skeletonize
+from scipy import spatial
 import queue
 import matplotlib.pyplot as plt
 from PIL import Image, ImageFile
@@ -935,18 +937,24 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
 
     global frame_pending
 
+    global pred_found
+
+    global new_destination
+
+    global args
+
     img = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
     img = np.reshape(
         img, (image.height, image.width, 4))  # RGBA format
     img = img[:, :, :]  # BGR
 
-    if frame_count < 20 and target_number == 0:
+    if frame_count < args.sampling and target_number == 0:
         frame_video = []
         mask_video = []
         traj_mask_video = []
         target_video = []
 
-    if frame_count % 20 == 0 and target_number <= 3:
+    if frame_count % args.sampling == 0 and target_number <= 3:
         im = Image.fromarray(img[:, :, :3][:, :, ::-1])
 
         frame = img_transform(im).cuda(
@@ -959,10 +967,15 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
         print(mask_np.shape, mask_np.max(), mask_np.min())
 
         traj_mask_np = traj_mask.detach().cpu()
-        traj_mask_np = rearrange(traj_mask_np, "1 1 h w -> h w")
+        traj_mask_np = rearrange(traj_mask_np, "1 1 h w -> h w").numpy()
+        traj_mask_np = skeletonize(cv2.threshold(
+            traj_mask_np, args.threshold, 1, cv2.THRESH_BINARY)[1])
 
         # mask_np = cv2.resize(mask_np, (1280, 720))
-        pixel_out = best_pixel(mask_np, threshold, confidence)
+        if args.target == 'mask':
+            pixel_out = best_pixel(mask_np, threshold, confidence)
+        else:
+            pixel_out = best_pixel_traj(traj_mask_np)
 
         if pixel_out != -1:
 
@@ -973,17 +986,70 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
 
             region = (int(region[0]), int(region[1]))
 
-            if probs > confidence:
-                color = (0, 0, 255)
-            else:
-                color = (255, 0, 0)
+            color = (255, 0, 0)
+            if args.stop_criteria == 'confidence':
+                if probs > confidence:
+                    color = (0, 0, 255)
+                    pred_found = 1
+                else:
+                    color = (255, 0, 0)
+            elif args.stop_criteria == 'distance' and agent.target_destination:
+                if args.target == 'trajectory':
+                    pixel_temp = best_pixel(mask_np, threshold, confidence)
+                    if pixel_temp != -1:
+                        pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                       region, K, destination, set_destination=False)
+
+                        if np.linalg.norm(
+                            np.array([vehicle_location.x, vehicle_location.y])
+                            - np.array([new_destination.x,
+                                        new_destination.y])) < args.distance:
+
+                            color = (0, 0, 255)
+                            pred_found = 1
+
+                print(
+                    f'Distance from target: {np.linalg.norm(np.array([vehicle_location.x, vehicle_location.y])- np.array([agent.target_destination.x,agent.target_destination.y]))}')
+                if np.linalg.norm(
+                    np.array([vehicle_location.x, vehicle_location.y])
+                    - np.array([agent.target_destination.x,
+                                agent.target_destination.y])) < args.distance:
+
+                    color = (0, 0, 255)
+                    pred_found = 1
 
             pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
                            region, K, destination)
 
+            if args.stop_criteria == 'distance' and agent.target_destination:
+                if args.target == 'trajectory':
+                    pixel_temp = best_pixel(mask_np, threshold, confidence)
+                    if pixel_temp != -1:
+                        pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                       region, K, destination, set_destination=False)
+
+                        if np.linalg.norm(
+                            np.array([vehicle_location.x, vehicle_location.y])
+                            - np.array([new_destination.x,
+                                        new_destination.y])) < args.distance:
+
+                            color = (0, 0, 255)
+                            pred_found = 1
+                if np.linalg.norm(
+                    np.array([vehicle_location.x, vehicle_location.y])
+                    - np.array([agent.target_destination.x,
+                               agent.target_destination.y])) < args.distance:
+
+                    color = (0, 0, 255)
+                    pred_found = 1
+
             frame_video.append(frame.detach().cpu().numpy())
             mask_video.append(mask.detach().cpu().numpy())
-            traj_mask_video.append(traj_mask.detach().cpu())
+            traj_mask_video.append(
+                skeletonize(
+                    cv2.threshold(
+                        traj_mask.detach().cpu().numpy().reshape(traj_mask.shape[2], traj_mask.shape[3]), args.threshold, 1, cv2.THRESH_BINARY)[1]).reshape(
+                            1, 1, traj_mask.shape[2], traj_mask.shape[3]))
 
             target_vector = np.copy(
                 frame.detach().cpu().numpy()).transpose(2, 3, 1, 0)
@@ -1002,7 +1068,11 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
         else:
             frame_video.append(frame.detach().cpu().numpy())
             mask_video.append(mask.detach().cpu().numpy())
-            traj_mask_video.append(traj_mask.detach().cpu())
+            traj_mask_video.append(
+                skeletonize(
+                    cv2.threshold(
+                        traj_mask.detach().cpu().numpy().reshape(traj_mask.shape[2], traj_mask.shape[3]), args.threshold, 1, cv2.THRESH_BINARY)[1]).reshape(
+                            1, 1, traj_mask.shape[2], traj_mask.shape[3]))
 
             target_vector = np.copy(
                 frame.detach().cpu().numpy()).transpose(2, 3, 1, 0)
@@ -1022,8 +1092,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
         print(
             f'------------------INCREMENTING TARGET COUNT TO {target_number}------------------')
 
-    if target_number > 3:
-        pred_found = 1
+    # if target_number > 3:
+    #     pred_found = 1
 
     frame_count += 1
 
@@ -1058,6 +1128,7 @@ def best_pixel(segmentation_map, threshold, confidence, method="weighted_average
     global frame_count
     global target_number
     global pred_found
+    global args
 
     # cv2.imshow(f'seg_map', segmentation_map)
     # cv2.waitKey(10)
@@ -1076,8 +1147,7 @@ def best_pixel(segmentation_map, threshold, confidence, method="weighted_average
         largest_label = count[np.argmax(count[:, 1]), 0]
         print(
             f"================{count[np.argmax(count[:, 1]),1]}================")
-        if count[np.argmax(count[:, 1]), 1] > confidence:
-            pred_found = 1
+
         segmentation_map[labels != largest_label] = 0
         pos = (np.argmax(
             segmentation_map@np.arange(segmentation_map.shape[1])), np.argmax(np.arange(segmentation_map.shape[0])@segmentation_map))
@@ -1097,8 +1167,6 @@ def best_pixel(segmentation_map, threshold, confidence, method="weighted_average
             return -1
 
         ret_count = np.sum(segmentation_map[labels == labels[pos]])
-        if ret_count > confidence:
-            pred_found = 1
 
     final = (pos[1], pos[0])
     # final = pos
@@ -1108,6 +1176,16 @@ def best_pixel(segmentation_map, threshold, confidence, method="weighted_average
           * 720/segmentation_map.shape[1]), '------>')
     return (ret_count, final)
     # return pos
+
+
+def best_pixel_traj(traj_mask_np):
+    candidates = np.where(traj_mask_np > 0)
+    candidates = np.vstack([candidates[0], candidates[1]]).T
+    dist_mat = spatial.distance_matrix(candidates, np.array(
+        [traj_mask_np.shape[0]-1, traj_mask_np.shape[1]/2-1]).reshape(1, 2))
+    pos = (*candidates[np.argmax(dist_mat)].tolist(),)
+    final = (pos[1], pos[0])
+    return (1, final)
 
 
 def world_to_pixel(K, rgb_matrix, destination,  curr_position):
@@ -1140,6 +1218,7 @@ def world_to_pixel(K, rgb_matrix, destination,  curr_position):
 def pixel_to_world(image, vehicle_matrix, vehicle_location, weak_agent, screen_pos, K, destination, set_destination=True):
     global command_given
     global target_number
+    global new_destination
 
     agent_weak = weak_agent()
 
@@ -1708,20 +1787,38 @@ def game_loop(args):
                 vehicle_transform = agent._vehicle.get_transform()
                 vehicle_matrix = vehicle_transform.get_matrix()
                 vehicle_location = vehicle_transform.location
+
+                if args.stop_criteria == 'distance' and agent.target_destination:
+                    if np.linalg.norm(
+                        np.array([vehicle_location.x, vehicle_location.y])
+                        - np.array([agent.target_destination.x,
+                                    agent.target_destination.y])) < args.distance:
+
+                        pred_found = 1
+
                 if command_given and not pred_found:
                     start = time.time()
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
                                     vehicle_location)
                     end = time.time()
-                    if frame_count % 20 == 1:
+                    if frame_count % args.sampling == 1:
                         print(f'Network took {end-start}')
 
-            if target_number > 3:
+                if args.stop_criteria == 'distance' and agent.target_destination:
+                    if np.linalg.norm(
+                        np.array([vehicle_location.x, vehicle_location.y])
+                        - np.array([agent.target_destination.x,
+                                    agent.target_destination.y])) < args.distance:
+
+                        pred_found = 1
+
+            if target_number > 5:
                 pred_found = 1
                 target_number = 0
                 frame_count = 0
 
             if agent.done() and command_given:
+                pred_found = 1
                 if pred_found:
                     command_given = False
                     saving = [True, True, False]
@@ -1763,11 +1860,6 @@ def game_loop(args):
                     mask_video = []
                     target_video = []
                     traj_mask_video = []
-
-                else:
-                    print('Done')
-                    saving = [True, False, False]
-                    target_number += 1
 
             if agent.target_destination:
                 destination = agent.target_destination
@@ -1831,7 +1923,7 @@ def game_loop(args):
             #         print("The target has been reached, stopping the simulation")
             #         break
 
-            if command_given:
+            if command_given and not agent.done():
                 control = agent.run_step()
                 control.manual_gear_shift = False
                 if agent.target_destination:
@@ -1862,6 +1954,7 @@ def game_loop(args):
 
 
 def main():
+    global args
     """Main method"""
 
     argparser = argparse.ArgumentParser(
@@ -1957,6 +2050,32 @@ def main():
         type=str,
     )
 
+    argparser.add_argument(
+        "--target",
+        default="mask",
+        choices=[
+            "mask",
+            "trajectory",
+        ],
+        type=str,
+    )
+
+    argparser.add_argument(
+        "--stop_criteria",
+        default="confidence",
+        choices=[
+            "confidence",
+            "distance",
+        ],
+        type=str,
+    )
+
+    argparser.add_argument(
+        '--distance',
+        default=3,
+        type=float,
+    )
+
     argparser.add_argument("--image_dim", type=int,
                            default=448, help="Image Dimension")
     argparser.add_argument("--mask_dim", type=int,
@@ -1977,6 +2096,9 @@ def main():
 
     argparser.add_argument("--confidence", type=float,
                            default=100, help="mask confidence")
+
+    argparser.add_argument("--sampling", type=float,
+                           default=20, help="mask confidence")
 
     argparser.add_argument("--save", default=False, action="store_true")
 
