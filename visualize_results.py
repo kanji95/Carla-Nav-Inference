@@ -61,7 +61,7 @@ def main(args):
             num_heads=8,
             num_frames=args.num_frames,
         )
-        network = VideoSegmentationBaseline(
+        network = JointVideoSegmentationBaseline(
             visual_encoder,
             hidden_dim=args.hidden_dim,
             mask_dim=args.mask_dim,
@@ -181,7 +181,8 @@ def main(args):
 
         # import pdb; pdb.set_trace()
         mask_video_overlay = np.copy(frame_video)
-        mask_video_overlay[:, 0] += mask_video[:, 0] / mask_video.max()
+        mask_video_overlay[:, 0] += mask_video[:, 0] / mask_video[:, 0].max() # red - intermediate point
+        mask_video_overlay[:, 2] += mask_video[:, 1] / mask_video[:, 1].max() # blue - final point
         mask_video_overlay = np.clip(mask_video_overlay, a_min=0.0, a_max=1.0)
 
         traj_video_overlay = np.copy(frame_video)
@@ -236,7 +237,7 @@ def run_image_model(
         gt_mask = Image.open(mask_file).convert("L")
 
         frame = img_transform(image).cuda(non_blocking=True).unsqueeze(0)
-        gt_mask = mask_transform(gt_mask) #.cuda(non_blocking=True).unsqueeze(0)
+        gt_mask = mask_transform(gt_mask).unsqueeze(0) #.cuda(non_blocking=True).unsqueeze(0)
 
         mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
 
@@ -262,13 +263,13 @@ def run_video_model(
     num_frames = 16,
 ):
     video_queue = []
-    for idx, image_file, mask_file in enumerate(zip(image_files, mask_files)):
+    for idx, (image_file, mask_file) in enumerate(zip(image_files, mask_files)):
         
         image = Image.open(image_file).convert("RGB")
         gt_mask = Image.open(mask_file).convert("L")
         
         frame = img_transform(image) #.cuda(non_blocking=True).unsqueeze(0)
-        gt_mask = mask_transform(gt_mask) #.cuda(non_blocking=True).unsqueeze(0)
+        gt_mask = mask_transform(gt_mask).unsqueeze(0) #.cuda(non_blocking=True).unsqueeze(0)
         
         if idx == 0:
             video_queue = [frame] * num_frames
@@ -280,7 +281,7 @@ def run_video_model(
 
         mask, traj_mask = network(video_frames, phrase, frame_mask, phrase_mask)
 
-        frame_video.append(frame.detach().cpu().numpy())
+        frame_video.append(frame[None].detach().cpu().numpy())
         mask_video.append(mask.detach().cpu().numpy())
         traj_video.append(traj_mask.detach().cpu().numpy())
         gt_mask_video.append(gt_mask)
