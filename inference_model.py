@@ -1858,7 +1858,7 @@ def game_loop(args):
             #     target_number = 0
             #     frame_count = 0
 
-            if agent.done() and command_given:
+            if agent.done() and command_given and frame_count > args.sampling*2:
                 pred_found = 1
                 if pred_found:
                     command_given = False
