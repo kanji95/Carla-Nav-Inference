@@ -44,6 +44,9 @@ class Solver(object):
         self.traj_dim = self.args.traj_dim
         self.hidden_dim = self.args.hidden_dim
         self.num_frames = self.args.num_frames
+        self.traj_frames = self.args.traj_frames
+        self.traj_size = self.args.traj_size
+        
         self.patch_size = self.args.patch_size
 
         self.grad_check = self.args.grad_check
@@ -160,6 +163,8 @@ class Solver(object):
             image_dim=self.image_dim,
             mask_dim=self.mask_dim,
             traj_dim=self.traj_dim,
+            traj_frames=self.traj_frames,
+            traj_size=self.traj_size,
         )
         self.val_dataset = CarlaFullDataset(
             data_root=self.data_root,
@@ -174,6 +179,8 @@ class Solver(object):
             image_dim=self.image_dim,
             mask_dim=self.mask_dim,
             traj_dim=self.traj_dim,
+            traj_frames=self.traj_frames,
+            traj_size=self.traj_size,
         )
 
         self.train_loader = DataLoader(

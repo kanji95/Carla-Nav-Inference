@@ -146,6 +146,11 @@ if __name__ == "__main__":
                         default=256, help="Hidden Dimension")
     parser.add_argument("--num_frames", type=int,
                         default=16, help="Frames of Video")
+    parser.add_argument("--traj_frames", type=int,
+                        default=16, help="Next Frames of Trajectory")
+    parser.add_argument("--traj_size", type=int,
+                        default=25, help="Trajectory Size")
+    
     parser.add_argument("--patch_size", type=int,
                         default=16, help="Patch Size of Video Frame for ViT")
 

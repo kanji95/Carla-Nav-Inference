@@ -207,6 +207,8 @@ class CarlaFullDataset(Dataset):
         image_dim=224, 
         mask_dim=112,
         traj_dim=56,
+        traj_frames=10,
+        traj_size=25,
     ):
         self.data_dir = os.path.join(data_root, split)
 
@@ -222,6 +224,9 @@ class CarlaFullDataset(Dataset):
         self.image_dim = image_dim
         self.mask_dim = mask_dim
         self.traj_dim = traj_dim
+        
+        self.traj_frames = traj_frames
+        self.traj_size = traj_size
 
         if self.mode == "video":
             self.dataset_len = self.dataset_len//self.sequence_len
@@ -344,7 +349,7 @@ class CarlaFullDataset(Dataset):
         pixel_coordinates = np.vstack(pixel_coordinates[1:])[:, None]
         
         traj_mask = np.zeros((orig_frames.shape[1], orig_frames.shape[2]))
-        traj_mask = cv2.polylines(traj_mask, [pixel_coordinates], isClosed=False, color=(255), thickness=25)
+        traj_mask = cv2.polylines(traj_mask, [pixel_coordinates], isClosed=False, color=(255), thickness=self.traj_size)
         traj_mask = Image.fromarray(traj_mask)
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
@@ -436,7 +441,7 @@ class CarlaFullDataset(Dataset):
         pixel_coordinates = np.vstack(pixel_coordinates[1:])[:, None]
         
         traj_mask = np.zeros((orig_image.shape[0], orig_image.shape[1]))
-        traj_mask = cv2.polylines(traj_mask, [pixel_coordinates], isClosed=False, color=(255), thickness=25)
+        traj_mask = cv2.polylines(traj_mask, [pixel_coordinates], isClosed=False, color=(255), thickness=self.traj_size)
         traj_mask = Image.fromarray(traj_mask)
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
@@ -470,11 +475,11 @@ class CarlaFullDataset(Dataset):
         sample_idx = None
         if self.mode == "image":
             frames, orig_frames, frame_masks, traj_mask, sample_idx = self.get_image_data(
-                K, image_files, mask_files, matrix_files, vehicle_positions, target_positions
+                K, image_files, mask_files, matrix_files, vehicle_positions, target_positions, T=self.traj_frames
             )
         elif self.mode == "video":
             frames, orig_frames, frame_masks, traj_mask, sample_idx = self.get_video_data(
-                K, image_files, mask_files, matrix_files, vehicle_positions, target_positions
+                K, image_files, mask_files, matrix_files, vehicle_positions, target_positions, T=self.traj_frames
             )
         else:
             raise NotImplementedError(f"{self.mode} mode not implemented!")
