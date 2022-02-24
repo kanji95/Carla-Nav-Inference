@@ -200,6 +200,7 @@ class Solver(object):
 
         self.criterion = nn.BCELoss(reduction="mean")
         self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
+        self.cross_entropy = nn.CrossEntropyLoss()
 
     def initialize_optimizer(self):
         params = list([p for p in self.network.parameters() if p.requires_grad])
@@ -290,9 +291,10 @@ class Solver(object):
             mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
 
             # loss = self.criterion(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
-            loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
-                traj_mask, gt_traj_mask
-            )
+            # loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
+            #     traj_mask, gt_traj_mask
+            # )
+            loss = self.cross_entropy(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             loss.backward()
 
             if iterId % 1000 == 0 and self.grad_check:
@@ -470,9 +472,10 @@ class Solver(object):
             mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
 
             # loss = self.criterion(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
-            loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
-                traj_mask, gt_traj_mask
-            )
+            # loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
+            #     traj_mask, gt_traj_mask
+            # )
+            loss = self.cross_entropy(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
 
             end_time = time()
             elapsed_time = end_time - start_time
