@@ -313,6 +313,7 @@ class KeyboardControl(object):
             # import pdb; pdb.set_trace()
             mask_video_overlay = np.copy(frame_video)
             mask_video_overlay[:, 0] += (mask_video[:, 0]/mask_video.max())
+            mask_video_overlay[:, 1] += (mask_video[:, 1]/mask_video.max())
             mask_video_overlay = np.clip(
                 mask_video_overlay, a_min=0., a_max=1.)
 
@@ -962,9 +963,20 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
 
         mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
 
+        print('Output shapes:')
+        print(mask.shape)
+        print(traj_mask.shape)
+
         mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
-        mask_np = mask_np.reshape(mask_np.shape[0], mask_np.shape[1])
-        print(mask_np.shape, mask_np.max(), mask_np.min())
+        intermediate_mask_np = mask_np[:, :, 0].reshape(
+            mask_np.shape[0], mask_np.shape[1])
+        final_mask_np = mask_np[:, :, 1].reshape(
+            mask_np.shape[0], mask_np.shape[1])
+        print(intermediate_mask_np.shape,
+              intermediate_mask_np.max(), intermediate_mask_np.min())
+        print(final_mask_np.shape, final_mask_np.max(), final_mask_np.min())
+
+        mask_np = np.clip(intermediate_mask_np+final_mask_np, 0.0, 1.0)
 
         traj_mask_np = traj_mask.detach().cpu()
         traj_mask_np = rearrange(traj_mask_np, "1 1 h w -> h w").numpy()
@@ -974,12 +986,21 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
         # mask_np = cv2.resize(mask_np, (1280, 720))
         if args.target == 'mask':
             pixel_out = best_pixel(mask_np, threshold, confidence)
-        else:
+        elif args.target == 'trajectory':
             pixel_out = best_pixel_traj(traj_mask_np)
+        elif args.target == 'network':
+            pixel_out = best_pixel(final_mask_np, threshold, confidence)
+            if pixel_out == -1 or pixel_out[0] < confidence:
+                pixel_out = best_pixel(
+                    intermediate_mask_np, threshold, confidence)
+            else:
+                pred_found = 1
 
         if pixel_out != -1:
 
             probs, region = pixel_out
+
+            print(f'probs = probability')
 
             region = (region[0]*1280/mask_np.shape[1],
                       region[1]*720/mask_np.shape[1])
@@ -987,8 +1008,10 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
             region = (int(region[0]), int(region[1]))
 
             color = (255, 0, 0)
+
+            ########### STOPPING CRITERIA START ################
             if args.stop_criteria == 'confidence':
-                if probs > confidence:
+                if probs >= confidence:
                     color = (0, 0, 255)
                     pred_found = 1
                 else:
@@ -1017,31 +1040,10 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location):
 
                     color = (0, 0, 255)
                     pred_found = 1
+            ########### STOPPING CRITERIA END ################
 
             pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
                            region, K, destination)
-
-            if args.stop_criteria == 'distance' and agent.target_destination:
-                if args.target == 'trajectory':
-                    pixel_temp = best_pixel(mask_np, threshold, confidence)
-                    if pixel_temp != -1:
-                        pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                                       region, K, destination, set_destination=False)
-
-                        if np.linalg.norm(
-                            np.array([vehicle_location.x, vehicle_location.y])
-                            - np.array([new_destination.x,
-                                        new_destination.y])) < args.distance:
-
-                            color = (0, 0, 255)
-                            pred_found = 1
-                if np.linalg.norm(
-                    np.array([vehicle_location.x, vehicle_location.y])
-                    - np.array([agent.target_destination.x,
-                               agent.target_destination.y])) < args.distance:
-
-                    color = (0, 0, 255)
-                    pred_found = 1
 
             frame_video.append(frame.detach().cpu().numpy())
             mask_video.append(mask.detach().cpu().numpy())
@@ -1342,6 +1344,8 @@ def game_loop(args):
     global network
     global corpus
     global img_transform
+    global mask_transform
+    global traj_transform
     global phrase
     global phrase_mask
     global frame_mask
@@ -1648,11 +1652,22 @@ def game_loop(args):
             )
         elif "timesformer" in args.img_backbone:
             mode = "video"
-            spatial_dim = args.image_dim//args.patch_size
-            visual_encoder = VisionTransformer(img_size=args.image_dim, patch_size=args.patch_size,
-                                               embed_dim=args.hidden_dim, depth=2, num_heads=8, num_frames=args.num_frames)
-            network = VideoSegmentationBaseline(
-                visual_encoder, hidden_dim=args.hidden_dim, mask_dim=args.mask_dim, spatial_dim=spatial_dim, num_frames=args.num_frames,
+            spatial_dim = args.image_dim // args.patch_size
+            visual_encoder = VisionTransformer(
+                img_size=args.image_dim,
+                patch_size=args.patch_size,
+                embed_dim=args.hidden_dim,
+                depth=2,
+                num_heads=8,
+                num_frames=args.num_frames,
+            )
+            network = JointVideoSegmentationBaseline(
+                visual_encoder,
+                hidden_dim=args.hidden_dim,
+                mask_dim=args.mask_dim,
+                traj_dim=args.traj_dim,
+                spatial_dim=spatial_dim,
+                num_frames=args.num_frames,
             )
         elif "deeplabv3_" in args.img_backbone:
             img_backbone = torch.hub.load(
@@ -1661,10 +1676,11 @@ def game_loop(args):
             visual_encoder = nn.Sequential(
                 *list(img_backbone._modules["backbone"].children())
             )
-            network = SegmentationBaseline(
+            network = JointSegmentationBaseline(
                 visual_encoder,
                 hidden_dim=args.hidden_dim,
                 mask_dim=args.mask_dim,
+                traj_dim=args.traj_dim,
                 backbone=args.img_backbone,
             )
         wandb.watch(network, log="all")
@@ -1691,6 +1707,13 @@ def game_loop(args):
         mask_transform = transforms.Compose(
             [
                 transforms.Resize((args.mask_dim, args.mask_dim)),
+                transforms.ToTensor(),
+            ]
+        )
+
+        traj_transform = transforms.Compose(
+            [
+                transforms.Resize((args.traj_dim, args.traj_dim)),
                 transforms.ToTensor(),
             ]
         )
@@ -1812,10 +1835,10 @@ def game_loop(args):
 
                         pred_found = 1
 
-            if target_number > 5:
-                pred_found = 1
-                target_number = 0
-                frame_count = 0
+            # if target_number > 5:
+            #     pred_found = 1
+            #     target_number = 0
+            #     frame_count = 0
 
             if agent.done() and command_given:
                 pred_found = 1
@@ -1834,6 +1857,8 @@ def game_loop(args):
                     mask_video_overlay = np.copy(frame_video)
                     mask_video_overlay[:,
                                        0] += (mask_video[:, 0]/mask_video.max())
+                    mask_video_overlay[:,
+                                       1] += (mask_video[:, 1]/mask_video.max())
                     mask_video_overlay = np.clip(
                         mask_video_overlay, a_min=0., a_max=1.)
 
@@ -2056,6 +2081,7 @@ def main():
         choices=[
             "mask",
             "trajectory",
+            "network",
         ],
         type=str,
     )
