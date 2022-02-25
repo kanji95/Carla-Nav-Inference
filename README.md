@@ -14,7 +14,7 @@ python .\inference_model.py --glove_path E:\carla\carla\CARLA_0.9.12\glove\glove
 ```
 
 ```
-python .\inference_model.py --img_backbone vit_small_patch16_224 --hidden_dim 384 --image_dim 224 --mask_dim 224 --traj_dim 224 --sync --threshold 0.0005  --checkpoint .\saved_model\baseline_vit_small_patch16_224_23_Feb_20-07.pth --glove_path E:\carla\carla\CARLA_0.9.12\glove\glove\ --target network --sampling 10 --stop_criteria confidence --confidence 150
+ python .\inference_model.py --img_backbone vit_small_patch16_224 --hidden_dim 384 --image_dim 224 --mask_dim 224 --traj_dim 224 --sync --threshold 0.00005  --checkpoint .\saved_model\baseline_vit_small_patch16_224_0.27560.pth --glove_path E:\carla\carla\CARLA_0.9.12\glove\glove\ --target network --sampling 5 --stop_criteria confidence --confidence 150 --map Town10HD
 ```
 
 
