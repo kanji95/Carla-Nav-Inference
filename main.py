@@ -78,7 +78,7 @@ def main(args):
     
     if args.save:
         print(f"Current Model Name {model_filename}")
-        new_filename = f"{args.model}_{args.img_backbone}_{best_pg:.5f}.pth"
+        new_filename = os.path.join(save_path, f"{args.model}_{args.img_backbone}_{best_pg:.5f}.pth")
         os.rename(model_filename, new_filename)
         print(f"Renamed to {new_filename}!")
 
