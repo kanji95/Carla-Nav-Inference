@@ -15,7 +15,7 @@ class VideoUpsample(nn.Module):
     ):
         super().__init__()
         
-        linear_upsampling = nn.Upsample(scale_factor=(1, scale_factor, scale_factor), mode='bilinear')
+        linear_upsampling = nn.Upsample(scale_factor=(1, scale_factor, scale_factor), mode='trilinear')
         
         assert len(channels) == len(upsample)
         

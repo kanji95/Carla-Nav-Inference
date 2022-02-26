@@ -218,7 +218,7 @@ class JointVideoSegmentationBaseline(nn.Module):
                 drop=0.2,
             ),
             nn.Upsample(
-                size=(1, mask_dim, mask_dim), mode="bilinear", align_corners=True
+                size=(num_frames, mask_dim, mask_dim), mode="trilinear", align_corners=True
             ),
             nn.Sigmoid(),
         )  
@@ -258,6 +258,7 @@ class JointVideoSegmentationBaseline(nn.Module):
         fused_feat = vision_feat * attn_feat
         fused_feat = rearrange(fused_feat, "(b t) (h w) c -> b c t h w", t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
         # fused_feat = fused_feat.mean(dim=2)
+
         
         segm_mask = self.mm_decoder(fused_feat) #.squeeze(1)
         traj_mask = self.traj_decoder(fused_feat.mean(dim=2))

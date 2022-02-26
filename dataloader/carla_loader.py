@@ -290,14 +290,14 @@ class CarlaFullDataset(Dataset):
         
         for index in indices:
             img_path = image_files[start_idx + index]
-            mask_path = mask_files[sample_idx + index]
+            mask_path = mask_files[start_idx + index]
             
             curr_click_idx = target_positions.iloc[sample_idx + index].to_list()[-1]
 
             img = Image.open(img_path).convert("RGB")
             mask = Image.open(mask_path).convert("L")
 
-            orig_frames.append(np.array(img.resize((self.image_dim, self.image_dim))))
+            orig_frames.append(np.array(img))
 
             if self.img_transform:
                 img = self.img_transform(img)
@@ -360,6 +360,8 @@ class CarlaFullDataset(Dataset):
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
         
+        # print(traj_mask.min(), traj_mask.max(), pixel_coordinates.shape)
+        # print(traj_mask.shape, orig_frames.shape)
         return frames, orig_frames, frame_masks, traj_mask, sample_idx
     
     def get_image_data(self, K, image_files, mask_files, matrix_files, vehicle_positions, target_positions, T=10):
