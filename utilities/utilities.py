@@ -187,17 +187,17 @@ def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, g
 
         wandb.log(
             {
-                "video": wandb.Video(orig_video, fps=4, caption=command, format="mp4"),
-                "pred_mask": wandb.Video(
+                f"{title}_video": wandb.Video(orig_video, fps=4, caption=command, format="mp4"),
+                f"{title}_pred_mask": wandb.Video(
                     mask_pred, fps=4, caption=command, format="mp4"
                 ),
-                "gt_mask": wandb.Video(
+                f"{title}_gt_mask": wandb.Video(
                     mask_gt, fps=4, caption=command, format="mp4"
                 ),
-                "traj_mask": wandb.Image(
+                f"{title}_traj_mask": wandb.Image(
                     traj_pred, caption=command
                 ),
-                "traj_mask_gt": wandb.Image(
+                f"{title}_traj_mask_gt": wandb.Image(
                     traj_mask_gt, caption=command
                 ),
             }
