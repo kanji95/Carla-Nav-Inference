@@ -28,7 +28,7 @@ class VideoUpsample(nn.Module):
                     nn.Conv3d(
                         in_channels,
                         channels[i],
-                        kernel_size=3,
+                        kernel_size=(1, 3, 3),
                         stride=1,
                         padding=1,
                         bias=False,
@@ -49,7 +49,7 @@ class VideoUpsample(nn.Module):
                 nn.Conv3d(
                     in_channels,
                     out_channels,
-                    kernel_size=3,
+                    kernel_size=(1, 3, 3),
                     stride=1,
                     padding=1,
                     bias=False,

@@ -173,7 +173,7 @@ def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, g
         
         mask_gt = rearrange(gt_mask[index], "c t h w -> t c h w")
         mask_gt_ = np.zeros((t, 3, h, w))
-        if mask_gt.max() == 2:
+        if mask_gt[:, 0].max() > mask_gt[:, 1].max():
             mask_gt_[:, 1] = mask_gt[:, 0] * 100  # dark green
         else:
             mask_gt_[:, 1] = mask_gt[:, 1] * 255  # lime
