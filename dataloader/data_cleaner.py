@@ -143,7 +143,7 @@ if __name__ == "__main__":
     dataset = CarlaFullDataset(
         "/ssd_scratch/cvit/kanishk/carla_data",
         "/ssd_scratch/cvit/kanishk/glove",
-        "val",
+        "train",
     )
     ignore_episodes = []
     for episode in dataset.episodes:
