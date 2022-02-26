@@ -1,3 +1,5 @@
+import sys
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -65,17 +67,40 @@ class ComboLoss(nn.Module):
 
         return combo
 
+def _pointwise_loss(lambd, input, target, size_average=True, reduce=True):
+    d = lambd(input, target)
+    if not reduce:
+        return d
+    return torch.mean(d) if size_average else torch.sum(d)
+        
+class KLDLoss(nn.Module):
+    def __init__(self):
+        super(KLDLoss, self).__init__()
+
+    def KLD(self, inp, trg):
+        inp = inp/torch.sum(inp)
+        trg = trg/torch.sum(trg)
+        eps = 1e-7
+
+        return torch.sum(trg*torch.log(eps+torch.div(trg,(inp+eps))))
+
+    def forward(self, inp, trg):
+        return _pointwise_loss(lambda a, b: self.KLD(a, b), inp, trg)
 
 class ClassLevelLoss(nn.Module):
-    def __init__(self, beta=0.6):
+    def __init__(self, loss_func, beta=0.6):
         super(ClassLevelLoss, self).__init__()
         
-        self.criterion = nn.BCELoss()
+        self.bce_loss = nn.BCELoss()
+        self.kld_loss = KLDLoss()
         self.beta = beta
+        self.loss_func = loss_func
 
     # B, C, H, W
     def forward(self, inputs, targets):
-        
-        return self.beta * self.criterion(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.criterion(inputs[:, 1], targets[:, 1])
-
-        
+        if "bce" in self.loss_func:
+            return self.beta * self.bce_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.bce_loss(inputs[:, 1], targets[:, 1])
+        elif "kldiv" in self.loss_func:
+            return self.beta * self.kld_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.kld_loss(inputs[:, 1], targets[:, 1])
+        else:
+            raise NotImplementedError(f"{self.loss_func} not implemented!") 

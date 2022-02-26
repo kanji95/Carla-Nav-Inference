@@ -32,7 +32,7 @@ def main(args):
 
     model_filename = os.path.join(
         save_path,
-        f'{args.model}_{args.img_backbone}_{datetime.now().strftime("%d_%b_%H-%M")}.pth',
+        f'{args.model}_{args.img_backbone}_{args.loss_func}_{datetime.now().strftime("%d_%b_%H-%M")}.pth',
     )
     
     print(f"================= Model Filename: {model_filename} =================")
@@ -78,7 +78,7 @@ def main(args):
     
     if args.save:
         print(f"Current Model Name {model_filename}")
-        new_filename = os.path.join(save_path, f"{args.model}_{args.img_backbone}_{best_pg:.5f}.pth")
+        new_filename = os.path.join(save_path, f"{args.model}_{args.img_backbone}_{args.loss_func}_{best_pg:.5f}.pth")
         os.rename(model_filename, new_filename)
         print(f"Renamed to {new_filename}!")
 
@@ -148,7 +148,7 @@ if __name__ == "__main__":
         "--loss_func",
         default='bce',
         choices=[
-            'bce', 'combo', 'class_level'
+            'bce', 'combo', 'class_level_bce', 'class_level_kldiv'
         ],
         type=str,
     )

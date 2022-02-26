@@ -282,7 +282,7 @@ def run_video_model(
         mask, traj_mask = network(video_frames, phrase, frame_mask, phrase_mask)
 
         frame_video.append(frame[None].detach().cpu().numpy())
-        mask_video.append(mask.detach().cpu().numpy())
+        mask_video.append(mask[:, :, -1].detach().cpu().numpy())
         traj_video.append(traj_mask.detach().cpu().numpy())
         gt_mask_video.append(gt_mask)
 
