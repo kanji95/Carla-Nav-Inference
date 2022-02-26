@@ -23,7 +23,8 @@ from .word_utils import Corpus
 IGNORE = {
     # "train": ['107', '138', '164', '170', '175', '193', '211', '213', '219', '227', '238', '248', '250', '254', '260', '270', '28', '283', '284', '285', '288', '293', '298', '305', '52', '80'], 
     # "val": ['1', '44']
-    "train": ['100', '128', '153', '159', '163', '180', '197', '198', '204', '211', '221', '231', '233', '237', '242', '251', '263', '264', '265', '268', '27', '273', '278', '284', '286', '327', '50', '65', '75'],
+    # "train": ['100', '128', '153', '159', '163', '180', '197', '198', '204', '211', '221', '231', '233', '237', '242', '251', '263', '264', '265', '268', '27', '273', '278', '284', '286', '327', '50', '65', '75'],
+    "train" :['65', '100', '128', '153', '159', '163', '180', '197', '198', '204', '211', '221', '231', '233', '237', '242', '251', '263', '264', '265', '268', '27', '273', '278', '284', '286', '327', '356', '357', '366', '374', '390', '400', '402', '406', '413', '415', '429', '430', '437', '50', '75'],
     "val": []
 }
 
@@ -273,6 +274,7 @@ class CarlaFullDataset(Dataset):
                 break
         
         frames = []
+        frame_masks = []
         orig_frames = []
         
         if sample_idx < self.sequence_len:
@@ -284,44 +286,42 @@ class CarlaFullDataset(Dataset):
             indices = list(range(self.sequence_len))
             start_idx = sample_idx - self.sequence_len + 1
 
+        final_click_idx = target_positions['click_no'].max()
+        
         for index in indices:
             img_path = image_files[start_idx + index]
+            mask_path = mask_files[start_idx + index]
+            
+            curr_click_idx = target_positions.iloc[sample_idx + index].to_list()[-1]
 
             img = Image.open(img_path).convert("RGB")
+            mask = Image.open(mask_path).convert("L")
 
             orig_frames.append(np.array(img))
 
             if self.img_transform:
                 img = self.img_transform(img)
+            
+            if self.mask_transform:
+                mask = self.mask_transform(mask)
+            mask[mask > 0] = 1
+            
+            mask_ = torch.zeros_like(mask)
+            mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
+            
+            if curr_click_idx == final_click_idx:
+                mask_[1] = mask[0]
+            else:
+                mask_[0] = mask[0]
+            
+            mask = mask_
 
             frames.append(img)
+            frame_masks.append(mask)
 
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
-        
-        mask_path = mask_files[sample_idx]
-        mask = Image.open(mask_path).convert("L")
-            
-        final_click_idx = target_positions['click_no'].max()
-        curr_click_idx = target_positions.iloc[sample_idx].to_list()[-1]
-        
-        if self.mask_transform:
-            mask = self.mask_transform(mask)
-            mask[mask > 0] = 1
-            
-        mask_ = torch.zeros_like(mask)
-        mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
-        
-        if curr_click_idx == final_click_idx:
-            mask_[1] = mask[0]
-        else:
-            mask_[0] = mask[0]
-          
-        mask = mask_
-        
-        # if curr_click_idx == final_click_idx:
-        #     mask[mask > 0] = 2
-        # mask = mask.long()
+        frame_masks = torch.stack(frame_masks, dim=1)
         
         rgb_matrix = np.load(matrix_files[sample_idx])
         
@@ -360,7 +360,9 @@ class CarlaFullDataset(Dataset):
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
         
-        return frames, orig_frames[-1], mask, traj_mask, sample_idx
+        # print(traj_mask.min(), traj_mask.max(), pixel_coordinates.shape)
+        # print(traj_mask.shape, orig_frames.shape)
+        return frames, orig_frames, frame_masks, traj_mask, sample_idx
     
     def get_image_data(self, K, image_files, mask_files, matrix_files, vehicle_positions, target_positions, T=10):
         
@@ -412,10 +414,6 @@ class CarlaFullDataset(Dataset):
         else:
             mask_[0] = mask[0]    
         mask = mask_
-
-        # if curr_click_idx == final_click_idx:
-        #     mask[mask > 0] = 2
-        # mask = mask.long()
         
         rgb_matrix = np.load(matrix_files[sample_idx])
         

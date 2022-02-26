@@ -2,6 +2,68 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+class VideoUpsample(nn.Module):
+    def __init__(
+        self,
+        in_channels=512,
+        out_channels=2,
+        channels=[512, 256, 128, 64],
+        upsample=[True, True, False, False],
+        scale_factor=2,
+        drop=0.2,
+    ):
+        super().__init__()
+        
+        linear_upsampling = nn.Upsample(scale_factor=(1, scale_factor, scale_factor), mode='trilinear')
+        
+        assert len(channels) == len(upsample)
+        
+        modules = []
+
+        for i in range(len(channels)):
+
+            modules.append(
+                nn.Sequential(
+                    nn.Conv3d(
+                        in_channels,
+                        channels[i],
+                        kernel_size=3,
+                        stride=1,
+                        padding=1,
+                        bias=False,
+                    ),
+                    nn.BatchNorm3d(channels[i]),
+                    nn.ReLU(),
+                    nn.Dropout3d(drop),
+                )
+            )
+
+            if upsample[i]:
+                modules.append(linear_upsampling)
+
+            in_channels = channels[i]
+
+        modules.append(
+            nn.Sequential(
+                nn.Conv3d(
+                    in_channels,
+                    out_channels,
+                    kernel_size=3,
+                    stride=1,
+                    padding=1,
+                    bias=False,
+                ),
+            )
+        )
+
+        self.deconv = nn.Sequential(*modules)
+
+    def forward(self, x):
+        return self.deconv(x)
+        
+
+
 class ConvUpsample(nn.Module):
     def __init__(
         self,
@@ -46,7 +108,12 @@ class ConvUpsample(nn.Module):
         modules.append(
             nn.Sequential(
                 nn.Conv2d(
-                    in_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False
+                    in_channels,
+                    out_channels,
+                    kernel_size=3,
+                    stride=1,
+                    padding=1,
+                    bias=False,
                 ),
             )
         )
