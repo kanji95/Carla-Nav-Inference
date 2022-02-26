@@ -156,7 +156,7 @@ def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, g
 
     b, c, t, h, w = pred_mask.shape
     
-    figure, axes = plt.subplots(nrows=k, ncols=5)
+    # figure, axes = plt.subplots(nrows=k, ncols=5)
     for i, index in enumerate(indices):
         index = indices[i]
         
@@ -174,9 +174,9 @@ def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, g
         mask_gt = rearrange(gt_mask[index], "c t h w -> t c h w")
         mask_gt_ = np.zeros((t, 3, h, w))
         if mask_gt.max() == 2:
-            mask_gt_[:, 0] = mask_gt[:, 0] * 200  # red shade
+            mask_gt_[:, 1] = mask_gt[:, 0] * 100  # dark green
         else:
-            mask_gt_[:, 1] = mask_gt[:, 0] * 255  # lime
+            mask_gt_[:, 1] = mask_gt[:, 1] * 255  # lime
         mask_gt = np.uint8(mask_gt_)
 
         traj_pred = rearrange(traj_mask[index], "c h w -> h w c")
