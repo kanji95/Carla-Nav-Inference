@@ -294,6 +294,7 @@ class KeyboardControl(object):
         global frame_video
         global traj_mask_video
         global target_video
+        global full_video
         global target_number
         global pred_found
         global frame_count
@@ -307,15 +308,21 @@ class KeyboardControl(object):
             pred_found = 0
             num_preds = 0
 
+            for full_video_index in range(len(full_video)):
+                pass
+
             frame_video = np.concatenate(frame_video, axis=0)
+            full_video = np.concatenate(full_video, axis=0)
             target_video = np.concatenate(target_video, axis=0)
             mask_video = np.concatenate(mask_video, axis=0)
             traj_mask_video = np.concatenate(traj_mask_video, axis=0)
 
             # import pdb; pdb.set_trace()
             mask_video_overlay = np.copy(frame_video)
-            mask_video_overlay[:, 0] += (mask_video[:, 0]/mask_video.max())
-            mask_video_overlay[:, 1] += (mask_video[:, 1]/mask_video.max())
+            mask_video_overlay[:,
+                               0] += (mask_video[:, 0]/mask_video.max())
+            mask_video_overlay[:,
+                               1] += (mask_video[:, 1]/mask_video.max())
             mask_video_overlay = np.clip(
                 mask_video_overlay, a_min=0., a_max=1.)
 
@@ -326,12 +333,16 @@ class KeyboardControl(object):
                 traj_mask_video_overlay, a_min=0., a_max=1.)
 
             frame_video = np.uint8(frame_video * 255)
+            full_video = np.uint8(full_video * 255)
             target_video = np.uint8(target_video * 255)
             mask_video = np.uint8(mask_video_overlay * 255)
             traj_mask_video = np.uint8(traj_mask_video_overlay * 255)
 
+            print(full_video.shape, frame_video.shape)
+
             wandb.log(
                 {
+                    "full_video": wandb.Video(full_video, fps=10, caption=command, format="mp4"),
                     "video": wandb.Video(frame_video, fps=1, caption=command, format="mp4"),
                     "target video": wandb.Video(target_video, fps=1, caption=command, format="mp4"),
                     "pred_mask": wandb.Video(mask_video, fps=1, caption=command, format="mp4"),
@@ -342,6 +353,7 @@ class KeyboardControl(object):
             mask_video = []
             target_video = []
             traj_mask_video = []
+            full_video = []
 
     @staticmethod
     def _is_delete_episode_shortcut(key):
@@ -914,7 +926,6 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
     global agent
     global depth_camera
     global target_number
-    global pred_found
     global frame_count
     global weak_dc
     global weak_agent
@@ -940,11 +951,13 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
     global frame_pending
 
-    global pred_found
-
     global new_destination
 
     global video_queue
+    global full_video
+
+    global pred_found
+    global num_preds
 
     global args
 
@@ -957,6 +970,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
     frame = img_transform(im)
 
+    full_video.append(frame.unsqueeze(0))
+
     if args.img_backbone == 'timesformer':
         if frame_count == 0:
             video_queue = [frame]*args.num_frames
@@ -964,13 +979,16 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             video_queue.pop()
             video_queue.append(frame)
 
-    if frame_count < args.sampling and target_number == 0:
+    if frame_count == 0 and target_number == 0:
         frame_video = []
         mask_video = []
         traj_mask_video = []
         target_video = []
 
-    if frame_count % sampling == 0 and target_number <= 3:
+    if pred_found or num_preds >= args.num_preds:
+        return
+
+    if frame_count % sampling == 0:
 
         frame = frame.cuda(
             non_blocking=True).unsqueeze(0)
@@ -1014,7 +1032,12 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                 pixel_out = best_pixel(
                     intermediate_mask_np, threshold, confidence)
             if pixel_out[0] >= confidence:
-                pred_found = 1
+                pixel_temp = best_pixel(
+                    intermediate_mask_np, threshold, confidence)
+                if pixel_temp[0] >= pixel_out[0]:
+                    pixel_out = pixel_temp
+                else:
+                    pred_found = 1
             elif pixel_out[0] < confidence:
                 pixel_temp = best_pixel(final_mask_np, threshold, confidence)
                 pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
@@ -1042,7 +1065,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
             probs, region = pixel_out
 
-            print(f'probs = {probs} with pred_found = {pred_found}')
+            print(
+                f'probs = {probs:.2f} with pred_found = {pred_found} and num_preds = {num_preds}')
 
             region = (region[0]*1280/mask_np.shape[1],
                       region[1]*720/mask_np.shape[1])
@@ -1107,7 +1131,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
             target_video.append(target_vector)
 
-            print(frame_video[-1].shape, target_video[-1].shape)
+            print(frame_video[-1].shape,
+                  target_video[-1].shape, full_video[-1].shape)
 
         else:
             frame_video.append(frame.detach().cpu().numpy())
@@ -1127,17 +1152,20 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             target_vector = target_vector[np.newaxis, :, :, :]
             target_video.append(target_vector)
 
-            print(frame_video[-1].shape, target_video[-1].shape)
+            print(frame_video[-1].shape,
+                  target_video[-1].shape, full_video[-1].shape)
             print(f'================SKIPPING THIS TIME================')
 
-    if frame_count > 500:
-        target_number += 1
-        frame_count = 0
-        print(
-            f'------------------INCREMENTING TARGET COUNT TO {target_number}------------------')
+        if frame_count > 500:
+            target_number += 1
+            frame_count = 0
+            print(
+                f'------------------INCREMENTING TARGET COUNT TO {target_number}------------------')
 
-    # if target_number > 3:
-    #     pred_found = 1
+        print(
+            f'probs = N/A with pred_found = {pred_found} and num_preds = {num_preds}')
+        # if target_number > 3:
+        #     pred_found = 1
 
 
 def get_actor_blueprints(world, filter, generation):
@@ -1212,10 +1240,6 @@ def best_pixel(segmentation_map, threshold, confidence, method="weighted_average
 
     final = (pos[1], pos[0])
     # final = pos
-    print((final[0]*1280/segmentation_map.shape[1], final[1]
-          * 720/segmentation_map.shape[1]), "------>")
-    print((final[1]*1280/segmentation_map.shape[1], final[0]
-          * 720/segmentation_map.shape[1]), '------>')
     return (ret_count, final)
     # return pos
 
@@ -1334,24 +1358,13 @@ def pixel_to_world(image, vehicle_matrix, vehicle_location, weak_agent, screen_p
     if set_destination:
         agent_weak.set_destination(new_destination)
 
-    # curr_position = agent._vehicle.get_transform().location
-
-    # pos = np.array(
-    #     [curr_position.x, curr_position.y, curr_position.z])
-
-    # w2px = world_to_pixel(K, depth_cam_matrix_inv, np.array(
-    #     [agent_weak.target_destination.x, agent_weak.target_destination.y, agent_weak.target_destination.z]).reshape(3, 1), pos).T
-
-    # print(w2px[:,:2]/w2px[:,2])
-    # print(w2px)
-
-    command_given = True
-    print("=======================================")
-    print(f"old destination : {destination}")
-    print(f"new destination : {new_destination}")
-    print(f"vehicle position: {agent_weak._vehicle.get_transform().location}")
-    print(f"Est. position   : {xyz_pos}")
-    print("=======================================")
+        print("=======================================")
+        print(f"old destination : {destination}")
+        print(f"new destination : {new_destination}")
+        print(
+            f"vehicle position: {agent_weak._vehicle.get_transform().location}")
+        print(f"Est. position   : {xyz_pos}")
+        print("=======================================")
 
     time.sleep(0.5)
 
@@ -1399,6 +1412,7 @@ def game_loop(args):
     global traj_mask_video
     global target_video
     global mask_video
+    global full_video
 
     global depth_cam_queue
     global rgb_cam_queue
@@ -1776,6 +1790,7 @@ def game_loop(args):
         frames_from_done = 0
         checked = False
         num_preds = 0
+        full_video = []
 
         weak_dc = weakref.ref(depth_camera)
         weak_agent = weakref.ref(agent)
@@ -1810,7 +1825,8 @@ def game_loop(args):
                         pred_found = 0
                         frame_count = 0
                         frames_from_done = 0
-                        num_preeds = 0
+                        num_preds = 0
+                        full_video = []
                         episode_number += 1
                         os.makedirs(f'_out/{episode_number}', exist_ok=True)
                         command = input('Enter Command: ')
@@ -1864,13 +1880,16 @@ def game_loop(args):
 
                         pred_found = 1
 
-                if command_given and not pred_found and num_preds < 3:
+                if command_given:
+                    if not pred_found and num_preds < args.num_preds:
+                        print_network_stats = 1
                     start = time.time()
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
                                     vehicle_location, args.sampling*(num_preds+1))
                     end = time.time()
-                    if frame_count % args.sampling == 1:
-                        print(f'Network took {end-start}')
+                    if frame_count % args.sampling == 0 and print_network_stats:
+                        print(
+                            f'Network took {end-start}, pred_found = {pred_found}')
 
                 if args.stop_criteria == 'distance' and agent.target_destination:
                     if np.linalg.norm(
@@ -1880,8 +1899,10 @@ def game_loop(args):
 
                         pred_found = 1
                 frame_count += 1
+                num_preds += pred_found
                 if pred_found:
-                    num_preds += pred_found
+                    print(f'-------------Num Preds: {num_preds}-------------')
+                pred_found = 0
                 if num_preds > 0:
                     frames_from_done += 1
 
@@ -1892,14 +1913,18 @@ def game_loop(args):
 
             if agent.done() and command_given:
                 pred_found = 0
-                if num_preds >= 2:
+                if num_preds >= args.num_preds:
                     command_given = False
                     saving = [True, True, False]
                     print('Episode Done')
                     pred_found = 0
                     num_preds = 0
 
+                    for full_video_index in range(len(full_video)):
+                        pass
+
                     frame_video = np.concatenate(frame_video, axis=0)
+                    full_video = np.concatenate(full_video, axis=0)
                     target_video = np.concatenate(target_video, axis=0)
                     mask_video = np.concatenate(mask_video, axis=0)
                     traj_mask_video = np.concatenate(traj_mask_video, axis=0)
@@ -1920,12 +1945,16 @@ def game_loop(args):
                         traj_mask_video_overlay, a_min=0., a_max=1.)
 
                     frame_video = np.uint8(frame_video * 255)
+                    full_video = np.uint8(full_video * 255)
                     target_video = np.uint8(target_video * 255)
                     mask_video = np.uint8(mask_video_overlay * 255)
                     traj_mask_video = np.uint8(traj_mask_video_overlay * 255)
 
+                    print(full_video.shape, frame_video.shape)
+
                     wandb.log(
                         {
+                            "full_video": wandb.Video(full_video, fps=10, caption=command, format="mp4"),
                             "video": wandb.Video(frame_video, fps=1, caption=command, format="mp4"),
                             "target video": wandb.Video(target_video, fps=1, caption=command, format="mp4"),
                             "pred_mask": wandb.Video(mask_video, fps=1, caption=command, format="mp4"),
@@ -1936,9 +1965,11 @@ def game_loop(args):
                     mask_video = []
                     target_video = []
                     traj_mask_video = []
+                    full_video = []
 
             if agent.target_destination:
                 destination = agent.target_destination
+                curr_position = vehicle_location
                 distance = np.sqrt((destination.x - curr_position.x)**2 +
                                    (destination.y - curr_position.y)**2)
 
@@ -1958,10 +1989,8 @@ def game_loop(args):
                 dest = np.array([destination.x, destination.y, destination.z])
 
                 rgb_camera = world.camera_manager.sensor
-                rgb_matrix = rgb_camera.get_transform().get_inverse_matrix()[
+                rgb_matrix = rgb_cam_data.transform.get_inverse_matrix()[
                     :3]
-
-                curr_position = rgb_camera.get_transform().location
 
                 pos = np.array(
                     [curr_position.x, curr_position.y, curr_position.z])
@@ -1999,7 +2028,7 @@ def game_loop(args):
             #         print("The target has been reached, stopping the simulation")
             #         break
 
-            if command_given and not agent.done():
+            if not agent.done():
                 control = agent.run_step()
                 control.manual_gear_shift = False
                 if agent.target_destination:
@@ -2179,6 +2208,9 @@ def main():
 
     argparser.add_argument("--sampling", type=float,
                            default=20, help="mask confidence")
+
+    argparser.add_argument("--num_preds", type=int,
+                           default=3, help="mask confidence")
 
     argparser.add_argument("--save", default=False, action="store_true")
 
