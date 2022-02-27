@@ -32,17 +32,19 @@ def main(args):
 
     model_filename = os.path.join(
         save_path,
-        f'{args.model}_{args.img_backbone}_{datetime.now().strftime("%d_%b_%H-%M")}.pth',
+        f'{args.model}_{args.imtext_matching}_{args.img_backbone}_{datetime.now().strftime("%d_%b_%H-%M")}.pth',
     )
-    
-    print(f"================= Model Filename: {model_filename} =================")
+
+    print(
+        f"================= Model Filename: {model_filename} =================")
 
     print("Initializing Solver!")
     solver = Solver(args)
 
     best_pg = 0
     epochs_without_improvement = 0
-    print(f"Training Iterations: {len(solver.train_loader)}, Validation Iterations: {len(solver.val_loader)}")
+    print(
+        f"Training Iterations: {len(solver.train_loader)}, Validation Iterations: {len(solver.val_loader)}")
 
     for epoch in range(args.epochs):
         solver.train(epoch)
@@ -75,10 +77,11 @@ def main(args):
                     f"{epochs_without_improvement} epochs without improvement, Stopping Training!"
                 )
                 break
-    
+
     if args.save:
         print(f"Current Model Name {model_filename}")
-        new_filename = os.path.join(save_path, f"{args.model}_{args.img_backbone}_{best_pg:.5f}.pth")
+        new_filename = os.path.join(
+            save_path, f"{args.model}_{args.img_backbone}_{best_pg:.5f}.pth")
         os.rename(model_filename, new_filename)
         print(f"Renamed to {new_filename}!")
 
@@ -128,6 +131,17 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--imtext_matching",
+        default='cross_attention',
+        choices=[
+            'cross_attention',
+            'concat',
+            'avg_concat',
+        ],
+        type=str,
+    )
+
+    parser.add_argument(
         "--img_backbone",
         default="vit_tiny_patch16_224",
         choices=[
@@ -152,7 +166,7 @@ if __name__ == "__main__":
         ],
         type=str,
     )
-    
+
     parser.add_argument("--image_dim", type=int,
                         default=224, help="Image Dimension")
     parser.add_argument("--mask_dim", type=int,
@@ -167,7 +181,7 @@ if __name__ == "__main__":
                         default=16, help="Next Frames of Trajectory")
     parser.add_argument("--traj_size", type=int,
                         default=25, help="Trajectory Size")
-    
+
     parser.add_argument("--patch_size", type=int,
                         default=16, help="Patch Size of Video Frame for ViT")
 
