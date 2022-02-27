@@ -1247,6 +1247,9 @@ def best_pixel(segmentation_map, threshold, confidence, method="weighted_average
 def best_pixel_traj(traj_mask_np):
     candidates = np.where(traj_mask_np > 0)
     candidates = np.vstack([candidates[0], candidates[1]]).T
+    if candidates.size == 0:
+        candidates = np.array(
+            [traj_mask_np.shape[0]-1, traj_mask_np.shape[1]/2-1]).reshape(1, 2)
     dist_mat = spatial.distance_matrix(candidates, np.array(
         [traj_mask_np.shape[0]-1, traj_mask_np.shape[1]/2-1]).reshape(1, 2))
     pos = (*candidates[np.argmax(dist_mat)].tolist(),)
