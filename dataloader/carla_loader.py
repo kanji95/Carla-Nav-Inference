@@ -103,9 +103,9 @@ class CarlaDataset(Dataset):
             self.episodes.remove(episode)
         print("Number of episodes after removal: ", len(self.episodes))
 
-        # self.corpus = Corpus(glove_path)
-        self.bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        self.bert_text_encoder = BertModel.from_pretrained("bert-base-uncased")
+        self.corpus = Corpus(glove_path)
+        #self.bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        #self.bert_text_encoder = BertModel.from_pretrained("bert-base-uncased")
 
     def __len__(self):
         return self.dataset_len
@@ -246,7 +246,12 @@ class CarlaFullDataset(Dataset):
             self.episodes.remove(episode)
         print("Number of episodes after removal: ", len(self.episodes))
 
-        self.corpus = Corpus(glove_path)
+        # self.corpus = Corpus(glove_path)
+        self.bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.bert_encoder = BertModel.from_pretrained("bert-base-uncased")
+
+        for param in self.bert_encoder.parameters():
+            param.requires_grad = False
 
     def __len__(self):
         return self.dataset_len
@@ -441,8 +446,8 @@ class CarlaFullDataset(Dataset):
                     int(pixel_t_2d[1]),
                 ]
             )
-            diff = np.linalg.norm(pixel_t_2d - pixel_coordinates[-1])
-
+            diff = np.linalg.norm(pixel_t_2d - pixel_coordinates[-1]) 
+                                   
             if diff > 20:
                 pixel_coordinates.append(pixel_t_2d)
 
@@ -508,7 +513,7 @@ class CarlaFullDataset(Dataset):
 
         # tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
 
-        tokenizer_out = self.tokenizer(output['orig_text'].lower(), 
+        tokenizer_out = self.bert_tokenizer(output['orig_text'], 
                                         padding='max_length', 
                                         max_length=20, 
                                         truncation=True,
@@ -520,3 +525,4 @@ class CarlaFullDataset(Dataset):
         output["text_mask"] = phrase_mask
 
         return output
+
