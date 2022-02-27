@@ -212,7 +212,7 @@ class Solver(object):
 
         self.bce_loss = nn.BCELoss(reduction="mean")
         self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
-        self.class_level_loss = ClassLevelLoss(beta=0.6)
+        self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
 
     def initialize_optimizer(self):
         params = list(
@@ -313,9 +313,9 @@ class Solver(object):
             elif self.loss_func == "combo":
                 loss = self.combo_loss(mask, gt_mask) + \
                     self.combo_loss(traj_mask, gt_traj_mask)
-            elif self.loss_func == "class_level":
+            elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(
-                    mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                    mask, gt_mask) + self.bce_loss(traj_mask, gt_traj_mask)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
@@ -358,7 +358,7 @@ class Solver(object):
 
             total_loss += float(loss.item())
 
-            if step % 100 == 0:
+            if step % 2000 == 0:
                 if self.mode == "image":
                     log_frame_predicitons(
                         batch["orig_frame"],
@@ -502,7 +502,7 @@ class Solver(object):
             elif self.loss_func == "combo":
                 loss = self.combo_loss(mask, gt_mask) + \
                     self.combo_loss(traj_mask, gt_traj_mask)
-            elif self.loss_func == "class_level":
+            elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(
                     mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             else:

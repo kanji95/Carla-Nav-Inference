@@ -314,7 +314,7 @@ class CarlaFullDataset(Dataset):
             else:
                 mask_[0] = mask[0]
             
-            mask = mask_
+            mask = mask_ + 1e-4
 
             frames.append(img)
             frame_masks.append(mask)
@@ -413,7 +413,7 @@ class CarlaFullDataset(Dataset):
             mask_[1] = mask[0]
         else:
             mask_[0] = mask[0]    
-        mask = mask_
+        mask = mask_ + 1e-4
         
         rgb_matrix = np.load(matrix_files[sample_idx])
         
