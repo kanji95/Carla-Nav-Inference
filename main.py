@@ -18,6 +18,9 @@ torch.set_printoptions(precision=4)
 
 
 def main(args):
+
+    print(args)
+
     torch.backends.cudnn.enabled = False
     torch.backends.cudnn.benchmark = False
 
