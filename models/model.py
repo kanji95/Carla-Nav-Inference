@@ -353,7 +353,7 @@ class JointVideoSegmentationBaseline(nn.Module):
         # fused_feat = fused_feat.mean(dim=2)
 
         segm_mask = self.mm_decoder(fused_feat)  # .squeeze(1)
-        traj_mask = self.traj_decoder(fused_feat.mean(dim=2))
+        traj_mask = self.traj_decoder(fused_feat[:, :, -1])
 
         return segm_mask, traj_mask
 
