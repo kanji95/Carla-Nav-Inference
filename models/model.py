@@ -525,7 +525,7 @@ class FullBaseline(nn.Module):
 class TextEncoder(nn.Module):
     def __init__(
         self,
-        input_size=300,
+        input_size=768,
         hidden_size=192,
         num_layers=1,
         batch_first=True,

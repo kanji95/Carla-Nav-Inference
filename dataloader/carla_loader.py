@@ -16,6 +16,8 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
+from transformers import BertTokenizer, BertModel
+
 from einops import repeat
 
 from .word_utils import Corpus
@@ -101,7 +103,9 @@ class CarlaDataset(Dataset):
             self.episodes.remove(episode)
         print("Number of episodes after removal: ", len(self.episodes))
 
-        self.corpus = Corpus(glove_path)
+        # self.corpus = Corpus(glove_path)
+        self.bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.bert_text_encoder = BertModel.from_pretrained("bert-base-uncased")
 
     def __len__(self):
         return self.dataset_len
@@ -502,7 +506,16 @@ class CarlaFullDataset(Dataset):
         command = re.sub(r"[^\w\s]", "", command)
         output["orig_text"] = command
 
-        tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
+        # tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
+
+        tokenizer_out = self.tokenizer(output['orig_text'].lower(), 
+                                        padding='max_length', 
+                                        max_length=20, 
+                                        truncation=True,
+                                        return_tensors='pt')
+        encoder_out = self.bert_encoder(**tokenizer_out)
+        tokens, phrase_mask = encoder_out['last_hidden_state'][0], tokenizer_out['attention_mask'][0]
+
         output["text"] = tokens
         output["text_mask"] = phrase_mask
 
