@@ -39,7 +39,11 @@ def pointing_game(masks, target):
     batch_size = masks.shape[0]
     max_indices = masks.flatten(1).argmax(dim=-1)[:, None]
     target_values = target.flatten(1).gather(1, max_indices).sum(dim=-1)
+<<<<<<< HEAD
     accuracy = (target_values > 1e-3).float().sum().item()
+=======
+    accuracy = (target_values > 0).float().mean().item()
+>>>>>>> 2631074bc4272edb524ea30a158d2f6775f2fb06
     return accuracy
 
 
