@@ -321,14 +321,14 @@ class JointVideoSegmentationBaseline(nn.Module):
 
         vision_feat, _ = self.vision_encoder(frames)  # B, N, C
         vision_feat = F.normalize(vision_feat, p=2, dim=1)  # B x N x C
-        vision_feat = rearrange(vision_feat, "b (t h w) c -> (b t) (h w) c",
-                                t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
+        # vision_feat = rearrange(vision_feat, "b (t h w) c -> (b t) (h w) c",
+        #                         t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
 
         text_feat = self.text_encoder(text)  # B x L x C
         text_feat = F.normalize(text_feat, p=2, dim=1)  # B x L x C
         text_feat = text_feat * text_mask[:, :, None]
-        text_feat = repeat(text_feat, "b l c -> b t l c", t=self.num_frames)
-        text_feat = rearrange(text_feat, "b t l c -> (b t) l c")
+        # text_feat = repeat(text_feat, "b l c -> b t l c", t=self.num_frames)
+        # text_feat = rearrange(text_feat, "b t l c -> (b t) l c")
 
         if self.imtext_matching == 'cross_attention':
             cross_attn = torch.bmm(vision_feat, text_feat.transpose(
@@ -348,7 +348,9 @@ class JointVideoSegmentationBaseline(nn.Module):
                 [vision_feat, torch.mean(text_feat, dim=1).repeat(1, vision_feat.shape[1], 1)], axis=2)  # B x N x 2C
             fused_feat = self.concat_decoder(concat)  # B x N x C
 
-        fused_feat = rearrange(fused_feat, "(b t) (h w) c -> b c t h w",
+        # fused_feat = rearrange(fused_feat, "(b t) (h w) c -> b c t h w",
+        #                        t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
+        fused_feat = rearrange(fused_feat, "b (t h w) c -> b c t h w",
                                t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
         # fused_feat = fused_feat.mean(dim=2)
 
