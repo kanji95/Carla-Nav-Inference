@@ -35,7 +35,7 @@ def main(args):
 
     model_filename = os.path.join(
         save_path,
-        f'{args.model}_{args.imtext_matching}_{args.img_backbone}_{args.loss_func}_{datetime.now().strftime("%d_%b_%H-%M")}_{best_pg:.5f}.pth',
+        f'{args.model}_{args.imtext_matching}_{args.img_backbone}_{args.loss_func}_{datetime.now().strftime("%d_%b_%H-%M")}.pth',
     )
 
     print(
