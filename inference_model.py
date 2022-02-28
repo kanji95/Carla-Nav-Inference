@@ -1875,39 +1875,26 @@ def game_loop(args):
                 vehicle_matrix = vehicle_transform.get_matrix()
                 vehicle_location = vehicle_transform.location
 
-                if args.stop_criteria == 'distance' and agent.target_destination:
-                    if np.linalg.norm(
-                        np.array([vehicle_location.x, vehicle_location.y])
-                        - np.array([agent.target_destination.x,
-                                    agent.target_destination.y])) < args.distance:
-
-                        pred_found = 1
-
                 if command_given:
                     if not pred_found and num_preds < args.num_preds:
                         print_network_stats = 1
                     start = time.time()
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
-                                    vehicle_location, args.sampling*(num_preds+1))
+                                    vehicle_location, args.sampling*(num_preds*2+1))
                     end = time.time()
                     if frame_count % args.sampling == 0 and print_network_stats:
                         print(
                             f'Network took {end-start}, pred_found = {pred_found}')
+                        num_preds += pred_found
+                    if pred_found:
+                        print(
+                            f'-------------Num Preds: {num_preds}-------------')
+                        pred_found = 0
 
-                if args.stop_criteria == 'distance' and agent.target_destination:
-                    if np.linalg.norm(
-                        np.array([vehicle_location.x, vehicle_location.y])
-                        - np.array([agent.target_destination.x,
-                                    agent.target_destination.y])) < args.distance:
-
-                        pred_found = 1
-                frame_count += 1
-                num_preds += pred_found
-                if pred_found:
-                    print(f'-------------Num Preds: {num_preds}-------------')
-                pred_found = 0
                 if num_preds > 0:
                     frames_from_done += 1
+                frame_count += 1
+                pred_found = 0
 
             # if target_number > 5:
             #     pred_found = 1
