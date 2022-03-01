@@ -184,11 +184,109 @@ class World(object):
                 print('Please add some Vehicle Spawn Point to your UE4 scene.')
                 sys.exit(1)
             spawn_points = self.map.get_spawn_points()
-            spawn_point = random.choice(
-                spawn_points) if spawn_points else carla.Transform()
+            corresponding_maps = ['Town03', 'Town03', 'Town03', 'Town03', 'Town01', 'Town05', 'Town03', 'Town10HD', 'Town05', 'Town05', 'Town10HD', 'Town03',
+                                  'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town01', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
+            other_spawns = [[197.0673370361328, -2.0025179386138916, 0.3, -179.1441686105662],
+                            [-73.89038848876953,
+                             97.12801361083984,
+                             0.7155191974714399,
+                             -80.55661201179124],
+                            [-88.2191162109375,
+                             -158.3634490966797,
+                             0.30070819817483424,
+                             94.25537770639743],
+                            [98.9326171875, -6.8971147537231445,
+                             0.3000582877546549, -179.1441686105662],
+                            [318.23492431640625,
+                             326.6099853515625,
+                             0.30038284249603747,
+                             179.99937663149663],
+                            [11.787281036376953,
+                             -87.84796905517578,
+                             0.30034687016159295,
+                             -7.662209257643786],
+                            [98.9326171875, -6.8971147537231445,
+                             0.30007099099457263, -179.1441686105662],
+                            [-41.8338623046875,
+                             -16.555164337158203,
+                             0.3000702468678355,
+                             -90.16118813760058],
+                            [-146.88998413085938,
+                             94.90290069580078,
+                             0.3003176303580403,
+                             -0.9829707712548377],
+                            [-146.27835083007812,
+                             -84.61176300048828,
+                             0.3004425421357155,
+                             -0.20031690302969796],
+                            [43.85604476928711,
+                             13.305377006530762,
+                             0.3003337664529681,
+                             -179.8284033324019],
+                            [138.63233947753906,
+                             131.96141052246094,
+                             0.72413177061826,
+                             -4.4046158360598495],
+                            [113.21733093261719,
+                             -132.3077392578125,
+                             8.30026344228536,
+                             3.2000541230955126],
+                            [-0.6047325134277344,
+                             13.182565689086914,
+                             0.3002050586044788,
+                             -179.6291394172958],
+                            [105.97994232177734,
+                             -3.397510290145874,
+                             0.2998512268066406,
+                             -179.1441686105662],
+                            [45.382850646972656,
+                             13.414804458618164,
+                             0.29987836834043263,
+                             -179.84079329940388],
+                            [-3.4244236946105957,
+                             145.79156494140625,
+                             0.5202879087999464,
+                             -89.90887412684728],
+                            [-99.6025161743164,
+                             43.710227966308594,
+                             0.2998861690983176,
+                             -88.33090233275658],
+                            [49.407962799072266,
+                             -192.74472045898438,
+                             0.30028278306126593,
+                             2.552531121288393],
+                            [88.3858871459961, 113.70683288574219,
+                             0.3004896158352494, 89.91921503548342],
+                            [-45.49116134643555,
+                             -30.401912689208984,
+                             0.30022943411022424,
+                             -90],
+                            [93.75914764404297, 129.8253631591797,
+                             0.300583934597671, -34.53774053067005],
+                            [222.54031372070312,
+                             59.48397445678711,
+                             0.300473708845675,
+                             0.00939763096759532],
+                            [-45.16437530517578,
+                             50.209285736083984,
+                             0.30038141198456286,
+                             -90.11359536526341],
+                            [9.71006965637207, 66.27023315429688, 0.30039609894156455, 179.7619182064034]]
+            if args.spawn == -1:
+                spawn_point = random.choice(
+                    spawn_points) if spawn_points else carla.Transform()
+            else:
+                assert args.spawn < len(other_spawns)
+                if corresponding_maps[args.spawn] != args.map:
+                    print(f'Spawn for {corresponding_maps[args.spawn]}')
+                spawn_point = carla.Transform(carla.Location(
+                    x=other_spawns[args.spawn][0], y=other_spawns[args.spawn][1], z=other_spawns[args.spawn][2]), carla.Rotation(yaw=other_spawns[args.spawn][3]))
             # Fix Spawning Point
             # spawn_point = spawn_points[0] if spawn_points else carla.Transform(
             # )
+            print(f'sample spawn_point: {spawn_points[0].location}')
+            print(f'spawn_points: {spawn_point}')
+
             self.player = self.world.try_spawn_actor(blueprint, spawn_point)
             self.modify_vehicle_physics(self.player)
 
@@ -1799,8 +1897,34 @@ def game_loop(args):
         weak_agent = weakref.ref(agent)
 
         depth_camera.listen(depth_cam_queue.put)
-
-        while True:
+        done = False
+        new_start = True
+        commands = ['park near the bus stand',
+                    'stop near the tallest building',
+                    'Take a right from the intersection',
+                    'Go right from the corner',
+                    'Drive towards the bus stop',
+                    'Take a left from the intersection.',
+                    'take a right and stop near the pedestrian',
+                    'stop beside the black suv',
+                    'Wait for the signal to turn green and then go straight',
+                    'Go straight from the intersection and stop next to the bus stop.',
+                    'Go straight and park behind the first car you see',
+                    'stop by the lamp pole',
+                    'stop across the house with stairs',
+                    'stop in front of the maroon car in rightmost lane',
+                    'Go right from the corner',
+                    'park behind the brown car',
+                    'take a right and stop near the man in blue',
+                    'take a right at the intersection',
+                    'take a right at the traffic lights and then take a left',
+                    'Take the road on the left',
+                    'wait for traffic light then take left',
+                    'Stop as soon as you encounter a white car',
+                    'Stop near the blue dustbin which you see in front',
+                    'Wait for the green signal then take a left from the intersection.',
+                    'Stop in front of the white car']
+        while not done:
             clock.tick()
             if args.sync:
                 world.world.tick()
@@ -1819,7 +1943,7 @@ def game_loop(args):
                     print(f'Unable to delete _out/{episode_number}')
                 saving[2] = False
 
-            if pygame.mouse.get_pressed()[0] and not handled:
+            if (not args.command and pygame.mouse.get_pressed()[0] and not handled) or (new_start and args.command):
                 # if not command_given:
                 if saving[0]:
                     if saving[1]:
@@ -1832,7 +1956,10 @@ def game_loop(args):
                         full_video = []
                         episode_number += 1
                         os.makedirs(f'_out/{episode_number}', exist_ok=True)
-                        command = input('Enter Command: ')
+                        if not args.command:
+                            command = input('Enter Command: ')
+                        command = commands[args.spawn]
+                        print(command)
                         # command = 'a'
                         with open(f'_out/{episode_number}/command.txt', 'w') as f:
                             f.write(command)
@@ -1845,6 +1972,7 @@ def game_loop(args):
                         phrase_mask = phrase_mask.unsqueeze(0)
 
                         command_given = True
+                        new_start = False
 
                         # print('Processing FIRST frame')
                         # measurements, sensor_data = client.read_data()
@@ -1867,6 +1995,8 @@ def game_loop(args):
                 #     print('In route')
 
             handled = pygame.mouse.get_pressed()[0]
+            prev_loc = None
+            prev_prev_loc = None
 
             if not depth_cam_queue.empty() and not rgb_cam_queue.empty():
                 depth_cam_data = depth_cam_queue.get()
@@ -1880,8 +2010,11 @@ def game_loop(args):
                         print_network_stats = 1
                     start = time.time()
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
-                                    vehicle_location, args.sampling*(num_preds*2+1))
+                                    vehicle_location, args.sampling*(num_preds+1))
                     end = time.time()
+                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-1 and abs(prev_loc.x - vehicle_location.x) < 1e-1:
+                        pred_found = 0
+                        print(f'Stationary')
                     if frame_count % args.sampling == 0 and print_network_stats:
                         print(
                             f'Network took {end-start}, pred_found = {pred_found}')
@@ -1895,13 +2028,15 @@ def game_loop(args):
                     frames_from_done += 1
                 frame_count += 1
                 pred_found = 0
+                prev_prev_loc = prev_loc
+                prev_loc = vehicle_location
 
             # if target_number > 5:
             #     pred_found = 1
             #     target_number = 0
             #     frame_count = 0
 
-            if agent.done() and command_given:
+            if agent.done() and prev_loc == prev_prev_loc and command_given:
                 pred_found = 0
                 if num_preds >= args.num_preds:
                     command_given = False
@@ -1956,6 +2091,8 @@ def game_loop(args):
                     target_video = []
                     traj_mask_video = []
                     full_video = []
+                    if args.command:
+                        done = True
 
             if agent.target_destination:
                 destination = agent.target_destination
@@ -2078,6 +2215,11 @@ def main():
         type=str,
         help='World map (default: Town10)')
     argparser.add_argument(
+        '--spawn',
+        default=-1,
+        type=int,
+        help='Spawn Point (default: Random)')
+    argparser.add_argument(
         '--res',
         metavar='WIDTHxHEIGHT',
         default='1280x720',
@@ -2126,6 +2268,11 @@ def main():
             'baseline'
         ],
         type=str,
+    )
+
+    argparser.add_argument(
+        "--command",
+        action="store_true"
     )
 
     argparser.add_argument(
