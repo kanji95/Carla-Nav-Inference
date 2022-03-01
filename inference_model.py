@@ -185,7 +185,7 @@ class World(object):
                 sys.exit(1)
             spawn_points = self.map.get_spawn_points()
             corresponding_maps = ['Town03', 'Town03', 'Town03', 'Town03', 'Town01', 'Town05', 'Town03', 'Town10HD', 'Town05', 'Town05', 'Town10HD', 'Town03',
-                                  'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town01', 'Town03', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
+                                  'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town01', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
             other_spawns = [[197.0673370361328, -2.0025179386138916, 0.3, -179.1441686105662],
                             [-73.89038848876953,
                              97.12801361083984,
@@ -1897,8 +1897,34 @@ def game_loop(args):
         weak_agent = weakref.ref(agent)
 
         depth_camera.listen(depth_cam_queue.put)
-
-        while True:
+        done = False
+        new_start = True
+        commands = ['park near the bus stand',
+                    'stop near the tallest building',
+                    'Take a right from the intersection',
+                    'Go right from the corner',
+                    'Drive towards the bus stop',
+                    'Take a left from the intersection.',
+                    'take a right and stop near the pedestrian',
+                    'stop beside the black suv',
+                    'Wait for the signal to turn green and then go straight',
+                    'Go straight from the intersection and stop next to the bus stop.',
+                    'Go straight and park behind the first car you see',
+                    'stop by the lamp pole',
+                    'stop across the house with stairs',
+                    'stop in front of the maroon car in rightmost lane',
+                    'Go right from the corner',
+                    'park behind the brown car',
+                    'take a right and stop near the man in blue',
+                    'take a right at the intersection',
+                    'take a right at the traffic lights and then take a left',
+                    'Take the road on the left',
+                    'wait for traffic light then take left',
+                    'Stop as soon as you encounter a white car',
+                    'Stop near the blue dustbin which you see in front',
+                    'Wait for the green signal then take a left from the intersection.',
+                    'Stop in front of the white car']
+        while not done:
             clock.tick()
             if args.sync:
                 world.world.tick()
@@ -1917,7 +1943,7 @@ def game_loop(args):
                     print(f'Unable to delete _out/{episode_number}')
                 saving[2] = False
 
-            if pygame.mouse.get_pressed()[0] and not handled:
+            if (not args.command and pygame.mouse.get_pressed()[0] and not handled) or (new_start and args.command):
                 # if not command_given:
                 if saving[0]:
                     if saving[1]:
@@ -1930,7 +1956,10 @@ def game_loop(args):
                         full_video = []
                         episode_number += 1
                         os.makedirs(f'_out/{episode_number}', exist_ok=True)
-                        command = input('Enter Command: ')
+                        if not args.command:
+                            command = input('Enter Command: ')
+                        command = commands[args.spawn]
+                        print(command)
                         # command = 'a'
                         with open(f'_out/{episode_number}/command.txt', 'w') as f:
                             f.write(command)
@@ -1943,6 +1972,7 @@ def game_loop(args):
                         phrase_mask = phrase_mask.unsqueeze(0)
 
                         command_given = True
+                        new_start = False
 
                         # print('Processing FIRST frame')
                         # measurements, sensor_data = client.read_data()
@@ -2061,6 +2091,8 @@ def game_loop(args):
                     target_video = []
                     traj_mask_video = []
                     full_video = []
+                    if args.command:
+                        done = True
 
             if agent.target_destination:
                 destination = agent.target_destination
@@ -2236,6 +2268,11 @@ def main():
             'baseline'
         ],
         type=str,
+    )
+
+    argparser.add_argument(
+        "--command",
+        action="store_true"
     )
 
     argparser.add_argument(
