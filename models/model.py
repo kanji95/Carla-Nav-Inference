@@ -516,7 +516,7 @@ class ConvLSTMBaseline(nn.Module):
             input_dim=hidden_dim,
             mask_dim=mask_dim,
             hidden_dim=hidden_dim,
-            kernel_size=3,
+            kernel_size=(3, 3),
             num_layers=1,
             batch_first=True,
             return_all_layers=False

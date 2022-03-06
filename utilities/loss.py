@@ -98,6 +98,7 @@ class ClassLevelLoss(nn.Module):
 
     # B, C, H, W
     def forward(self, inputs, targets):
+        # print(inputs.shape, targets.shape)
         if "bce" in self.loss_func:
             return self.beta * self.bce_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.bce_loss(inputs[:, 1], targets[:, 1])
         elif "kldiv" in self.loss_func:

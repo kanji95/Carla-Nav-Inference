@@ -156,7 +156,8 @@ if __name__ == "__main__":
             "timesformer",
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",
-            "deeplabv3_mobilenet_v3_large"
+            "deeplabv3_mobilenet_v3_large",
+            "convlstm",
         ],
         type=str,
     )

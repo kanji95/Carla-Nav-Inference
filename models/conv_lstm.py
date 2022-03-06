@@ -2,7 +2,7 @@ import imp
 import torch.nn as nn
 import torch
 
-from mask_decoder import *
+from .mask_decoder import *
 from einops import rearrange
 
 
@@ -153,10 +153,10 @@ class ConvLSTM(nn.Module):
         self.cell_list = nn.ModuleList(cell_list)
 
         self.mask_decoder = nn.Sequential(
-            ASPP(in_channels=self.hidden_dim[-1], atrous_rates=[6, 12, 24], out_channels=32),
+            ASPP(in_channels=self.hidden_dim[-1], atrous_rates=[6, 12, 24], out_channels=256),
             ConvUpsample(
                 in_channels=256,
-                out_channels=1,
+                out_channels=2,
                 channels=[256, 128],
                 upsample=[True, True],
                 drop=0.2,
@@ -247,7 +247,7 @@ class ConvLSTM(nn.Module):
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
             
-        final_mask = torch.stack(mask_list, dim=1)
+        final_mask = torch.stack(mask_list, dim=2)
 
         if not self.return_all_layers:
             layer_output_list = layer_output_list[-1:]

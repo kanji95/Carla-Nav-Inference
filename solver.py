@@ -109,6 +109,15 @@ class Solver(object):
                 traj_dim=self.traj_dim,
                 backbone=self.img_backbone,
             )
+        elif "convlstm" in self.img_backbone:
+            self.mode = "video"
+            spatial_dim = self.image_dim//self.patch_size
+            visual_encoder = VisionTransformer(img_size=self.image_dim, patch_size=self.patch_size,
+                                               embed_dim=self.hidden_dim, depth=2, num_heads=8, num_frames=self.num_frames)
+            self.network = ConvLSTMBaseline(
+                visual_encoder, hidden_dim=self.hidden_dim, image_dim=self.image_dim, mask_dim=self.mask_dim, traj_dim=self.traj_dim, spatial_dim=spatial_dim, num_frames=self.num_frames,
+            )
+
 
         wandb.watch(self.network, log="all")
 
