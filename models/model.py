@@ -10,6 +10,7 @@ from einops import rearrange, repeat
 from .transformer import *
 from .position_encoding import *
 from .mask_decoder import *
+from .conv_lstm import ConvLSTM
 from timesformer.models.vit import TimeSformer
 
 
@@ -301,6 +302,15 @@ class JointVideoSegmentationBaseline(nn.Module):
             ),
             nn.Sigmoid(),
         )
+        
+        # self.mm_decoder = ConvLSTM(
+        #     input_dim=hidden_dim,
+        #     mask_dim=mask_dim,
+        #     hidden_dim=hidden_dim,
+        #     kernel_size=3,
+        #     num_layers=1,
+        #     batch_first=True,
+        # )
 
         self.traj_decoder = nn.Sequential(
             ASPP(in_channels=hidden_dim, atrous_rates=[
@@ -490,38 +500,60 @@ class IROSBaseline(nn.Module):
         return segm_mask
 
 
-# TODO
-class FullBaseline(nn.Module):
+class ConvLSTMBaseline(nn.Module):
     """Some Information about MyModule"""
 
-    def __init__(self, vision_encoder, text_encoder):
-        super(FullBaseline, self).__init__()
+    def __init__(self, vision_encoder, hidden_dim=768, image_dim=112, mask_dim=112, traj_dim=56, spatial_dim=14, num_frames=16):
+        super(ConvLSTMBaseline, self).__init__()
+
+        self.spatial_dim = spatial_dim
+        self.num_frames = num_frames
 
         self.vision_encoder = vision_encoder
-        self.text_encoder = text_encoder
+        self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
+        
+        self.mm_decoder = ConvLSTM(
+            input_dim=hidden_dim,
+            mask_dim=mask_dim,
+            hidden_dim=hidden_dim,
+            kernel_size=3,
+            num_layers=1,
+            batch_first=True,
+            return_all_layers=False
+        )
 
-        self.mm_fusion = None
-        self.mm_decoder = None
+        self.traj_decoder = nn.Sequential(
+            ASPP(in_channels=hidden_dim, atrous_rates=[
+                 6, 12, 24], out_channels=256),
+            ConvUpsample(in_channels=256,
+                         out_channels=1,
+                         channels=[256, 256],
+                         upsample=[True, True],
+                         drop=0.2,
+                         ),
+            nn.Upsample(
+                size=(traj_dim, traj_dim), mode="bilinear", align_corners=True
+            ),
+            nn.Sigmoid(),
+        )
 
-        self.destination_extractor = None
-        self.position_net = None
+    def forward(self, frames, text, frame_mask, text_mask):
 
-    # position - curr vehcle pos 3d -> (proj trans) 2d curr pos
-    # next vehicle pos 3d -> (proj trans) 2d next pos
-    # offset - 2d offset
-    # in eval - 2d to 3d inverse proj trans
-    def forward(self, frames, text, frame_mask, text_mask, position):
+        vision_feat, _ = self.vision_encoder(frames)  # B, N, C
+        vision_feat = F.normalize(vision_feat, p=2, dim=1)  # B x N x C
+        vision_feat = rearrange(vision_feat, "b (t h w) c -> b t c h w",
+                                t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
 
-        vision_feat = self.vision_encoder(frames)
-        text_feat = self.text_encoder(text)
+        text_feat = self.text_encoder(text)  # B x L x C
+        text_feat = F.normalize(text_feat, p=2, dim=1)  # B x L x C
+        text_feat = text_feat * text_mask[:, :, None]
 
-        fused_feat = self.mm_fusion(vision_feat, text_feat)
-        segm_mask = self.mm_decoder(fused_feat)
+        mm_feats, segm_mask = self.mm_decoder(vision_feat, text_feat)  # .squeeze(1)
+        
+        # use last hidden state
+        traj_mask = self.traj_decoder(mm_feats[-1])
 
-        destination = self.destination_extractor(segm_mask)
-        position_offset = self.position_net(position, destination)
-
-        return segm_mask, destination, position_offset
+        return segm_mask, traj_mask
 
 
 class TextEncoder(nn.Module):
