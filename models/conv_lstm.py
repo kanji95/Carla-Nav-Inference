@@ -40,9 +40,12 @@ class ConvLSTMCell(nn.Module):
             bias=self.bias,
         )
 
-    def forward(self, input_tensor, cur_state):
+    def forward(self, input_tensor, cur_state, context_tensor):
         h_cur, c_cur = cur_state
 
+        ## Multi-Modal Fusion
+        input_tensor = self.cross_attention(input_tensor, context_tensor)
+        
         combined = torch.cat(
             [input_tensor, h_cur], dim=1
         )  # concatenate along channel axis
@@ -77,6 +80,26 @@ class ConvLSTMCell(nn.Module):
                 device=self.conv.weight.device,
             ),
         )
+    
+    def cross_attention(self, visual_feat, lang_feat):
+
+        visual_dim = int(visual_feat.shape[-1])
+
+        visual_feat = rearrange(visual_feat, "b c h w -> b (h w) c")
+
+        cross_attn = torch.bmm(
+            visual_feat, lang_feat.transpose(1, 2).contiguous()
+        )  # B x N x L
+        cross_attn = cross_attn.softmax(dim=-1)
+        attn_feat = cross_attn @ lang_feat  # B x N x C
+
+        multi_modal_feat = visual_feat * attn_feat
+
+        multi_modal_feat = rearrange(
+            multi_modal_feat, "b (h w) c -> b c h w", h=visual_dim, w=visual_dim
+        )
+
+        return multi_modal_feat
 
 
 class ConvLSTM(nn.Module):
@@ -215,9 +238,9 @@ class ConvLSTM(nn.Module):
         layer_output_list = []
         last_state_list = []
         mask_list = []
-        mm_feat_list = []
+        # mm_feat_list = []
         
-        last_mm_feat = None
+        # last_mm_feat = None
 
         seq_len = input_tensor.size(1)
         cur_layer_input = input_tensor
@@ -228,16 +251,20 @@ class ConvLSTM(nn.Module):
             output_inner = []
             for t in range(seq_len):
                 h, c = self.cell_list[layer_idx](
-                    input_tensor=cur_layer_input[:, t, :, :, :], cur_state=[h, c]
+                    input_tensor=cur_layer_input[:, t, :, :, :], 
+                    cur_state=[h, c],
+                    context_tensor=lang_tensor
                 )
-                mm_feat = self.cross_attention(h, lang_tensor)
+                # mm_feat = self.cross_attention(h, lang_tensor)
                 
-                if last_mm_feat:
-                    mm_feat = mm_feat + F.sigmoid(last_mm_feat)
+                # if last_mm_feat:
+                #     mm_feat = mm_feat + F.sigmoid(last_mm_feat)
+                    
+                # c = mm_feat
                 
                 if layer_idx == self.num_layers - 1:
-                    mm_feat_list.append(mm_feat)
-                    mask_list.append(self.mask_decoder(mm_feat))
+                    # mm_feat_list.append(mm_feat)
+                    mask_list.append(self.mask_decoder(h))
                 
                 output_inner.append(h)
 
@@ -253,7 +280,7 @@ class ConvLSTM(nn.Module):
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
             
-        return mm_feat_list, final_mask
+        return last_state_list, final_mask
 
         # return layer_output_list, last_state_list, final_mask
 
