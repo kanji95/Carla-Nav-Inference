@@ -91,6 +91,7 @@ class ClassLevelLoss(nn.Module):
     def __init__(self, loss_func, beta=0.6):
         super(ClassLevelLoss, self).__init__()
         
+        self.combo_loss = ComboLoss()
         self.bce_loss = nn.BCELoss()
         self.kld_loss = KLDLoss()
         self.beta = beta
@@ -103,5 +104,7 @@ class ClassLevelLoss(nn.Module):
             return self.beta * self.bce_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.bce_loss(inputs[:, 1], targets[:, 1])
         elif "kldiv" in self.loss_func:
             return self.beta * self.kld_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.kld_loss(inputs[:, 1], targets[:, 1])
+        elif "combo" in self.loss_func:
+            return self.beta * self.combo_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.combo_loss(inputs[:, 1], targets[:, 1])
         else:
             raise NotImplementedError(f"{self.loss_func} not implemented!") 
