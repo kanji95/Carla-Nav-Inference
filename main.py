@@ -44,22 +44,22 @@ def main(args):
     print("Initializing Solver!")
     solver = Solver(args)
 
-    best_pg = 0
+    best_loss = 10e9
     epochs_without_improvement = 0
     print(
         f"Training Iterations: {len(solver.train_loader)}, Validation Iterations: {len(solver.val_loader)}")
 
     for epoch in range(args.epochs):
         solver.train(epoch)
-        val_pg, val_loss = solver.evaluate(epoch)
+        _, val_loss = solver.evaluate(epoch)
 
         solver.lr_scheduler.step(val_loss)
 
-        if val_pg > best_pg:
-            best_pg = val_pg
+        if val_loss <= best_loss:
+            best_loss = val_loss
 
             print(
-                f"Saving Checkpoint at epoch {epoch}, best validation accuracy is {best_pg}!"
+                f"Saving Checkpoint at epoch {epoch}, best validation loss is {best_loss}!"
             )
             if args.save:
                 torch.save(
@@ -71,7 +71,7 @@ def main(args):
                     model_filename,
                 )
             epochs_without_improvement = 0
-        elif val_pg <= best_pg and epoch != args.epochs - 1:
+        elif val_loss > best_loss and epoch != args.epochs - 1:
             epochs_without_improvement += 1
             print(f"Epochs without Improvement: {epochs_without_improvement}")
 

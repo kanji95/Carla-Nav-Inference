@@ -40,11 +40,11 @@ class ConvLSTMCell(nn.Module):
             bias=self.bias,
         )
 
-    def forward(self, input_tensor, cur_state, context_tensor):
+    def forward(self, input_tensor, cur_state):
         h_cur, c_cur = cur_state
 
         ## Multi-Modal Fusion
-        input_tensor = self.cross_attention(input_tensor, context_tensor)
+        # mm_tensor = self.cross_attention(input_tensor, context_tensor)
         
         combined = torch.cat(
             [input_tensor, h_cur], dim=1
@@ -250,16 +250,16 @@ class ConvLSTM(nn.Module):
             h, c = hidden_state[layer_idx]
             output_inner = []
             for t in range(seq_len):
+                mm_tensor = self.cross_attention(cur_layer_input[:, t, :, :, :], lang_tensor)
                 h, c = self.cell_list[layer_idx](
-                    input_tensor=cur_layer_input[:, t, :, :, :], 
+                    # input_tensor=cur_layer_input[:, t, :, :, :], 
+                    input_tensor=mm_tensor,
                     cur_state=[h, c],
-                    context_tensor=lang_tensor
                 )
-                # mm_feat = self.cross_attention(h, lang_tensor)
                 
+                # mm_feat = self.cross_attention(h, lang_tensor)
                 # if last_mm_feat:
                 #     mm_feat = mm_feat + F.sigmoid(last_mm_feat)
-                    
                 # c = mm_feat
                 
                 if layer_idx == self.num_layers - 1:
