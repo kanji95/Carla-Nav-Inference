@@ -46,8 +46,8 @@ class ComboLoss(nn.Module):
         #     import pdb; pdb.set_trace()
         
         #flatten label and prediction tensors
-        inputs = inputs.view(-1)
-        targets = targets.view(-1)
+        inputs = inputs.reshape(-1)
+        targets = targets.reshape(-1)
         
         #True Positives, False Positives & False Negatives
         intersection = (inputs * targets).sum()    
