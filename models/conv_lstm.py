@@ -199,12 +199,12 @@ class ConvLSTM(nn.Module):
         )  # B x N x L
         cross_attn = cross_attn.softmax(dim=-1)
         attn_feat = cross_attn @ lang_feat  # B x N x C
-
         multi_modal_feat = visual_feat * attn_feat
-
         multi_modal_feat = rearrange(
             multi_modal_feat, "b (h w) c -> b c h w", h=visual_dim, w=visual_dim
         )
+        
+        word_wts = cross_attn.sum(dim=1)
 
         return multi_modal_feat
 
