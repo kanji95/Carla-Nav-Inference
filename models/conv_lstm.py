@@ -221,7 +221,7 @@ class ConvLSTM(nn.Module):
 
         layer_output_list = []
         last_state_list = []
-        mask_list = []
+        # mask_list = []
 
         seq_len = input_tensor.size(1)
         cur_layer_input = input_tensor
@@ -239,8 +239,8 @@ class ConvLSTM(nn.Module):
                     context_tensor=context,
                 )
                 
-                if layer_idx == self.num_layers - 1:
-                    mask_list.append(self.mask_decoder(h))
+                # if layer_idx == self.num_layers - 1:
+                #     mask_list.append(self.mask_decoder(h))
                 
                 output_inner.append(h)
 
@@ -250,7 +250,8 @@ class ConvLSTM(nn.Module):
             layer_output_list.append(layer_output)
             last_state_list.append([h, c])
             
-        final_mask = torch.stack(mask_list, dim=2)
+        # final_mask = torch.stack(mask_list, dim=2)
+        final_mask = self.mask_decoder(h)
 
         if not self.return_all_layers:
             layer_output_list = layer_output_list[-1:]
