@@ -185,7 +185,7 @@ class World(object):
                 sys.exit(1)
             spawn_points = self.map.get_spawn_points()
             corresponding_maps = ['Town03', 'Town03', 'Town03', 'Town03', 'Town01', 'Town05', 'Town03', 'Town10HD', 'Town05', 'Town05', 'Town10HD', 'Town03',
-                                  'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town01', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
+                                  'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town02', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
             other_spawns = [[197.0673370361328, -2.0025179386138916, 0.3, -179.1441686105662],
                             [-73.89038848876953,
                              97.12801361083984,
@@ -1058,6 +1058,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
     global num_preds
 
     global args
+    global mode
 
     img = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
     img = np.reshape(
@@ -1070,8 +1071,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
     full_video.append(frame.unsqueeze(0))
 
-    if args.img_backbone == 'timesformer':
-        if frame_count == 0:
+    if mode == 'video':
+        if frame_count <= 1:
             video_queue = [frame]*args.num_frames
         else:
             video_queue.pop()
@@ -1091,7 +1092,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         frame = frame.cuda(
             non_blocking=True).unsqueeze(0)
 
-        if 'timesformer' not in args.img_backbone:
+        if mode=='image':
             mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
         else:
             video_frames = torch.stack(video_queue, dim=1).cuda(
@@ -1103,7 +1104,10 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         print(mask.shape)
         print(traj_mask.shape)
 
-        mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
+        if args.img_backbone=='convlstm':
+            mask_np = mask[:,:,-1].detach().cpu().numpy().transpose(2, 3, 1, 0)
+        else:
+            mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
         intermediate_mask_np = mask_np[:, :, 0].reshape(
             mask_np.shape[0], mask_np.shape[1])
         final_mask_np = mask_np[:, :, 1].reshape(
@@ -1210,7 +1214,10 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                            region, K, destination)
 
             frame_video.append(frame.detach().cpu().numpy())
-            mask_video.append(mask.detach().cpu().numpy())
+            if args.img_backbone == 'convlstm':
+                mask_video.append(mask[:,:,-1].detach().cpu().numpy())
+            else:
+                mask_video.append(mask.detach().cpu().numpy())
             traj_mask_video.append(
                 skeletonize(
                     cv2.threshold(
@@ -1234,7 +1241,10 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
         else:
             frame_video.append(frame.detach().cpu().numpy())
-            mask_video.append(mask.detach().cpu().numpy())
+            if args.img_backbone == 'convlstm':
+                mask_video.append(mask[:,:,-1].detach().cpu().numpy())
+            else:
+                mask_video.append(mask.detach().cpu().numpy())
             traj_mask_video.append(
                 skeletonize(
                     cv2.threshold(
@@ -1254,11 +1264,6 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                   target_video[-1].shape, full_video[-1].shape)
             print(f'================SKIPPING THIS TIME================')
 
-        if frame_count > 500:
-            target_number += 1
-            frame_count = 0
-            print(
-                f'------------------INCREMENTING TARGET COUNT TO {target_number}------------------')
 
         print(
             f'probs = N/A with pred_found = {pred_found} and num_preds = {num_preds}')
@@ -1518,6 +1523,8 @@ def game_loop(args):
     global depth_cam_queue
     global rgb_cam_queue
 
+    global mode
+
     depth_cam_queue = queue.Queue()
     rgb_cam_queue = queue.Queue()
 
@@ -1528,11 +1535,27 @@ def game_loop(args):
     try:
         if args.seed:
             random.seed(args.seed)
+        successful = True
 
-        client = carla.Client(args.host, args.port)
-        client.set_timeout(4.0)
-        client.load_world(
-            f'{args.map}', carla.MapLayer.Buildings | carla.MapLayer.ParkedVehicles)
+        try:
+            client = carla.Client(args.host, args.port)
+            print('Client found')
+            client.set_timeout(4.0)
+            client.load_world(
+                f'{args.map}', carla.MapLayer.Buildings | carla.MapLayer.ParkedVehicles)
+        except:
+            successful = False
+        
+        while not successful:
+            try:
+                client = carla.Client(args.host, args.port)
+                print('Client found')
+                client.set_timeout(4.0)
+                client.load_world(
+                    f'{args.map}', carla.MapLayer.Buildings | carla.MapLayer.ParkedVehicles)
+                successful = True
+            except:
+                successful = False
 
         blueprint_lib = client.get_world().get_blueprint_library()
         camera_bp = blueprint_lib.filter("sensor.camera.depth")[0]
@@ -1839,6 +1862,14 @@ def game_loop(args):
                 traj_dim=args.traj_dim,
                 backbone=args.img_backbone,
             )
+        elif "convlstm" in args.img_backbone:
+            mode = "video"
+            spatial_dim = args.image_dim//args.patch_size
+            visual_encoder = VisionTransformer(img_size=args.image_dim, patch_size=args.patch_size,
+                                               embed_dim=args.hidden_dim, depth=2, num_heads=8, num_frames=args.num_frames)
+            network = ConvLSTMBaseline(
+                visual_encoder, hidden_dim=args.hidden_dim, image_dim=args.image_dim, mask_dim=args.mask_dim, traj_dim=args.traj_dim, spatial_dim=spatial_dim, num_frames=args.num_frames,
+            )
         wandb.watch(network, log="all")
 
         network = nn.DataParallel(network)
@@ -1958,7 +1989,8 @@ def game_loop(args):
                         os.makedirs(f'_out/{episode_number}', exist_ok=True)
                         if not args.command:
                             command = input('Enter Command: ')
-                        command = commands[args.spawn]
+                        else:
+                            command = commands[args.spawn]
                         print(command)
                         # command = 'a'
                         with open(f'_out/{episode_number}/command.txt', 'w') as f:
@@ -1973,6 +2005,9 @@ def game_loop(args):
 
                         command_given = True
                         new_start = False
+
+                        prev_loc = None
+                        prev_prev_loc = None
 
                         # print('Processing FIRST frame')
                         # measurements, sensor_data = client.read_data()
@@ -1995,8 +2030,6 @@ def game_loop(args):
                 #     print('In route')
 
             handled = pygame.mouse.get_pressed()[0]
-            prev_loc = None
-            prev_prev_loc = None
 
             if not depth_cam_queue.empty() and not rgb_cam_queue.empty():
                 depth_cam_data = depth_cam_queue.get()
@@ -2012,12 +2045,14 @@ def game_loop(args):
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
                                     vehicle_location, args.sampling*(num_preds+1))
                     end = time.time()
-                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-1 and abs(prev_loc.x - vehicle_location.x) < 1e-1:
+                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-2 and abs(prev_loc.y - vehicle_location.y) < 1e-2:
                         pred_found = 0
                         print(f'Stationary')
+
                     if frame_count % args.sampling == 0 and print_network_stats:
                         print(
                             f'Network took {end-start}, pred_found = {pred_found}')
+                        print(f'++++++++++++++++++++++++++++++++frame_count:{frame_count}++++++++++++++++++++++++++++++++')
                         num_preds += pred_found
                     if pred_found:
                         print(
@@ -2036,7 +2071,7 @@ def game_loop(args):
             #     target_number = 0
             #     frame_count = 0
 
-            if agent.done() and prev_loc == prev_prev_loc and command_given:
+            if (agent.done() and prev_loc == prev_prev_loc and command_given) or frame_count>2000:
                 pred_found = 0
                 if num_preds >= args.num_preds:
                     command_given = False
@@ -2276,6 +2311,10 @@ def main():
     )
 
     argparser.add_argument(
+        "--override_map",
+        action="store_true"
+    )
+    argparser.add_argument(
         "--img_backbone",
         default="vit_tiny_patch16_224",
         choices=[
@@ -2287,7 +2326,8 @@ def main():
             "timesformer",
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",
-            "deeplabv3_mobilenet_v3_large"
+            "deeplabv3_mobilenet_v3_large",
+            "convlstm",
         ],
         type=str,
     )
@@ -2352,6 +2392,12 @@ def main():
     argparser.add_argument("--save", default=False, action="store_true")
 
     args = argparser.parse_args()
+
+    corresponding_maps = ['Town03', 'Town03', 'Town03', 'Town03', 'Town01', 'Town05', 'Town03', 'Town10HD', 'Town05', 'Town05', 'Town10HD', 'Town03',
+                            'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town02', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
+    
+    if args.spawn != -1 and not args.override_map:
+        args.map = corresponding_maps[args.spawn]
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
 
