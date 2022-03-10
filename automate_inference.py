@@ -1,5 +1,5 @@
 import os
-episodes = list(range(9,25))
+episodes = list(range(15,25))
 checkpoint = './saved_model/baseline_cross_attention_convlstm_class_level_combo_07_Mar_16-07.pth'
 backbone = 'convlstm'
 maps = ['Town03', 'Town03', 'Town03', 'Town03', 'Town01', 'Town05', 'Town03', 'Town10HD', 'Town05', 'Town05', 'Town10HD', 'Town03',

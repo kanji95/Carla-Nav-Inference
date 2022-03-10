@@ -1092,7 +1092,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         frame = frame.cuda(
             non_blocking=True).unsqueeze(0)
 
-        if mode=='image':
+        if mode == 'image':
             mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
         else:
             video_frames = torch.stack(video_queue, dim=1).cuda(
@@ -1104,8 +1104,9 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         print(mask.shape)
         print(traj_mask.shape)
 
-        if args.img_backbone=='convlstm':
-            mask_np = mask[:,:,-1].detach().cpu().numpy().transpose(2, 3, 1, 0)
+        if args.img_backbone == 'convlstm':
+            mask_np = mask[:, :, -
+                           1].detach().cpu().numpy().transpose(2, 3, 1, 0)
         else:
             mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
         intermediate_mask_np = mask_np[:, :, 0].reshape(
@@ -1136,7 +1137,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             if pixel_out[0] >= confidence:
                 pixel_temp = best_pixel(
                     intermediate_mask_np, threshold, confidence)
-                if pixel_temp[0] >= pixel_out[0]:
+                if pixel_temp != -1 and pixel_temp[0] >= pixel_out[0]:
                     pixel_out = pixel_temp
                 else:
                     pred_found = 1
@@ -1215,7 +1216,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
             frame_video.append(frame.detach().cpu().numpy())
             if args.img_backbone == 'convlstm':
-                mask_video.append(mask[:,:,-1].detach().cpu().numpy())
+                mask_video.append(mask[:, :, -1].detach().cpu().numpy())
             else:
                 mask_video.append(mask.detach().cpu().numpy())
             traj_mask_video.append(
@@ -1242,7 +1243,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         else:
             frame_video.append(frame.detach().cpu().numpy())
             if args.img_backbone == 'convlstm':
-                mask_video.append(mask[:,:,-1].detach().cpu().numpy())
+                mask_video.append(mask[:, :, -1].detach().cpu().numpy())
             else:
                 mask_video.append(mask.detach().cpu().numpy())
             traj_mask_video.append(
@@ -1263,7 +1264,6 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             print(frame_video[-1].shape,
                   target_video[-1].shape, full_video[-1].shape)
             print(f'================SKIPPING THIS TIME================')
-
 
         print(
             f'probs = N/A with pred_found = {pred_found} and num_preds = {num_preds}')
@@ -1545,7 +1545,7 @@ def game_loop(args):
                 f'{args.map}', carla.MapLayer.Buildings | carla.MapLayer.ParkedVehicles)
         except:
             successful = False
-        
+
         while not successful:
             try:
                 client = carla.Client(args.host, args.port)
@@ -1917,6 +1917,7 @@ def game_loop(args):
             episode_number = max([int(x) for x in os.listdir(temp_dir)])
         target_number = 0
         frame_count = 0
+        stationary_frames = 0
         frame_pending = 0
         pred_found = 0
         frames_from_done = 0
@@ -1982,6 +1983,7 @@ def game_loop(args):
                         target_number = 0
                         pred_found = 0
                         frame_count = 0
+                        stationary_frames = 0
                         frames_from_done = 0
                         num_preds = 0
                         full_video = []
@@ -2048,11 +2050,13 @@ def game_loop(args):
                     if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-2 and abs(prev_loc.y - vehicle_location.y) < 1e-2:
                         pred_found = 0
                         print(f'Stationary')
+                        stationary_frames += 1
 
                     if frame_count % args.sampling == 0 and print_network_stats:
                         print(
                             f'Network took {end-start}, pred_found = {pred_found}')
-                        print(f'++++++++++++++++++++++++++++++++frame_count:{frame_count}++++++++++++++++++++++++++++++++')
+                        print(
+                            f'++++++++++++++++++++++++++++++++frame_count:{frame_count} out of {1500+stationary_frames}++++++++++++++++++++++++++++++++')
                         num_preds += pred_found
                     if pred_found:
                         print(
@@ -2071,7 +2075,7 @@ def game_loop(args):
             #     target_number = 0
             #     frame_count = 0
 
-            if (agent.done() and prev_loc == prev_prev_loc and command_given) or frame_count>2000:
+            if (agent.done() and prev_loc == prev_prev_loc and command_given) or frame_count > 1500+stationary_frames:
                 pred_found = 0
                 if num_preds >= args.num_preds:
                     command_given = False
@@ -2394,8 +2398,8 @@ def main():
     args = argparser.parse_args()
 
     corresponding_maps = ['Town03', 'Town03', 'Town03', 'Town03', 'Town01', 'Town05', 'Town03', 'Town10HD', 'Town05', 'Town05', 'Town10HD', 'Town03',
-                            'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town02', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
-    
+                          'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town02', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
+
     if args.spawn != -1 and not args.override_map:
         args.map = corresponding_maps[args.spawn]
 
