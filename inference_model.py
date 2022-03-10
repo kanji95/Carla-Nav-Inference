@@ -2049,7 +2049,6 @@ def game_loop(args):
                     end = time.time()
                     if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-2 and abs(prev_loc.y - vehicle_location.y) < 1e-2:
                         pred_found = 0
-                        print(f'Stationary')
                         stationary_frames += 1
 
                     if frame_count % args.sampling == 0 and print_network_stats:
@@ -2075,8 +2074,10 @@ def game_loop(args):
             #     target_number = 0
             #     frame_count = 0
 
-            if (agent.done() and prev_loc == prev_prev_loc and command_given) or frame_count > 1500+stationary_frames:
+            if (agent.done() and prev_loc == prev_prev_loc and command_given) or frame_count > 1500+stationary_frames or frame_count > 3000:
                 pred_found = 0
+                if frame_count > 1500+stationary_frames or frame_count > 3000:
+                    num_preds = args.num_preds
                 if num_preds >= args.num_preds:
                     command_given = False
                     saving = [True, True, False]
