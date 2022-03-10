@@ -100,8 +100,8 @@ class ConvLSTMCell(nn.Module):
         )
         
         word_wts = cross_attn.mean(dim=1)
-        inv_word_wts = 1 - word_wts
-        next_lang_feat = inv_word_wts[:, :, None] * lang_feat
+        inv_word_wts = F.softmax(1 - word_wts, dim=-1)
+        next_lang_feat = lang_feat + inv_word_wts[:, :, None] * lang_feat
 
         return multi_modal_feat, next_lang_feat
 
@@ -180,12 +180,12 @@ class ConvLSTM(nn.Module):
         self.cell_list = nn.ModuleList(cell_list)
 
         self.mask_decoder = nn.Sequential(
-            ASPP(in_channels=self.hidden_dim[-1], atrous_rates=[6, 12, 24], out_channels=256),
+            ASPP(in_channels=self.hidden_dim[-1], atrous_rates=[4, 6, 8], out_channels=256),
             ConvUpsample(
                 in_channels=256,
                 out_channels=2,
-                channels=[256, 128],
-                upsample=[True, True],
+                channels=[256, 256, 128],
+                upsample=[True, True, True],
                 drop=0.2,
             ),
             nn.Upsample(size=(mask_dim, mask_dim), mode="bilinear", align_corners=True),

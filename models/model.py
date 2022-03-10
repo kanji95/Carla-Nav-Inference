@@ -524,11 +524,11 @@ class ConvLSTMBaseline(nn.Module):
 
         self.traj_decoder = nn.Sequential(
             ASPP(in_channels=hidden_dim, atrous_rates=[
-                 6, 12, 24], out_channels=256),
+                 4, 6, 8], out_channels=256),
             ConvUpsample(in_channels=256,
                          out_channels=1,
-                         channels=[256, 256],
-                         upsample=[True, True],
+                         channels=[256, 256, 128],
+                         upsample=[True, True, True],
                          drop=0.2,
                          ),
             nn.Upsample(

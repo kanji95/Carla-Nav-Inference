@@ -212,6 +212,7 @@ class CarlaFullDataset(Dataset):
         traj_dim=56,
         traj_frames=10,
         traj_size=25,
+        skip_frame=2,
     ):
         self.data_dir = os.path.join(data_root, split)
 
@@ -230,6 +231,8 @@ class CarlaFullDataset(Dataset):
         
         self.traj_frames = traj_frames
         self.traj_size = traj_size
+        
+        self.skip_frame = skip_frame
 
         if self.mode == "video":
             self.dataset_len = self.dataset_len//self.sequence_len

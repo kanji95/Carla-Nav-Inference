@@ -324,7 +324,7 @@ class Solver(object):
                     self.combo_loss(traj_mask, gt_traj_mask)
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(
-                    mask, gt_mask) + self.bce_loss(traj_mask, gt_traj_mask)
+                    mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
