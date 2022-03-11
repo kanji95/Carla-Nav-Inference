@@ -334,7 +334,6 @@ class CarlaFullDataset(Dataset):
 
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
-        # frame_masks = torch.stack(frame_masks, dim=1)
         frame_masks = frame_masks[-1]
 
         rgb_matrix = np.load(matrix_files[sample_idx])
