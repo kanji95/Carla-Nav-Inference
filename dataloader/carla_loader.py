@@ -283,12 +283,13 @@ class CarlaFullDataset(Dataset):
 
         if sample_idx < self.sequence_len:
             indices = [0]*(self.sequence_len - sample_idx)
-            indices.extend(list(range(1, sample_idx + 1)))
+            indices.extend(
+                list(range(1, sample_idx*self.one_in_n + 1, self.one_in_n)))
 
             start_idx = 0
         else:
             indices = list(
-                range(self.sequence_len*self.one_in_n, self.one_in_n))
+                range(0, self.sequence_len*self.one_in_n, self.one_in_n))
             start_idx = sample_idx - self.sequence_len + 1
 
         final_click_idx = target_positions['click_no'].max()
