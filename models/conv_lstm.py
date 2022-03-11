@@ -192,7 +192,7 @@ class ConvLSTM(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, input_tensor, lang_tensor, hidden_state=None):
+    def forward(self, input_tensor, lang_tensor, lang_mask, hidden_state=None):
         """
 
         Parameters

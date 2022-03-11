@@ -546,9 +546,10 @@ class ConvLSTMBaseline(nn.Module):
 
         text_feat = self.text_encoder(text)  # B x L x C
         text_feat = F.normalize(text_feat, p=2, dim=1)  # B x L x C
-        text_feat = text_feat * text_mask[:, :, None]
+        # import pdb; pdb.set_trace()
+        # text_feat = text_feat * text_mask[:, :, None]
 
-        hidden_feat, segm_mask = self.mm_decoder(vision_feat, text_feat)  # .squeeze(1)
+        hidden_feat, segm_mask = self.mm_decoder(vision_feat, text_feat, text_mask)  # .squeeze(1)
         
         # use last hidden state
         traj_mask = self.traj_decoder(hidden_feat[-1][0])
