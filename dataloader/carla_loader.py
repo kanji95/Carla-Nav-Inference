@@ -209,7 +209,7 @@ class CarlaFullDataset(Dataset):
         skip=5,
         sequence_len=16,
         mode="image",
-        one_in_n=20,
+        one_in_n=1,
         image_dim=224,
         mask_dim=112,
         traj_dim=56,
@@ -281,25 +281,31 @@ class CarlaFullDataset(Dataset):
         frame_masks = []
         orig_frames = []
 
-        if sample_idx < self.sequence_len:
-            indices = [0]*(self.sequence_len - sample_idx)
-            indices.extend(
-                list(range(1, sample_idx*self.one_in_n + 1, self.one_in_n)))
-
-            start_idx = 0
+        valid_indices = list(range(0, sample_idx, self.one_in_n))
+        if len(valid_indices) > self.sequence_len:
+            indices = valid_indices[-self.sequence_len:]
         else:
-            indices = list(
-                range(0, self.sequence_len*self.one_in_n, self.one_in_n))
-            start_idx = sample_idx - self.sequence_len + 1
+            indices = [0] * (self.sequence_len - len(valid_indices)) + valid_indices
+        start_idx = indices[0]
+        # if sample_idx < self.sequence_len:
+        #     indices = [0]*(self.sequence_len - sample_idx)
+        #     indices.extend(
+        #         list(range(1, sample_idx * self.one_in_n + 1, self.one_in_n)))
+        #     start_idx = 0
+        # else:
+        #     indices = list(
+        #         range(0, self.sequence_len*self.one_in_n, self.one_in_n))
+        #     start_idx = sample_idx - self.sequence_len * self.one_in_n + 1
 
         final_click_idx = target_positions['click_no'].max()
 
         for index in indices:
-            img_path = image_files[start_idx + index]
-            mask_path = mask_files[start_idx + index]
+            # print(target_positions.shape, sample_idx, index)
+            img_path = image_files[index]
+            mask_path = mask_files[index]
 
-            curr_click_idx = target_positions.iloc[sample_idx +
-                                                   index].to_list()[-1]
+            # print(target_positions.shape, sample_idx, index)
+            curr_click_idx = target_positions.iloc[index].to_list()[-1]
 
             img = Image.open(img_path).convert("RGB")
             mask = Image.open(mask_path).convert("L")
