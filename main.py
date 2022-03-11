@@ -185,6 +185,8 @@ if __name__ == "__main__":
                         default=16, help="Next Frames of Trajectory")
     parser.add_argument("--traj_size", type=int,
                         default=25, help="Trajectory Size")
+    parser.add_argument("--one_in_n", type=int,
+                        default=20, help="Image Dimension")
 
     parser.add_argument("--patch_size", type=int,
                         default=16, help="Patch Size of Video Frame for ViT")

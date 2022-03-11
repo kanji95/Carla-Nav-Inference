@@ -57,6 +57,8 @@ class Solver(object):
 
         self.threshold = self.args.threshold
 
+        self.one_in_n = self.args.one_in_n
+
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
         self.num_gpu = torch.cuda.device_count()
@@ -186,6 +188,7 @@ class Solver(object):
             traj_dim=self.traj_dim,
             traj_frames=self.traj_frames,
             traj_size=self.traj_size,
+            one_in_n=self.one_in_n,
         )
         self.val_dataset = CarlaFullDataset(
             data_root=self.data_root,
@@ -202,6 +205,7 @@ class Solver(object):
             traj_dim=self.traj_dim,
             traj_frames=self.traj_frames,
             traj_size=self.traj_size,
+            one_in_n=self.one_in_n,
         )
 
         self.train_loader = DataLoader(
@@ -393,8 +397,8 @@ class Solver(object):
                         title="training",
                     )
 
-            if iterId % 500 == 0 and step != 0:
-                # import pdb; pdb.set_trace()
+            if iterId % 50 == 0 and step != 0:
+                import pdb; pdb.set_trace()
                 print(mask.min(), mask.max())
                 gc.collect()
                 memoryUse = py.memory_info()[0] / 2.0 ** 20
