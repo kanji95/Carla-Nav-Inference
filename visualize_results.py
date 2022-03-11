@@ -83,6 +83,14 @@ def main(args):
             traj_dim=args.traj_dim,
             backbone=args.img_backbone,
         )
+    elif "convlstm" in args.img_backbone:
+            mode = "video"
+            spatial_dim = args.image_dim//args.patch_size
+            visual_encoder = VisionTransformer(img_size=args.image_dim, patch_size=args.patch_size,
+                                               embed_dim=args.hidden_dim, depth=2, num_heads=8, num_frames=args.num_frames)
+            network = ConvLSTMBaseline(
+                visual_encoder, hidden_dim=args.hidden_dim, image_dim=args.image_dim, mask_dim=args.mask_dim, traj_dim=args.traj_dim, spatial_dim=spatial_dim, num_frames=args.num_frames,
+            )
     wandb.watch(network, log="all")
 
     if num_gpu > 1:
@@ -181,6 +189,7 @@ def main(args):
 
         # import pdb; pdb.set_trace()
         mask_video_overlay = np.copy(frame_video)
+        # print(mask_video_overlay.shape, mask_video.shape)
         mask_video_overlay[:, 0] += mask_video[:, 0] / mask_video[:, 0].max() # red - intermediate point
         mask_video_overlay[:, 2] += mask_video[:, 1] / mask_video[:, 1].max() # blue - final point
         mask_video_overlay = np.clip(mask_video_overlay, a_min=0.0, a_max=1.0)
@@ -282,7 +291,7 @@ def run_video_model(
         mask, traj_mask = network(video_frames, phrase, frame_mask, phrase_mask)
 
         frame_video.append(frame[None].detach().cpu().numpy())
-        mask_video.append(mask[:, :, -1].detach().cpu().numpy())
+        mask_video.append(mask.detach().cpu().numpy())
         traj_video.append(traj_mask.detach().cpu().numpy())
         gt_mask_video.append(gt_mask)
 
@@ -325,6 +334,7 @@ if __name__ == "__main__":
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",
             "deeplabv3_mobilenet_v3_large",
+            "convlstm"
         ],
         type=str,
     )
