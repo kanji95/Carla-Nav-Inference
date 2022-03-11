@@ -539,13 +539,16 @@ class ConvLSTMBaseline(nn.Module):
 
     def forward(self, frames, text, frame_mask, text_mask):
 
-        vision_feat, _ = self.vision_encoder(frames)  # B, N, C
-        vision_feat = F.normalize(vision_feat, p=2, dim=1)  # B x N x C
-        vision_feat = rearrange(vision_feat, "b (t h w) c -> b t c h w",
-                                t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
+        # vision_feat, _ = self.vision_encoder(frames)  # B, N, C
+        # vision_feat = F.normalize(vision_feat, p=2, dim=1)  # B x N x C
+        # vision_feat = rearrange(vision_feat, "b (t h w) c -> b t c h w",
+        #                         t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
+
+        vision_feat = self.vision_encoder(frames)
+        vision_feat = rearrange(vision_feat, "b c t h w -> b t c h w")
 
         text_feat = self.text_encoder(text)  # B x L x C
-        text_feat = F.normalize(text_feat, p=2, dim=1)  # B x L x C
+        # text_feat = F.normalize(text_feat, p=2, dim=1)  # B x L x C
         # import pdb; pdb.set_trace()
         # text_feat = text_feat * text_mask[:, :, None]
 
