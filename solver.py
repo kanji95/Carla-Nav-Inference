@@ -57,6 +57,8 @@ class Solver(object):
 
         self.threshold = self.args.threshold
 
+        self.one_in_n = self.args.one_in_n
+
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
         self.num_gpu = torch.cuda.device_count()
@@ -117,7 +119,6 @@ class Solver(object):
             self.network = ConvLSTMBaseline(
                 visual_encoder, hidden_dim=self.hidden_dim, image_dim=self.image_dim, mask_dim=self.mask_dim, traj_dim=self.traj_dim, spatial_dim=spatial_dim, num_frames=self.num_frames,
             )
-
 
         wandb.watch(self.network, log="all")
 
@@ -181,6 +182,7 @@ class Solver(object):
             traj_transform=traj_transform,
             sequence_len=self.num_frames,
             mode=self.mode,
+            one_in_n=self.one_in_n,
             image_dim=self.image_dim,
             mask_dim=self.mask_dim,
             traj_dim=self.traj_dim,
@@ -197,6 +199,7 @@ class Solver(object):
             traj_transform=traj_transform,
             sequence_len=self.num_frames,
             mode=self.mode,
+            one_in_n=self.one_in_n,
             image_dim=self.image_dim,
             mask_dim=self.mask_dim,
             traj_dim=self.traj_dim,

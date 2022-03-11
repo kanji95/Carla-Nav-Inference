@@ -173,6 +173,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--image_dim", type=int,
                         default=224, help="Image Dimension")
+    parser.add_argument("--one_in_n", type=int,
+                        default=20, help="Image Dimension")
     parser.add_argument("--mask_dim", type=int,
                         default=112, help="Mask Dimension")
     parser.add_argument("--traj_dim", type=int,
