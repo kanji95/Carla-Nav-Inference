@@ -86,8 +86,11 @@ def main(args):
     elif "convlstm" in args.img_backbone:
             mode = "video"
             spatial_dim = args.image_dim//args.patch_size
-            visual_encoder = VisionTransformer(img_size=args.image_dim, patch_size=args.patch_size,
-                                               embed_dim=args.hidden_dim, depth=2, num_heads=8, num_frames=args.num_frames)
+            # visual_encoder = VisionTransformer(img_size=args.image_dim, patch_size=args.patch_size,
+            #                                   embed_dim=args.hidden_dim, depth=2, num_heads=8, num_frames=args.num_frames)
+            video_encoder = torch.hub.load('facebookresearch/pytorchvideo', 'x3d_s', pretrained=True)
+            visual_encoder = nn.Sequential(*list(video_encoder.blocks.children())[:-1])
+
             network = ConvLSTMBaseline(
                 visual_encoder, hidden_dim=args.hidden_dim, image_dim=args.image_dim, mask_dim=args.mask_dim, traj_dim=args.traj_dim, spatial_dim=spatial_dim, num_frames=args.num_frames,
             )

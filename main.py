@@ -75,7 +75,7 @@ def main(args):
             epochs_without_improvement += 1
             print(f"Epochs without Improvement: {epochs_without_improvement}")
 
-            if epochs_without_improvement == 6:
+            if epochs_without_improvement == 10:
                 print(
                     f"{epochs_without_improvement} epochs without improvement, Stopping Training!"
                 )
@@ -84,7 +84,7 @@ def main(args):
     if args.save:
         print(f"Current Model Name {model_filename}")
         new_filename = os.path.join(
-            save_path, f'{args.model}_{args.imtext_matching}_{args.img_backbone}_{args.loss_func}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}__{best_loss:.5f}.pth')
+            save_path, f'{args.model}_{args.imtext_matching}_{args.img_backbone}_{args.loss_func}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{best_loss:.5f}.pth')
         os.rename(model_filename, new_filename)
         print(f"Renamed to {new_filename}!")
 
