@@ -511,6 +511,8 @@ class ConvLSTMBaseline(nn.Module):
 
         self.vision_encoder = vision_encoder
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
+
+        self.conv3d = nn.Conv3d(192, hidden_dim, kernel_size=3, stride=1, padding=1)
         
         self.mm_decoder = ConvLSTM(
             input_dim=hidden_dim,
@@ -545,6 +547,7 @@ class ConvLSTMBaseline(nn.Module):
         #                         t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
 
         vision_feat = self.vision_encoder(frames)
+        vision_feat = F.relu(self.conv3d(vision_feat))
         vision_feat = rearrange(vision_feat, "b c t h w -> b t c h w")
 
         text_feat = self.text_encoder(text)  # B x L x C

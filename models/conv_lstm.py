@@ -99,9 +99,10 @@ class ConvLSTMCell(nn.Module):
             multi_modal_feat, "b (h w) c -> b c h w", h=visual_dim, w=visual_dim
         )
         
-        word_wts = cross_attn.mean(dim=1)
-        inv_word_wts = F.softmax(1 - word_wts, dim=-1)
-        next_lang_feat = lang_feat + inv_word_wts[:, :, None] * lang_feat
+        # word_wts = cross_attn.mean(dim=1)
+        # inv_word_wts = F.softmax(1 - word_wts, dim=-1)
+        # next_lang_feat = lang_feat + inv_word_wts[:, :, None] * lang_feat
+        next_lang_feat = lang_feat
 
         return multi_modal_feat, next_lang_feat
 

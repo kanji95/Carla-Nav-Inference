@@ -194,6 +194,7 @@ def main(args):
         mask_video_overlay = np.copy(frame_video)
         # print(mask_video_overlay.shape, mask_video.shape)
         mask_video_overlay[:, 0] += mask_video[:, 0] / mask_video[:, 0].max() # red - intermediate point
+        # mask_video_overlay[:, 0] += mask_video[:, 0] / mask_video[:, 0].max() # red - intermediate point
         mask_video_overlay[:, 2] += mask_video[:, 1] / mask_video[:, 1].max() # blue - final point
         mask_video_overlay = np.clip(mask_video_overlay, a_min=0.0, a_max=1.0)
 
@@ -294,7 +295,7 @@ def run_video_model(
         mask, traj_mask = network(video_frames, phrase, frame_mask, phrase_mask)
 
         frame_video.append(frame[None].detach().cpu().numpy())
-        mask_video.append(mask.detach().cpu().numpy())
+        mask_video.append(mask[:, :, -1].detach().cpu().numpy())
         traj_video.append(traj_mask.detach().cpu().numpy())
         gt_mask_video.append(gt_mask)
 

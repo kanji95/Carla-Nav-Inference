@@ -154,8 +154,8 @@ def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, g
 ):
     indices = np.random.choice(range(pred_mask.shape[0]), size=k, replace=False)
 
-    # b, c, t, h, w = pred_mask.shape
-    b, c, h, w = pred_mask.shape
+    b, c, t, h, w = pred_mask.shape
+    # b, c, h, w = pred_mask.shape
     
     # figure, axes = plt.subplots(nrows=k, ncols=5)
     for i, index in enumerate(indices):
@@ -166,33 +166,33 @@ def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, g
         orig_video = front_cam_video[index]
         orig_video = rearrange(orig_video, "t h w c -> t c h w")
 
-        # mask_pred = rearrange(pred_mask[index], "c t h w -> t c h w")
-        # mask_pred_ = np.zeros((t, 3, h, w))
-        # mask_pred_[:, 0] = mask_pred[:, 0] * 255  # red
-        # mask_pred_[:, 2] = mask_pred[:, 1] * 255  # blue
-        # mask_pred = np.uint8(mask_pred_)
-
-        mask_pred = rearrange(pred_mask[index], "c h w -> h w c")
-        mask_pred_ = np.zeros((h, w, 3))
-        mask_pred_[:, :, 0] = mask_pred[:, :, 0] * 255  # red
-        mask_pred_[:, :, 2] = mask_pred[:, :, 1] * 255  # blue
+        mask_pred = rearrange(pred_mask[index], "c t h w -> t c h w")
+        mask_pred_ = np.zeros((t, 3, h, w))
+        mask_pred_[:, 0] = mask_pred[:, 0] * 255  # red
+        mask_pred_[:, 2] = mask_pred[:, 1] * 255  # blue
         mask_pred = np.uint8(mask_pred_)
-        
-        # mask_gt = rearrange(gt_mask[index], "c t h w -> t c h w")
-        # mask_gt_ = np.zeros((t, 3, h, w))
-        # if mask_gt[:, 0].max() > mask_gt[:, 1].max():
-        #     mask_gt_[:, 1] = mask_gt[:, 0] * 100  # dark green
-        # else:
-        #     mask_gt_[:, 1] = mask_gt[:, 1] * 255  # lime
-        # mask_gt = np.uint8(mask_gt_)
 
-        mask_gt = rearrange(gt_mask[index], "c h w -> h w c")
-        mask_gt_ = np.zeros((h, w, 3))
-        if mask_gt[:, :, 0].max() > mask_gt[:, :, 1].max():
-            mask_gt_[:, :, 1] = mask_gt[:, :, 0] * 100  # dark green
+        # mask_pred = rearrange(pred_mask[index], "c h w -> h w c")
+        # mask_pred_ = np.zeros((h, w, 3))
+        # mask_pred_[:, :, 0] = mask_pred[:, :, 0] * 255  # red
+        # mask_pred_[:, :, 2] = mask_pred[:, :, 1] * 255  # blue
+        # mask_pred = np.uint8(mask_pred_)
+        
+        mask_gt = rearrange(gt_mask[index], "c t h w -> t c h w")
+        mask_gt_ = np.zeros((t, 3, h, w))
+        if mask_gt[:, 0].max() > mask_gt[:, 1].max():
+            mask_gt_[:, 1] = mask_gt[:, 0] * 100  # dark green
         else:
-            mask_gt_[:, :, 1] = mask_gt[:, :, 1] * 255  # lime
+            mask_gt_[:, 1] = mask_gt[:, 1] * 255  # lime
         mask_gt = np.uint8(mask_gt_)
+
+        # mask_gt = rearrange(gt_mask[index], "c h w -> h w c")
+        # mask_gt_ = np.zeros((h, w, 3))
+        # if mask_gt[:, :, 0].max() > mask_gt[:, :, 1].max():
+        #     mask_gt_[:, :, 1] = mask_gt[:, :, 0] * 100  # dark green
+        # else:
+        #     mask_gt_[:, :, 1] = mask_gt[:, :, 1] * 255  # lime
+        # mask_gt = np.uint8(mask_gt_)
 
         traj_pred = rearrange(traj_mask[index], "c h w -> h w c")
         traj_pred = np.uint8(traj_pred * 255)
@@ -203,18 +203,18 @@ def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, g
         wandb.log(
             {
                 f"{title}_video": wandb.Video(orig_video, fps=4, caption=command, format="mp4"),
-                # f"{title}_pred_mask": wandb.Video(
-                #     mask_pred, fps=4, caption=command, format="mp4"
-                # ),
-                # f"{title}_gt_mask": wandb.Video(
-                #     mask_gt, fps=4, caption=command, format="mp4"
-                # ),
-                f"{title}_pred_mask": wandb.Image(
-                    mask_pred, caption=command,
+                f"{title}_pred_mask": wandb.Video(
+                    mask_pred, fps=4, caption=command, format="mp4"
                 ),
-                f"{title}_gt_mask": wandb.Image(
-                    mask_gt, caption=command,
+                f"{title}_gt_mask": wandb.Video(
+                    mask_gt, fps=4, caption=command, format="mp4"
                 ),
+                # f"{title}_pred_mask": wandb.Image(
+                #     mask_pred, caption=command,
+                # ),
+                # f"{title}_gt_mask": wandb.Image(
+                #     mask_gt, caption=command,
+                # ),
                 f"{title}_traj_mask": wandb.Image(
                     traj_pred, caption=command
                 ),
