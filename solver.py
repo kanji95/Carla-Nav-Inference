@@ -28,6 +28,7 @@ class Solver(object):
 
         self.experiment = wandb.init(
             project="Language Navigation", config=self.args)
+        self.experiment.run_name = f'{args.img_backbone}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{self.experiment.id}'
 
         self.epochs = self.args.epochs
         self.batch_size = self.args.batch_size
@@ -40,7 +41,7 @@ class Solver(object):
         self.glove_path = self.args.glove_path
 
         self.loss_func = self.args.loss_func
-    
+
         self.img_backbone = self.args.img_backbone
         self.imtext_matching = self.args.imtext_matching
         self.attn_type = self.args.attn_type
@@ -431,7 +432,7 @@ class Solver(object):
                 lr = self.optimizer.param_groups[0]["lr"]
 
                 print(
-                    f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} Mask IT {curr_it_mask:.4f} Traj IT {curr_it_traj:.4f} Mask RK {curr_rk_mask:.4f} Traj RK {curr_rk_traj:.4f} Mask DS {curr_ds_mask:.4f} Traj DS {curr_ds_traj:.4f} memory_use {memoryUse:.3f}MB lr {lr:.7f} elapsed {elapsed_time:.2f}"
+                    f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} | Mask IOU {curr_IOU_mask:.4f} | Traj IOU {curr_IOU_traj:.4f} | Mask PG {curr_pg_mask:.4f} | Traj PG {curr_pg_traj:.4f} | Mask IT {curr_it_mask:.4f} | Traj IT {curr_it_traj:.4f} | Mask RK {curr_rk_mask:.4f} | Traj RK {curr_rk_traj:.4f} | Mask DS {curr_ds_mask:.4f} | Traj DS {curr_ds_traj:.4f} | mem_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 )
 
                 # print(
@@ -652,7 +653,7 @@ class Solver(object):
         )
 
         print(
-            f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} Mask_IOU {val_IOU_mask:.4f} Traj_IOU {val_IOU_traj:.4f} Mask_PG {val_pg_mask:.4f} Traj_PG {val_pg_traj:.4f} Mask IT {val_it_mask:.4f} Traj IT {val_it_traj:.4f} Mask RK {val_rk_mask:.4f} Traj RK {val_rk_traj:.4f} Mask DS {val_ds_mask:.4f} Traj DS {val_ds_traj:.4f}"
+            f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} | Mask_IOU {val_IOU_mask:.4f} | Traj_IOU {val_IOU_traj:.4f} | Mask_PG {val_pg_mask:.4f} | Traj_PG {val_pg_traj:.4f} | Mask IT {val_it_mask:.4f} | Traj IT {val_it_traj:.4f} | Mask RK {val_rk_mask:.4f} Traj RK {val_rk_traj:.4f} | Mask DS {val_ds_mask:.4f} | Traj DS {val_ds_traj:.4f} |"
         )
 
         return val_pg_mask, val_loss

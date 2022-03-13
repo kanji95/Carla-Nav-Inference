@@ -35,7 +35,7 @@ def main(args):
 
     model_filename = os.path.join(
         save_path,
-        f'{args.model}_{args.imtext_matching}_{args.img_backbone}_{args.loss_func}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{datetime.now().strftime("%d_%b_%H_%M")}.pth',
+        f'{args.img_backbone}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{datetime.now().strftime("%d_%b_%H_%M")}.pth',
     )
 
     print(
@@ -84,7 +84,7 @@ def main(args):
     if args.save:
         print(f"Current Model Name {model_filename}")
         new_filename = os.path.join(
-            save_path, f'{args.model}_{args.imtext_matching}_{args.img_backbone}_{args.loss_func}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{best_loss:.5f}.pth')
+            save_path, f'{args.img_backbone}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{best_loss:.5f}.pth')
         os.rename(model_filename, new_filename)
         print(f"Renamed to {new_filename}!")
 
