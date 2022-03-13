@@ -503,11 +503,13 @@ class IROSBaseline(nn.Module):
 class ConvLSTMBaseline(nn.Module):
     """Some Information about MyModule"""
 
-    def __init__(self, vision_encoder, hidden_dim=768, image_dim=112, mask_dim=112, traj_dim=56, spatial_dim=14, num_frames=16):
+    def __init__(self, vision_encoder, hidden_dim=768, image_dim=112, mask_dim=112, traj_dim=56, spatial_dim=14, num_frames=16, attn_type="dot_product"):
         super(ConvLSTMBaseline, self).__init__()
 
         self.spatial_dim = spatial_dim
         self.num_frames = num_frames
+        
+        self.attn_type = attn_type
 
         self.vision_encoder = vision_encoder
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
@@ -521,7 +523,8 @@ class ConvLSTMBaseline(nn.Module):
             kernel_size=(3, 3),
             num_layers=1,
             batch_first=True,
-            return_all_layers=False
+            return_all_layers=False,
+            attn_type=self.attn_type
         )
 
         self.traj_decoder = nn.Sequential(
@@ -555,7 +558,7 @@ class ConvLSTMBaseline(nn.Module):
         # import pdb; pdb.set_trace()
         # text_feat = text_feat * text_mask[:, :, None]
 
-        hidden_feat, segm_mask = self.mm_decoder(vision_feat, text_feat, text_mask)  # .squeeze(1)
+        hidden_feat, segm_mask = self.mm_decoder(vision_feat, text_feat, frame_mask, text_mask)  # .squeeze(1)
         
         # use last hidden state
         traj_mask = self.traj_decoder(hidden_feat[-1][0])

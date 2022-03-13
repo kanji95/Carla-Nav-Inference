@@ -40,9 +40,11 @@ class Solver(object):
         self.glove_path = self.args.glove_path
 
         self.loss_func = self.args.loss_func
-
+    
         self.img_backbone = self.args.img_backbone
         self.imtext_matching = self.args.imtext_matching
+        self.attn_type = self.args.attn_type
+        
         self.image_dim = self.args.image_dim
         self.mask_dim = self.args.mask_dim
         self.traj_dim = self.args.traj_dim
@@ -50,14 +52,13 @@ class Solver(object):
         self.num_frames = self.args.num_frames
         self.traj_frames = self.args.traj_frames
         self.traj_size = self.args.traj_size
-
         self.patch_size = self.args.patch_size
+        self.one_in_n = self.args.one_in_n
 
         self.grad_check = self.args.grad_check
 
         self.threshold = self.args.threshold
 
-        self.one_in_n = self.args.one_in_n
 
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
@@ -318,7 +319,7 @@ class Solver(object):
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
-                frame_mask = torch.ones(batch_size, 14 * 14, dtype=torch.int64).cuda(
+                frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
                     non_blocking=True
                 )
                 num_samples += batch_size
@@ -418,24 +419,24 @@ class Solver(object):
                 curr_pg_mask = total_pg_mask / num_samples
                 curr_pg_traj = total_pg_traj / num_samples
 
-                # curr_it_mask = total_it_mask / num_samples
-                # curr_it_traj = total_it_traj / num_samples
+                curr_it_mask = total_it_mask / num_samples
+                curr_it_traj = total_it_traj / num_samples
 
-                # curr_rk_mask = total_rk_mask / num_samples
-                # curr_rk_traj = total_rk_traj / num_samples
+                curr_rk_mask = total_rk_mask / num_samples
+                curr_rk_traj = total_rk_traj / num_samples
 
-                # curr_ds_mask = total_ds_mask / num_samples
-                # curr_ds_traj = total_ds_traj / num_samples
+                curr_ds_mask = total_ds_mask / num_samples
+                curr_ds_traj = total_ds_traj / num_samples
 
                 lr = self.optimizer.param_groups[0]["lr"]
 
-                # print(
-                #     f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} Mask IT {curr_it_mask:.4f} Traj IT {curr_it_traj:.4f} Mask RK {curr_rk_mask:.4f} Traj RK {curr_rk_traj:.4f} Mask DS {curr_ds_mask:.4f} Traj DS {curr_ds_traj:.4f} memory_use {memoryUse:.3f}MB lr {lr:.7f} elapsed {elapsed_time:.2f}"
-                # )
-
                 print(
-                    f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} memory_use {memoryUse:.3f}MB lr {lr:.7f} elapsed {elapsed_time:.2f}"
+                    f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} Mask IT {curr_it_mask:.4f} Traj IT {curr_it_traj:.4f} Mask RK {curr_rk_mask:.4f} Traj RK {curr_rk_traj:.4f} Mask DS {curr_ds_mask:.4f} Traj DS {curr_ds_traj:.4f} memory_use {memoryUse:.3f}MB lr {lr:.7f} elapsed {elapsed_time:.2f}"
                 )
+
+                # print(
+                #     f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} memory_use {memoryUse:.3f}MB lr {lr:.7f} elapsed {elapsed_time:.2f}"
+                # )
 
         epoch_end = time()
         epoch_time = epoch_end - epoch_start
@@ -507,7 +508,7 @@ class Solver(object):
             gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
             batch_size = frame.shape[0]
-            frame_mask = torch.ones(batch_size, 14 * 14, dtype=torch.int64).cuda(
+            frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
                 non_blocking=True
             )
             num_samples += batch_size
@@ -598,22 +599,22 @@ class Solver(object):
                 curr_pg_mask = total_pg_mask / num_samples
                 curr_pg_traj = total_pg_traj / num_samples
 
-                # curr_it_mask = total_it_mask / num_samples
-                # curr_it_traj = total_it_traj / num_samples
+                curr_it_mask = total_it_mask / num_samples
+                curr_it_traj = total_it_traj / num_samples
 
-                # curr_rk_mask = total_rk_mask / num_samples
-                # curr_rk_traj = total_rk_traj / num_samples
+                curr_rk_mask = total_rk_mask / num_samples
+                curr_rk_traj = total_rk_traj / num_samples
 
-                # curr_ds_mask = total_ds_mask / num_samples
-                # curr_ds_traj = total_ds_traj / num_samples
-
-                # print(
-                #     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} Mask IT {curr_it_mask:.4f} Traj IT {curr_it_traj:.4f} Mask RK {curr_rk_mask:.4f} Traj RK {curr_rk_traj:.4f} Mask DS {curr_ds_mask:.4f} Traj DS {curr_ds_traj:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
-                # )
+                curr_ds_mask = total_ds_mask / num_samples
+                curr_ds_traj = total_ds_traj / num_samples
 
                 print(
-                    f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
+                    f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} Mask IT {curr_it_mask:.4f} Traj IT {curr_it_traj:.4f} Mask RK {curr_rk_mask:.4f} Traj RK {curr_rk_traj:.4f} Mask DS {curr_ds_mask:.4f} Traj DS {curr_ds_traj:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 )
+
+                # print(
+                #     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
+                # )
 
         val_loss = total_loss / data_len
 

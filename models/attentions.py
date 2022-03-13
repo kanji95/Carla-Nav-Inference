@@ -370,7 +370,7 @@ class RelativeMultiHeadAttention(nn.Module):
         context = torch.matmul(attn, value).transpose(1, 2)
         context = context.contiguous().view(batch_size, -1, self.d_model)
 
-        return self.out_proj(context)
+        return self.out_proj(context), attn
 
     def _compute_relative_positional_encoding(self, pos_score: Tensor) -> Tensor:
         batch_size, num_heads, seq_length1, seq_length2 = pos_score.size()
@@ -423,7 +423,7 @@ class CustomizingAttention(nn.Module):
         self.loc_proj = nn.Linear(conv_out_channel, self.dim, bias=False)
         self.bias = nn.Parameter(torch.rand(self.dim * num_heads).uniform_(-0.1, 0.1))
 
-    def forward(self, query: Tensor, value: Tensor, last_attn: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, query: Tensor, value: Tensor, last_attn: Tensor, mask: Optional[Tensor] = None) -> Tuple[Tensor, Tensor]:
         batch_size, q_len, v_len = value.size(0), query.size(1), value.size(1)
 
         if last_attn is None:
@@ -439,7 +439,7 @@ class CustomizingAttention(nn.Module):
         query = query.contiguous().view(-1, q_len, self.dim)
         value = value.contiguous().view(-1, v_len, self.dim)
 
-        context, attn = self.scaled_dot_attn(query, value)
+        context, attn = self.scaled_dot_attn(query, value, value, mask)
         attn = attn.squeeze()
 
         context = context.view(self.num_heads, batch_size, q_len, self.dim).permute(1, 2, 0, 3)

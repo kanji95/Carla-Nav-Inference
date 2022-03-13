@@ -1,6 +1,9 @@
 import imp
+from matplotlib.cm import ScalarMappable
 import torch.nn as nn
 import torch
+
+from models.attentions import CustomizingAttention, DotProductAttention, MultiHeadAttention, RelativeMultiHeadAttention, ScaledDotProductAttention
 
 from .mask_decoder import *
 from einops import rearrange
@@ -40,12 +43,9 @@ class ConvLSTMCell(nn.Module):
             bias=self.bias,
         )
 
-    def forward(self, input_tensor, cur_state, context_tensor):
+    def forward(self, input_tensor, cur_state):
         h_cur, c_cur = cur_state
 
-        ## Multi-Modal Fusion
-        # mm_tensor = self.cross_attention(input_tensor, context_tensor)
-        
         combined = torch.cat(
             [input_tensor, h_cur], dim=1
         )  # concatenate along channel axis
@@ -60,9 +60,7 @@ class ConvLSTMCell(nn.Module):
         c_next = f * c_cur + i * g
         h_next = o * torch.tanh(c_next)
         
-        h_next, next_context = self.cross_attention(h_next, context_tensor)
-
-        return h_next, c_next, next_context
+        return h_next, c_next
 
     def init_hidden(self, batch_size, image_size):
         height, width = image_size
@@ -82,30 +80,6 @@ class ConvLSTMCell(nn.Module):
                 device=self.conv.weight.device,
             ),
         )
-    
-    def cross_attention(self, visual_feat, lang_feat):
-
-        visual_dim = int(visual_feat.shape[-1])
-
-        visual_feat = rearrange(visual_feat, "b c h w -> b (h w) c")
-
-        cross_attn = torch.bmm(
-            visual_feat, lang_feat.transpose(1, 2).contiguous()
-        )  # B x N x L
-        cross_attn = cross_attn.softmax(dim=-1)
-        attn_feat = cross_attn @ lang_feat  # B x N x C
-        multi_modal_feat = visual_feat * attn_feat
-        multi_modal_feat = rearrange(
-            multi_modal_feat, "b (h w) c -> b c h w", h=visual_dim, w=visual_dim
-        )
-        
-        # word_wts = cross_attn.mean(dim=1)
-        # inv_word_wts = F.softmax(1 - word_wts, dim=-1)
-        # next_lang_feat = lang_feat + inv_word_wts[:, :, None] * lang_feat
-        next_lang_feat = lang_feat
-
-        return multi_modal_feat, next_lang_feat
-
 
 class ConvLSTM(nn.Module):
 
@@ -145,6 +119,7 @@ class ConvLSTM(nn.Module):
         batch_first=False,
         bias=True,
         return_all_layers=False,
+        attn_type='dot_product',
     ):
         super(ConvLSTM, self).__init__()
 
@@ -164,6 +139,21 @@ class ConvLSTM(nn.Module):
         self.batch_first = batch_first
         self.bias = bias
         self.return_all_layers = return_all_layers
+        
+        self.attn_type = attn_type
+        
+        if self.attn_type == "dot_product":
+            self.attention = DotProductAttention(self.hidden_dim)
+        elif self.attn_type == "scaled_dot_product":
+            self.attention = ScaledDotProductAttention(self.hidden_dim)
+        elif self.attn_type == "multi_head":
+            self.attention = MultiHeadAttention(d_model = self.hidden_dim, num_heads=8)
+        elif self.attn_type == "rel_multi_head":
+            self.attention = RelativeMultiHeadAttention(d_model=self.hidden_dim, num_heads=8)
+        elif self.attn_type == "custom_attn":
+            self.attention = CustomizingAttention(hidden_dim=self.hidden_dim, num_heads=8, conv_out_channel=self.hidden_dim)
+        else:
+            raise NotImplementedError(f'{self.attn_type} not implemented!')
 
         cell_list = []
         for i in range(0, self.num_layers):
@@ -193,7 +183,7 @@ class ConvLSTM(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, input_tensor, lang_tensor, lang_mask, hidden_state=None):
+    def forward(self, input_tensor, lang_tensor, frame_mask, lang_mask, hidden_state=None):
         """
 
         Parameters
@@ -226,33 +216,58 @@ class ConvLSTM(nn.Module):
 
         seq_len = input_tensor.size(1)
         cur_layer_input = input_tensor
+        
+        # attention masks
+        padding = 1 - torch.einsum('bi,bj->bij', (frame_mask, lang_mask))
+        combined_padding = torch.concat([frame_mask, lang_mask], dim=-1)
 
         for layer_idx in range(self.num_layers):
 
-            h, c = hidden_state[layer_idx]
+            hidden, cell = hidden_state[layer_idx]
             output_inner = []
             
-            context = torch.clone(lang_tensor)
+            attn = None
+            
             for t in range(seq_len):
-                h, c, context = self.cell_list[layer_idx](
-                    input_tensor=cur_layer_input[:, t, :, :, :], 
-                    cur_state=[h, c],
-                    context_tensor=context,
+                visual_tensor = cur_layer_input[:, t, :, :, :]
+                visual_tensor = rearrange(visual_tensor, "b c h w -> b (h w) c")
+                
+                if self.attn_type == "dot_product":
+                    multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor)
+                elif self.attn_type == "scaled_dot_product":
+                    multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor, lang_tensor, padding)
+                elif self.attn_type == "multi_head":
+                    multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor, lang_tensor, padding)
+                elif self.attn_type == "rel_multi_head":
+                    combined_tensor = torch.concat([visual_tensor, lang_tensor], dim=1)
+                    multi_modal_tensor, attn = self.attention(combined_tensor, combined_tensor, combined_tensor, combined_padding)
+                    # TODO - Other way to process
+                    multi_modal_tensor = multi_modal_tensor[:, :h*w]
+                elif self.attn_type == "custom_attn":
+                    multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor, attn, padding)
+                else:
+                    raise NotImplementedError(f'{self.attn_type} not implemented!')
+                    
+                multi_modal_tensor = rearrange(multi_modal_tensor, "b (h w) c -> b c h w", h=h, w=w)
+                
+                hidden, cell = self.cell_list[layer_idx](
+                    input_tensor=multi_modal_tensor, 
+                    cur_state=[hidden, cell],
                 )
                 
                 if layer_idx == self.num_layers - 1:
-                    mask_list.append(self.mask_decoder(h))
-                
-                output_inner.append(h)
+                    mask = self.mask_decoder(hidden)
+                    mask_list.append(mask)
+            
+                output_inner.append(hidden)
 
             layer_output = torch.stack(output_inner, dim=1)
             cur_layer_input = layer_output
 
             layer_output_list.append(layer_output)
-            last_state_list.append([h, c])
+            last_state_list.append([hidden, cell])
             
         final_mask = torch.stack(mask_list, dim=2)
-        # final_mask = self.mask_decoder(h)
 
         if not self.return_all_layers:
             layer_output_list = layer_output_list[-1:]

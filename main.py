@@ -143,6 +143,19 @@ if __name__ == "__main__":
         ],
         type=str,
     )
+    
+    parser.add_argument(
+        "--attn_type",
+        default='dot_product',
+        choices=[
+            'dot_product',
+            'scaled_dot_product',
+            'multi_head',
+            'rel_multi_head',
+            'custom_attn'
+        ],
+        type=str,
+    )
 
     parser.add_argument(
         "--img_backbone",
