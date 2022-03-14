@@ -238,9 +238,9 @@ class Solver(object):
         self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
         self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
         
-        self.focal_loss = FocalLoss('binary', 0.2)
-        self.tversky_loss = TverskyLoss('multiclass', alpha=0.9, beta=0.8)
-        self.lovasz_loss = LovaszLoss('multiclass')
+        self.focal_loss = FocalLoss(mode='binary', alpha=0.2)
+        self.tversky_loss = TverskyLoss(mode='multiclass', alpha=0.9, beta=0.8)
+        self.lovasz_loss = LovaszLoss(mode='multiclass')
 
     def initialize_optimizer(self):
         params = list(
