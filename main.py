@@ -179,7 +179,7 @@ if __name__ == "__main__":
         "--loss_func",
         default='bce',
         choices=[
-            'bce', 'combo', 'class_level_bce', 'class_level_kldiv', 'class_level_combo', 'focal', 'tversky', 'lovasz'
+            'bce', 'combo', 'class_level_bce', 'class_level_kldiv', 'class_level_combo', 'class_level_single', 'focal', 'tversky', 'lovasz'
         ],
         type=str,
     )
