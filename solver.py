@@ -238,9 +238,9 @@ class Solver(object):
         self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
         self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
         
-        self.focal_loss = FocalLoss(mode='multiclass', alpha=0.2)
-        self.tversky_loss = TverskyLoss(mode='binary', alpha=0.9, beta=0.8)
-        self.lovasz_loss = LovaszLoss(mode='multiclass')
+        self.focal_loss = FocalLoss(mode='binary', alpha=0.5, ignore_index=0)
+        self.tversky_loss = TverskyLoss(mode='binary', alpha=0.5, beta=0.5, ignore_index=0)
+        self.lovasz_loss = LovaszLoss(mode='binary', ignore_index=0)
 
     def initialize_optimizer(self):
         params = list(
@@ -355,11 +355,11 @@ class Solver(object):
                 loss = self.class_level_loss(
                     re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "tversky" in self.loss_func:
                 loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
@@ -559,11 +559,11 @@ class Solver(object):
                 loss = self.class_level_loss(
                     re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "tversky" in self.loss_func:
                 loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
