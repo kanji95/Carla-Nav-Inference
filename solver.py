@@ -330,28 +330,34 @@ class Solver(object):
                     non_blocking=True
                 )
                 num_samples += batch_size
+                
+                re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
+                re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
+                bs, _, h, w = re_gt_mask.shape
+                
+                new_gt_mask = torch.zeros(bs, 1, h, w).cuda(non_blocking=True)
+                new_gt_mask[:, 0][re_gt_mask[:,  0] == 1] = 1
+                new_gt_mask[:, 0][re_gt_mask[:,  1] == 1] = 2
 
             start_time = time()
 
             mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
             
-            re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
-            re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
             if self.loss_func == "bce":
-                loss = self.bce_loss(re_mask, re_gt_mask) + \
+                loss = self.bce_loss(re_mask, new_gt_mask) + \
                     self.combo_loss(traj_mask, gt_traj_mask)
             elif self.loss_func == "combo":
-                loss = self.combo_loss(re_mask, re_gt_mask) + \
+                loss = self.combo_loss(re_mask, new_gt_mask) + \
                     self.combo_loss(traj_mask, gt_traj_mask)
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(
-                    re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                    re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.focal_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.tversky_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.lovasz_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
@@ -527,6 +533,14 @@ class Solver(object):
                 non_blocking=True
             )
             num_samples += batch_size
+            
+            re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
+            re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
+            bs, _, h, w = re_gt_mask.shape
+            
+            new_gt_mask = torch.zeros(bs, 1, h, w).cuda(non_blocking=True)
+            new_gt_mask[:, 0][re_gt_mask[:,  0] == 1] = 1
+            new_gt_mask[:, 0][re_gt_mask[:,  1] == 1] = 2
 
             start_time = time()
 
@@ -536,20 +550,20 @@ class Solver(object):
             re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
 
             if self.loss_func == "bce":
-                loss = self.bce_loss(re_mask, re_gt_mask) + \
+                loss = self.bce_loss(re_mask, new_gt_mask) + \
                     self.combo_loss(traj_mask, gt_traj_mask)
             elif self.loss_func == "combo":
-                loss = self.combo_loss(re_mask, re_gt_mask) + \
+                loss = self.combo_loss(re_mask, new_gt_mask) + \
                     self.combo_loss(traj_mask, gt_traj_mask)
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(
-                    re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                    re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.focal_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.tversky_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.lovasz_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
