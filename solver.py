@@ -353,7 +353,7 @@ class Solver(object):
                     self.combo_loss(traj_mask, gt_traj_mask)
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(
-                    re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                    re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "tversky" in self.loss_func:
@@ -557,7 +557,7 @@ class Solver(object):
                     self.combo_loss(traj_mask, gt_traj_mask)
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(
-                    re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                    re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "tversky" in self.loss_func:
