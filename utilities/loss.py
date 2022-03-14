@@ -4,11 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-#PyTorch
-# ALPHA = 0.8
-# GAMMA = 2
-
 class FocalLoss(nn.Module):
     def __init__(self, weight=None, size_average=True):
         super(FocalLoss, self).__init__()

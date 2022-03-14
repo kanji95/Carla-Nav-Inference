@@ -15,6 +15,8 @@ from torchvision.models._utils import IntermediateLayerGetter
 import timm
 from timesformer.models.vit import VisionTransformer
 
+from segmentation_models_pytorch.losses import *
+
 from models.model import *
 from dataloader.carla_loader import *
 from utilities.loss import *
@@ -235,6 +237,10 @@ class Solver(object):
         self.bce_loss = nn.BCELoss(reduction="mean")
         self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
         self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
+        
+        self.focal_loss = FocalLoss(mode='multiclass')
+        self.tversky_loss = TverskyLoss(mode='multiclass')
+        self.lovasz_loss = LovaszLoss(mode='multiclass')
 
     def initialize_optimizer(self):
         params = list(
@@ -338,6 +344,12 @@ class Solver(object):
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(
                     mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            elif "focal" in self.loss_func:
+                loss = self.focal_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            elif "tversky" in self.loss_func:
+                loss = self.tversky_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            elif "lovasz" in self.loss_func:
+                loss = self.lovasz_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
@@ -527,6 +539,12 @@ class Solver(object):
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(
                     mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            elif "focal" in self.loss_func:
+                loss = self.focal_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            elif "tversky" in self.loss_func:
+                loss = self.tversky_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+            elif "lovasz" in self.loss_func:
+                loss = self.lovasz_loss(mask, gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
