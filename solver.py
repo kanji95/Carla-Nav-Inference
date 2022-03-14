@@ -30,7 +30,7 @@ class Solver(object):
 
         self.experiment = wandb.init(
             project="Language Navigation", config=self.args)
-        self.experiment.name = f'{args.img_backbone}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{self.experiment.id}'
+        self.experiment.name = f'{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{self.experiment.id}'
 
         self.epochs = self.args.epochs
         self.batch_size = self.args.batch_size
@@ -238,9 +238,9 @@ class Solver(object):
         self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
         self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
         
-        self.focal_loss = FocalLoss(mode='multiclass')
-        self.tversky_loss = TverskyLoss(mode='multiclass')
-        self.lovasz_loss = LovaszLoss(mode='multiclass')
+        self.focal_loss = FocalLoss('binary', 0.2)
+        self.tversky_loss = TverskyLoss('multiclass', alpha=0.9, beta=0.8)
+        self.lovasz_loss = LovaszLoss('multiclass')
 
     def initialize_optimizer(self):
         params = list(
