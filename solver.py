@@ -238,9 +238,9 @@ class Solver(object):
         self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
         self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
         
-        self.focal_loss = FocalLoss(mode='binary', alpha=0.2)
+        self.focal_loss = FocalLoss(mode='multiclass', alpha=0.2)
         self.tversky_loss = TverskyLoss(mode='binary', alpha=0.9, beta=0.8)
-        self.lovasz_loss = LovaszLoss(mode='binary')
+        self.lovasz_loss = LovaszLoss(mode='multiclass')
 
     def initialize_optimizer(self):
         params = list(
@@ -331,17 +331,19 @@ class Solver(object):
                 )
                 num_samples += batch_size
                 
-                re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
+                # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
                 re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
                 bs, _, h, w = re_gt_mask.shape
                 
-                new_gt_mask = torch.zeros(bs, 1, h, w).cuda(non_blocking=True)
-                new_gt_mask[:, 0][re_gt_mask[:,  0] == 1] = 1
-                new_gt_mask[:, 0][re_gt_mask[:,  1] == 1] = 2
+                new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
+                new_gt_mask[re_gt_mask[:,  0] == 1] = 1
+                new_gt_mask[re_gt_mask[:,  1] == 1] = 2
+
 
             start_time = time()
 
             mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
+            re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
             
             if self.loss_func == "bce":
                 loss = self.bce_loss(re_mask, new_gt_mask) + \
@@ -355,7 +357,7 @@ class Solver(object):
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "lovasz" in self.loss_func:
                 loss = self.lovasz_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             else:
@@ -534,20 +536,18 @@ class Solver(object):
             )
             num_samples += batch_size
             
-            re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
+            # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
             re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
             bs, _, h, w = re_gt_mask.shape
             
-            new_gt_mask = torch.zeros(bs, 1, h, w).cuda(non_blocking=True)
-            new_gt_mask[:, 0][re_gt_mask[:,  0] == 1] = 1
-            new_gt_mask[:, 0][re_gt_mask[:,  1] == 1] = 2
+            new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
+            new_gt_mask[re_gt_mask[:,  0] == 1] = 1
+            new_gt_mask[re_gt_mask[:,  1] == 1] = 2
 
             start_time = time()
 
             mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
-
             re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
-            re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(re_mask, new_gt_mask) + \
@@ -561,7 +561,7 @@ class Solver(object):
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             elif "lovasz" in self.loss_func:
                 loss = self.lovasz_loss(re_mask, new_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
             else:
@@ -654,7 +654,7 @@ class Solver(object):
                 #     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 # )
         
-        print(mask.min(), mask.max())
+        # print(mask.min(), mask.max())
 
         val_loss = total_loss / data_len
 
