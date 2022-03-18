@@ -4,8 +4,8 @@
 2,go straight and stop next to the grey arch,go straight,stop next to the grey arch
 3,go straight and stop next to the entrance of the building,go straight,stop next to the entrance of the building
 4,take a left and stop before the bus stop,take a left,stop before the bus stop
-5,drive to the intersection and turn left,drive to the intersection and turn left,
-6,wait for the signal to turn green and then turn left,wait for the signal to turn green and then turn left,
+5,drive to the intersection and turn left,drive to the intersection,turn left
+6,wait for the signal to turn green and then turn left,wait for the signal to turn green,turn left
 7,park near that blue dustbin you see on the right,park near that blue dustbin you see on the right,
 8,go straight and stop near the red coloured wall,go straight,stop near the red coloured wall
 9,stop next to the bus stop,stop next to the bus stop,
@@ -13,7 +13,7 @@
 11,wait for the light then turn right,wait for the light then turn right,
 12,wait at the traffic light then go straight,wait at the traffic light then go straight,
 13,stop just before the bike,stop just before the bike,
-14,drive straight and stop when you encounter a parked car,drive straight and stop when you encounter a parked car,
+14,drive straight and stop when you encounter a parked car,drive straight,stop when you encounter a parked car
 15,stop before the bus station on the right,stop before the bus station on the right,
 16,park in front of the second car which you see,park in front of the second car which you see,
 17,park behind the purple car,park behind the purple car,
@@ -28,14 +28,14 @@
 26,turn right and stop near the bus stop,turn right,stop near the bus stop
 27,stop near the food carts,stop near the food carts,
 28,stop right after the bus stop,stop right after the bus stop,
-29,drive towarsd the bus stop and then turn right,drive towarsd the bus stop and then turn right,
+29,drive towarsd the bus stop and then turn right,drive towards the bus stop,turn right
 30,park near the first bike you see,park near the first bike you see,
-31,go straight and park in front of the house,go straight and park in front of the house,
+31,go straight and park in front of the house,go straight,park in front of the house
 32,"from the intersection, continue straight","from the intersection, continue straight",
 33,take the road on the left,take the road on the left,
 34,turn right when the traffic signal shows green,turn right when the traffic signal shows green,
-35,wait for the signal to turn green and then turn right,wait for the signal to turn green and then turn right,
-36,go straight and stop before the traffic light,go straight and stop before the traffic light,
+35,wait for the signal to turn green and then turn right,wait for the signal to turn green,turn right
+36,go straight and stop before the traffic light,go straight,stop before the traffic light
 37,go straight and stop next to the red car,go straight,stop next to the red car
 38,stop near the bus stop,stop near the bus stop,
 39,move straight and stop in front of the traffic light,move straight,stop in front of the traffic light
@@ -43,27 +43,27 @@
 41,go straight and park next to the streetlight pole in front,go straight,park next to the streetlight pole in front
 42,park on the roadside after you have crossed the bus stop,park on the roadside after you have crossed the bus stop,
 43,turn towards the right on the intersection,turn towards the right on the intersection,
-44,wait for the signal to turn green and continue straight,wait for the signal to turn green and continue straight,
+44,wait for the signal to turn green and continue straight,wait for the signal to turn green,continue straight
 45,park opposite to the blue car parked on the left,park opposite to the blue car parked on the left,
 46,go straight and stop opposite the blue dustbin,go straight,stop opposite the blue dustbin
 47,cross the traffic signal and continue straight from there,cross the traffic signal,continue straight from there
 48,stop near the bus stop ahead of the intersection,stop near the bus stop ahead of the intersection,
-49,go straight and stop after crossing the speed limit sign,go straight and stop after crossing the speed limit sign,
+49,go straight and stop after crossing the speed limit sign,go straight,stop after crossing the speed limit sign
 50,park next to the dustbins you see on your right,park next to the dustbins you see on your right,
-51,wait for the traffic signal to turn green and then turn right,wait for the traffic signal to turn green and then turn right,
+51,wait for the traffic signal to turn green and then turn right,wait for the traffic signal to turn green,then turn right
 52,stop just before the bus stop,stop just before the bus stop,
 53,stop just ahead of the bus stop,stop just ahead of the bus stop,
 54,change lanes and stop at the intersection,change lanes,stop at the intersection
 55,stop next to the bus stop,stop next to the bus stop,
-56,wait for the traffic light then go straight from the intersection,wait for the traffic light then go straight from the intersection,
-57,wait for the traffic light then turn right,wait for the traffic light then turn right,
+56,wait for the traffic light then go straight from the intersection,wait for the traffic light,then go straight from the intersection
+57,wait for the traffic light then turn right,wait for the traffic light,then turn right
 58,turn left and stop under the bridge,turn left,stop under the bridge
 59,stop before the next right turn,stop before the next right turn,
 60,take the next right,take the next right,
 61,stop after the bus stop,stop after the bus stop,
 62,shift to the left lane before the intersection,shift to the left lane before the intersection,
 63,turn right from the intersection,turn right from the intersection,
-64,wait for the signal to turn green and then turn right,wait for the signal to turn green and then turn right,
+64,wait for the signal to turn green and then turn right,wait for the signal to turn green,then turn right
 65,stop in front of the blue dustbin,stop in front of the blue dustbin,
 66,park opposite to the bus stop,park opposite to the bus stop,
 67,park immediately after the signboard,park immediately after the signboard,
@@ -71,17 +71,17 @@
 69,stop before the next traffic light,stop before the next traffic light,
 70,stop before the next intersection,stop before the next intersection,
 71,go straight and stop under the bridge,go straight,stop under the bridge
-72,wait for the green signal then take a left,wait for the green signal then take a left,
+72,wait for the green signal then take a left,wait for the green signal,then take a left
 73,stop next to the speed limit board,stop next to the speed limit board,
 74,park opposite to the house you see on the left,park opposite to the house you see on the left,
-75,park near the streetlight on the right,park near the streetlight on the right,
+75,park near the streetlight on the right,park near the street light on the right,
 76,stop near the board on the right,stop near the board on the right,
 77,go straight and stop a few metres ahead of the bus stop,go straight,stop a few metres ahead of the bus stop
-78,wait for the signal to turn green and then turn right,wait for the signal to turn green and then turn right,
-79,wait for the signal to turn green and drive straight through the intersection,wait for the signal to turn green and drive straight through the intersection,
+78,wait for the signal to turn green and then turn right,wait for the signal to turn green ,then turn right
+79,wait for the signal to turn green and drive straight through the intersection,wait for the signal to turn green,drive straight through the intersection
 80,stop near the signboard,stop near the signboard,
-81,cross the traffic signal and then turn right,cross the traffic signal and then turn right,
-82,wait for the traffic signal to turn green and then turn left,wait for the traffic signal to turn green and then turn left,
+81,cross the traffic signal and then turn right,cross the traffic signal ,then turn right
+82,wait for the traffic signal to turn green and then turn left,wait for the traffic signal to turn green,turn left
 83,stop after crossing the signboard,stop after crossing the signboard,
 84,stop near the signboard,stop near the signboard,
 85,stop near the dustbin,stop near the dustbin,
@@ -96,8 +96,8 @@
 94,change lanes and stop next to the bus stop,change lanes,stop next to the bus stop
 95,change lanes and stop at the intersection,change lanes,stop at the intersection
 96,drive to the house towards the front-left,drive to the house towards the front - left,
-97,continue straight and stop when you see a bus stop,continue straight and stop when you see a bus stop,
-98,go straight and then stop after the signboard,go straight and then stop after the signboard,
+97,continue straight and stop when you see a bus stop,continue straight,stop when you see a bus stop
+98,go straight and then stop after the signboard,go straight,stop after the signboard
 99,stop after crossing the bus stop,stop after crossing the bus stop,
 100,stop near the signboard,stop near the signboard,
 101,drive straight till the intersection and then turn left,drive straight till the intersection,then turn left
@@ -105,18 +105,18 @@
 103,drive to the bus stop in front,drive to the bus stop in front,
 104,turn right from the intersection,turn right from the intersection,
 105,stop when you encounter a signboard,stop when you encounter a signboard,
-106,wait for the green signal then go straight,wait for the green signal then go straight,
+106,wait for the green signal then go straight,wait for the green signal,go straight
 107,take a left and stop below the bridge,take a left,stop below the bridge
 108,turn left from the intersection,turn left from the intersection,
 109,take a right from the intersection,take a right from the intersection,
 110,take a left from the intersection,take a left from the intersection,
-111,drive straight through the intersection and then stop near the signboard,drive straight through the intersection and then stop near the signboard,
+111,drive straight through the intersection and then stop near the signboard,drive straight through the intersection,stop near the signboard
 112,park near the red coloured object,park near the red coloured object,
 113,turn left when the traffic signal is green,turn left when the traffic signal is green,
-114,continue straight and park in front of the food stalls,continue straight and park in front of the food stalls,
+114,continue straight and park in front of the food stalls,continue straight,park in front of the food stalls
 115,go straight and stop near the pedestrian,go straight,stop near the pedestrian
 116,follow the blue car,follow the blue car,
-117,wait for traffic light then go left,wait for traffic light then go left,
+117,wait for traffic light then go left,wait for traffic light,go left
 118,park between blue and red car,park between blue and red car,
 119,stop at the traffic light and take right,stop at the traffic light,take right
 120,go straight and stop by the bushes,go straight,stop by the bushes
@@ -135,17 +135,17 @@
 133,take a left and stop across the bushes,take a left,stop across the bushes
 134,stop by the bus stand,stop by the bus stand,
 135,take left from the crossing,take left from the crossing,
-136,go straight and stop by the tall white building,go straight and stop by the tall white building,
+136,go straight and stop by the tall white building,go straight ,stop by the tall white building
 137,wait for the traffic light and take left,wait for the traffic light,take left
 138,take right,take right,
 139,stop near the red building,stop near the red building,
 140,stop by the garbage bins,stop by the garbage bins,
 141,stop near the poster,stop near the poster,
-142,go right and stop by the bushes,go right and stop by the bushes,
+142,go right and stop by the bushes,go right ,stop by the bushes
 143,stop at the bus stand,stop at the bus stand,
 144,stop by the garbage can,stop by the garbage can,
 145,stop in front of the black jeep,stop in front of the black jeep,
-146,wait for the green signal then go straight,wait for the green signal then go straight,
+146,wait for the green signal then go straight,wait for the green signal,then go straight
 147,stop by the tree,stop by the tree,
 148,take a right from the roundabout,take a right from the roundabout,
 149,stop by the shop with green shades,stop by the shop with green shades,
@@ -159,33 +159,33 @@
 157,park across the red shops,park across the red shops,
 158,stop near the bus stand,stop near the bus stand,
 159,park in front of the brown car,park in front of the brown car,
-160,change to right lane and then stop near the bus stop,change to right lane and then stop near the bus stop,
+160,change to right lane and then stop near the bus stop,change to right lane,then stop near the bus stop
 161,go straight and park across the parking lot,go straight,park across the parking lot
 162,stop across the red entrance gate,stop across the red entrance gate,
 163,park behind the red car,park behind the red car,
 164,stop across the bus stand,stop across the bus stand,
 165,stop by the man in brown,stop by the man in brown,
 166,change to right lane,change to right lane,
-167,stop for the traffic light and then take right and park near the bus stand,stop for the traffic light and then take right and park near the bus stand,
+167,stop for the traffic light and then take right and park near the bus stand,stop for the traffic light then take right,park near the bus stand
 168,stop across the bus stand,stop across the bus stand,
 169,take right from the crossing,take right from the crossing,
 170,park behind the motorcycle,park behind the motorcycle,
 171,stop by the parking lot,stop by the parking lot,
-172,stop for the traffic light then take left,stop for the traffic light then take left,
+172,stop for the traffic light then take left,stop for the traffic light,then take left
 173,stop across the bushes,stop across the bushes,
 174,park in front of the red car,park in front of the red car,
 175,change to left lane,change to left lane,
-176,wait for traffic light and take left,wait for traffic light and take left,
+176,wait for traffic light and take left,wait for traffic light ,take left
 177,stop near the white building,stop near the white building,
-178,wait for green signal then turn right and stop near the girl,wait for green signal then turn right and stop near the girl,
-179,stop for the traffic light then turn right,stop for the traffic light then turn right,
+178,wait for green signal then turn right and stop near the girl,wait for green signal then turn right ,stop near the girl
+179,stop for the traffic light then turn right,stop for the traffic light,then turn right
 180,stop by the entrance to the white building,stop by the entrance to the white building,
 181,go straight and take a right,go straight,take a right
 182,stop by the brown building on the right,stop by the brown building on the right,
-183,take left and stop near the brown building,take left and stop near the brown building,
+183,take left and stop near the brown building,take left,stop near the brown building
 184,go straight from the crossing,go straight from the crossing,
 185,go straight and stop near the white house,go straight,stop near the white house
-186,wait for traffic light then turn left,wait for traffic light then turn left,
+186,wait for traffic light then turn left,wait for traffic light,then turn left
 187,wait by the traffic light and take left,wait by the traffic light,take left
 188,stop by the poster,stop by the poster,
 189,stop by the boulder,stop by the boulder,
@@ -196,39 +196,39 @@
 194,stop by the lamp post,stop by the lamp post,
 195,stop by the bus stand,stop by the bus stand,
 196,go straight and take a right,go straight,take a right
-197,stop for the traffic light then take right,stop for the traffic light then take right,
+197,stop for the traffic light then take right,stop for the traffic light,then take right
 198,change to left lane,change to left lane,
 199,take a left and stop by the building,take a left,stop by the building
-200,wait for the traffic light then take left to stop by the brown building,wait for the traffic light then take left to stop by the brown building,
+200,wait for the traffic light then take left to stop by the brown building,wait for the traffic light then take left ,stop by the brown building
 201,stop across the barricade,stop across the barricade,
 202,park near the white building,park near the white building,
-203,"wait for the green signal, go straight and stop by the bushes","wait for the green signal, go straight and stop by the bushes",
+203,"wait for the green signal, go straight and stop by the bushes",wait for the green signal then go straight,stop by the bushes
 204,park in front of black car,park in front of black car,
 205,go about the roundabout to take left,go about the roundabout to take left,
 206,take a right at the crossing,take a right at the crossing,
 207,take right from the crossing,take right from the crossing,
-208,wait for traffic light then take left,wait for traffic light then take left,
+208,wait for traffic light then take left,wait for traffic light,then take left
 209,stop near the last tree,stop near the last tree,
 210,follow the brown car,follow the brown car,
 211,stop at the entrance to the park,stop at the entrance to the park,
 212,change to right lane,change to right lane,
 213,stop by the overhead bridge,stop by the overhead bridge,
 214,change to rightmost lane,change to rightmost lane,
-215,go straight and park across the bus stand,go straight and park across the bus stand,
+215,go straight and park across the bus stand,go straight,park across the bus stand
 216,stop near the garbage bins,stop near the garbage bins,
 217,go to the roundabout and go right,go to the roundabout,go right
 218,go right on the intersection,go right on the intersection,
 219,stop near the bus stop,stop near the bus stop,
 220,go left from the traffic signal,go left from the traffic signal,
 221,keep driving towards the roundabout,keep driving towards the roundabout,
-222,join the roundabout and then go right,join the roundabout and then go right,
-223,"after crossing the blue car, come to a stop","after crossing the blue car, come to a stop",
+222,join the roundabout and then go right,join the roundabout,then go right
+223,"after crossing the blue car, come to a stop",cross the blue car,come to a stop
 224,park near the pole on the right,park near the pole on the right,
 225,climb on the road you see on the right,climb on the road you see on the right,
 226,stop near the park entrance,stop near the park entrance,
 227,drive towards the intersection and turn left from there,drive towards the intersection,turn left from there
 228,turn right towards the tunnel,turn right towards the tunnel,
-229,go straight and stop when you see a bus stop,go straight and stop when you see a bus stop,
+229,go straight and stop when you see a bus stop,go straight,stop when you see a bus stop
 230,drive to the corner and go right,drive to the corner,go right
 231,stop next to the park entrance,stop next to the park entrance,
 232,stop near the red shelters,stop near the red shelters,
@@ -242,13 +242,13 @@
 240,stop near the trash cans,stop near the trash cans,
 241,turn right from the intersection,turn right from the intersection,
 242,stop near the red carpet you see on your right,stop near the red carpet you see on your right,
-243,wait for the traffic signal to turn green and then drive straight through the intersection,wait for the traffic signal to turn green and then drive straight through the intersection,
-244,"stop near the ""stop"" signboard","stop near the "" stop "" signboard",
+243,wait for the traffic signal to turn green and then drive straight through the intersection,wait for the traffic signal to turn green,then drive straight through the intersection
+244,"stop near the ""stop"" signboard",stop near the stop signboard,
 245,park near the red carpet,park near the red carpet,
 246,park next to the bush on the right,park next to the bush on the right,
 247,stop where the bus stop is,stop where the bus stop is,
 248,turn left from the intersection,turn left from the intersection,
-249,"park before the ""stop"" sign on the right","park before the ""stop"" sign on the right",
+249,"park before the ""stop"" sign on the right",park before the stop sign on the right,
 250,park near the red coloured book store on your right,park near the red coloured book store on your right,
 251,park near the red coloured book store on your right,park near the red coloured book store on your right,
 252,turn right and stop after crossing bridge,turn right and stop after crossing bridge,
@@ -258,14 +258,14 @@
 256,come to a halt near the bus stop,come to a halt near the bus stop,
 257,park opposite to where those white trucks are parked,park opposite to where those white trucks are parked,
 258,park near the hut visible on the right,park near the hut visible on the right,
-259,drive to the intersection and then turn right,drive to the intersection and then turn right,
+259,drive to the intersection and then turn right,drive to the intersection ,then turn right
 260,drive towards the roundabout,drive towards the roundabout,
 261,drive towards the bus stop,drive towards the bus stop,
 262,park near the stop sign on the right,park near the stop sign on the right,
 263,stop near the trash cans,stop near the trash cans,
 264,park near the red triangle sign,park near the red triangle sign,
 265,park near the black trash can,park near the black trash can,
-266,cross the black car and then stop,cross the black car and then stop,
+266,cross the black car and then stop,cross the black car ,then stop
 267,drive to the corner and turn right from there,drive to the corner,turn right from there
 268,stop near the red dustbin,stop near the red dustbin,
 269,stop opposite to the bus stop,stop opposite to the bus stop,
@@ -299,12 +299,12 @@
 297,take a left turn and stop near the wooden pole,take a left turn,stop near the wooden pole
 298,stop near the dustbin,stop near the dustbin,
 299,pick up the pedestrian in black dress,pick up the pedestrian in black dress,
-300,take right and stop near the speed limit sign,take right and stop near the speed limit sign,
+300,take right and stop near the speed limit sign,take right,stop near the speed limit sign
 301,pick up the pedestrian in blue vest,pick up the pedestrian in blue vest,
 302,stop at the bus stand in front,stop at the bus stand in front,
 303,stop at the bus stand,stop at the bus stand,
 304,stop at the red light,stop at the red light,
-305,wait for green light and take right,wait for green light and take right,
+305,wait for green light and take right,wait for green light,take right
 306,stop near the blue box,stop near the blue box,
 307,take a left and stop near the blue postbox,take a left,stop near the blue postbox
 308,stop behind the gray car in front,stop behind the gray car in front,
@@ -325,7 +325,7 @@
 323,stop in front of the gray jeep,stop in front of the gray jeep,
 324,park beside the red volkswagen,park beside the red volkswagen,
 325,stop in front of the gray jeep,stop in front of the gray jeep,
-326,switch lanes and park near the bus stand,switch lanes and park near the bus stand,
+326,switch lanes and park near the bus stand,switch lanes,park near the bus stand
 327,park near the black postbox,park near the black postbox,
 328,stop near the red boxes on right,stop near the red boxes on right,
 329,stop infront of the red stall on left,stop infront of the red stall on left,
@@ -338,32 +338,32 @@
 336,take a right from the junction ahead,take a right from the junction ahead,
 337,take a left turn from the intersection,take a left turn from the intersection,
 338,drive to the white car and stop ahead of it,drive to the white car,stop ahead of it
-339,go to the bus stop and stop after crossing it,go to the bus stop and stop after crossing it,
+339,go to the bus stop and stop after crossing it,go to the bus stop,stop after crossing it
 340,come to a halt once you cross the bus stop,come to a halt once you cross the bus stop,
 341,stop after crossing the first bike you encounter,stop after crossing the first bike you encounter,
 342,stop before the brown dustbin on the right side,stop before the brown dustbin on the right side,
 343,take a right from the intersection ahead,take a right from the intersection ahead,
 344,turn right from the intersection,turn right from the intersection,
 345,take a left from the junction,take a left from the junction,
-346,wait for the light then turn left,wait for the light then turn left,
+346,wait for the light then turn left,wait for the light,then turn left
 347,stop in front of the garbage dumpsters,stop in front of the garbage dumpsters,
 348,take a left from the intersection ahead,take a left from the intersection ahead,
 349,turn right from the junction,turn right from the junction,
 350,turn right from the next junction,turn right from the next junction,
-351,wait for the light then take a left,wait for the light then take a left,
-352,wait for the light then take a left,wait for the light then take a left,
+351,wait for the light then take a left,wait for the light,then take a left
+352,wait for the light then take a left,wait for the light,then take a left
 353,turn right from the corner,turn right from the corner,
 354,turn right from the intersection,turn right from the intersection,
-355,drive to the speed signboard and park just ahead of it,drive to the speed signboard and park just ahead of it,
+355,drive to the speed signboard and park just ahead of it,drive to the speed signboard,park just ahead of it
 356,stop before the speed ilmit signboard,stop before the speed ilmit signboard,
 357,stop just before the bus stop,stop just before the bus stop,
-358,wait for the ilght the go straight from the intersection,wait for the ilght the go straight from the intersection,
+358,wait for the ilght the go straight from the intersection,wait for the light,then go straight from the intersection
 359,take a left turn and stop near the sidewalk,take a left turn,stop near the sidewalk
 360,turn right and stop under the bridge,turn right,stop under the bridge
 361,go straight and take a left from the next intersection,go straight,take a left from the next intersection
 362,turn left from the junction,turn left from the junction,
-363,drive towards the bus stop and park after crossing it,drive towards the bus stop and park after crossing it,
-364,drive straight and stop before the first bike you encounter,drive straight and stop before the first bike you encounter,
+363,drive towards the bus stop and park after crossing it,drive towards the bus stop,park after crossing it
+364,drive straight and stop before the first bike you encounter,drive straight,stop before the first bike you encounter
 365,drive to the bus stop and stop after crossing it,drive to the bus stop,stop after crossing it
 366,park beside the first car you see,park beside the first car you see,
 367,come to a stop after crossing the cars,come to a stop after crossing the cars,
@@ -371,7 +371,7 @@
 369,turn left and stop under the bridge,turn left,stop under the bridge
 370,wait for the light then take a left,wait for the light then take a left,
 371,take a left from the intersection,take a left from the intersection,
-372,turn left from the intersection and stop at near the sidewalk,turn left from the intersection and stop at near the sidewalk,
+372,turn left from the intersection and stop at near the sidewalk,turn left from the intersection,stop at near the sidewalk
 373,park just ahead of the speed signboard,park just ahead of the speed signboard,
 374,park slightly ahead of the signboard,park slightly ahead of the signboard,
 375,stop after crossing the bus stop,stop after crossing the bus stop,
@@ -385,33 +385,33 @@
 383,stop beside the hotel gate,stop beside the hotel gate,
 384,take a left from the intersection,take a left from the intersection,
 385,take a right run from the junction ahead,take a right run from the junction ahead,
-386,turn right and stop before the next intersection,turn right and stop before the next intersection,
+386,turn right and stop before the next intersection,turn right ,stop before the next intersection
 387,turn left and stop before the next junction,turn left,stop before the next junction
 388,stop after the bus stop,stop after the bus stop,
 389,turn right from the intersection,turn right from the intersection,
 390,park ahead of this car,park ahead of this car,
-391,drive to the intersection and turn left,drive to the intersection and turn left,
+391,drive to the intersection and turn left,drive to the intersection,turn left
 392,stop near the burger stand on the right side of the road,stop near the burger stand on the right side of the road,
-393,continue straight and park next to the brown car,continue straight and park next to the brown car,
-394,continue straight and park next to a bike,continue straight and park next to a bike,
+393,continue straight and park next to the brown car,continue straight,park next to the brown car
+394,continue straight and park next to a bike,continue straight ,park next to a bike
 395,park before the bus stop,park before the bus stop,
-396,continue straight and stop before the first bus stop you see,continue straight and stop before the first bus stop you see,
+396,continue straight and stop before the first bus stop you see,continue straight ,stop before the first bus stop you see
 397,park after crossing the car,park after crossing the car,
 398,stop behind the car,stop behind the car,
 399,stop before the bike,stop before the bike,
 400,stop before the car on your right,stop before the car on your right,
 401,stop after the red car,stop after the red car,
 402,stop after the car,stop after the car,
-403,"come to a halt before the ""stop"" signboard","come to a halt before the "" stop "" signboard",
+403,"come to a halt before the ""stop"" signboard",come to a halt before the stop signboard,
 404,stop after crossing the white car,stop after crossing the white car,
-405,"stop after crossing the ""stop"" signboard","stop after crossing the "" stop "" signboard",
+405,"stop after crossing the ""stop"" signboard",stop after crossing the stop signboard,
 406,stop just before the brown car,stop just before the brown car,
-407,continue straight and come to a stop after crossing a set of bikes,continue straight and come to a stop after crossing a set of bikes,
+407,continue straight and come to a stop after crossing a set of bikes,continue straight,come to a stop after crossing a set of bikes
 408,take a left and stop near the sidewalk,take a left,stop near the sidewalk
 409,take the next right turn,take the next right turn,
 410,take a right and stop next to the bus stop,take a right,stop next to the bus stop
 411,turn left and stop near the sidewalk,turn left,stop near the sidewalk
-412,turn right and stop before the intersection,turn right and stop before the intersection,
+412,turn right and stop before the intersection,turn right ,stop before the intersection
 413,stop right after the bus stop,stop right after the bus stop,
 414,drive to the intersection and turn right,drive to the intersection,turn right
 415,stop before the speed limit signboard,stop before the speed limit signboard,
@@ -419,24 +419,24 @@
 417,drive to the intersection and turn right,drive to the intersection,turn right
 418,take a left from the intersection ahead,take a left from the intersection ahead,
 419,go straight and take the next right,go straight,take the next right
-420,wait fro the light then take a left turn from the intersection,wait fro the light then take a left turn from the intersection,
+420,wait fro the light then take a left turn from the intersection,wait for the light,then take a left turn from the intersection
 421,turn left and stop near the sidewalk,turn left,stop near the sidewalk
 422,take the next right turn,take the next right turn,
 423,change lanes and take a left turn,change lanes,take a left turn
 424,change lanes and go straight from the intersection,change lanes,go straight from the intersection
-425,change lanes and park near the sidewalk,change lanes and park near the sidewalk,
+425,change lanes and park near the sidewalk,change lanes ,park near the sidewalk
 426,turn right and stop ner the sidewalk,turn right,stop ner the sidewalk
 427,stop before the dumpsters,stop before the dumpsters,
 428,go straight and stop near the first bike you see,go straight,stop near the first bike you see
 429,stop near the bikes,stop near the bikes,
 430,park beside the black car,park beside the black car,
 431,drive towards the white car and stop after crossing it,drive towards the white car,stop after crossing it
-432,cross the bus stop and then stop,cross the bus stop and then stop,
+432,cross the bus stop and then stop,cross the bus stop,then stop
 433,stop after the bus stop,stop after the bus stop,
 434,turn right from the intersection,turn right from the intersection,
 435,go straight and stop near the bus stop,go straight,stop near the bus stop
 436,park after the bus stop,park after the bus stop,
 437,park before the bus stop,park before the bus stop,
-438,continue straight and stop after crossing the bus stops,continue straight and stop after crossing the bus stops,
+438,continue straight and stop after crossing the bus stops,continue straight,stop after crossing the bus stops
 439,park right behind the brown car,park right behind the brown car,
 440,turn right from this intersection,turn right from this intersection,

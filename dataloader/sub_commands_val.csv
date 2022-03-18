@@ -7,9 +7,9 @@
 5,take a left from the interection,take a left from the interection,
 6,take a right and stop near the pedestrian,take a right,stop near the pedestrian
 7,stop beside the black suv,stop beside the black suv,
-8,wait for the signal to turn green and then go straight,wait for the signal to turn green and then go straight,
+8,wait for the signal to turn green and then go straight,wait for the signal to turn green,then go straight
 9,go straight from the intersection and stop next to the bus stop,go straight from the intersection,stop next to the bus stop
-10,go straight and park behind the first car you see,go straight and park behind the first car you see,
+10,go straight and park behind the first car you see,go straight,park behind the first car you see
 11,stop by the lamp pole,stop by the lamp pole,
 12,stop across the house with stairs,stop across the house with stairs,
 13,stop in front of the maroon car in rightmost lane,stop in front of the maroon car in rightmost lane,
@@ -17,10 +17,10 @@
 15,park behind the brown car,park behind the brown car,
 16,take a right and stop near the man in blue,take a right,stop near the man in blue
 17,take a right at the intersection,take a right at the intersection,
-18,take a right at the traffic lights and then take a left,take a right at the traffic lights and then take a left,
+18,take a right at the traffic lights and then take a left,take a right at the traffic lights,then take a left
 19,take the road on the left,take the road on the left,
 20,wait for traffic light then take left,wait for traffic light then take left,
 21,stop as soon as you encounter a white car,stop as soon as you encounter a white car,
 22,stop near the blue dustbin which you see in front,stop near the blue dustbin which you see in front,
-23,wait for the green signal then take a left from the intersection,wait for the green signal then take a left from the intersection,
+23,wait for the green signal then take a left from the intersection,wait for the green signal,then take a left from the intersection
 24,stop in front of the white car,stop in front of the white car,
