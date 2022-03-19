@@ -102,6 +102,7 @@ class ClassLevelLoss(nn.Module):
         elif "combo" in self.loss_func:
             return self.beta * self.combo_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.combo_loss(inputs[:, 1], targets[:, 1])
         elif "single" in self.loss_func:
-            return - (self.beta * targets[:, 0] * torch.log(inputs[:, 0]) + (1 - self.beta) * targets[:, 1] * torch.log(inputs[:, 1]))
+            # import pdb; pdb.set_trace()
+            return - (self.beta * targets[:, 0] * torch.log(inputs[:, 0]) + (1 - self.beta) * targets[:, 1] * torch.log(inputs[:, 1])).flatten(1).sum(dim=-1).mean()
         else:
             raise NotImplementedError(f"{self.loss_func} not implemented!") 

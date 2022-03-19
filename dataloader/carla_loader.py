@@ -263,6 +263,8 @@ class CarlaFullDataset(Dataset):
         traj_size=25,
     ):
         self.data_dir = os.path.join(data_root, split)
+        self.glove_path = glove_path
+        self.split = split
 
         self.img_transform = img_transform
         self.mask_transform = mask_transform
@@ -294,7 +296,9 @@ class CarlaFullDataset(Dataset):
 
         self.corpus = Corpus(glove_path)
 
-        self.sub_command_data = pd.read_csv(f"./sub_commands_{self.split}", index_col=0)
+        # import pdb; pdb.set_trace()
+        # print(os.getcwd())
+        self.sub_command_data = pd.read_csv(f"./dataloader/sub_commands_{self.split}.csv", index_col=0)
 
     def __len__(self):
         return self.dataset_len
@@ -385,6 +389,8 @@ class CarlaFullDataset(Dataset):
             if curr_click_idx == final_click_idx:
                 mask_[1] = mask[0]
                 sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
+                if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
+                    sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
             else:
                 mask_[0] = mask[0]
                 sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
@@ -635,20 +641,22 @@ class CarlaFullDataset(Dataset):
         tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
         output["text"] = tokens
         output["text_mask"] = phrase_mask
+
+        # import pdb; pdb.set_trace()
         
-        sub_tokens = []
-        sub_phrase_masks = []
-        for sub_command in sub_commands:
-            sub_command = re.sub(r"[^\w\s]", "", sub_command.lower())
-            sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
-            sub_tokens.append(sub_token)
-            sub_phrase_masks.append(sub_phrase_mask)
-        
-        sub_tokens = torch.stack(sub_tokens, dim=1)
-        sub_phrase_masks = torch.stack(sub_phrase_masks, dim=1)
-        
-        output['sub_commands'] = sub_commands
-        output['sub_tokens'] = sub_tokens
-        output['sub_phrase_masks'] = sub_phrase_masks
+        # sub_tokens = []
+        # sub_phrase_masks = []
+        # for sub_command in sub_commands:
+        #     sub_command = re.sub(r"[^\w\s]", "", sub_command.lower())
+        #     sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
+        #     sub_tokens.append(sub_token)
+        #     sub_phrase_masks.append(sub_phrase_mask)
+        # 
+        # sub_tokens = torch.stack(sub_tokens, dim=0)
+        # sub_phrase_masks = torch.stack(sub_phrase_masks, dim=0)
+        # 
+        # output['sub_commands'] = sub_commands
+        # output['sub_tokens'] = sub_tokens
+        # output['sub_phrase_masks'] = sub_phrase_masks
 
         return output
