@@ -24,12 +24,55 @@ IGNORE = {
     # "train": ['107', '138', '164', '170', '175', '193', '211', '213', '219', '227', '238', '248', '250', '254', '260', '270', '28', '283', '284', '285', '288', '293', '298', '305', '52', '80'],
     # "val": ['1', '44']
     # "train": ['100', '128', '153', '159', '163', '180', '197', '198', '204', '211', '221', '231', '233', '237', '242', '251', '263', '264', '265', '268', '27', '273', '278', '284', '286', '327', '50', '65', '75'],
-    "train": ['65', '100', '128', '153', '159', '163', '180', '197', '198', '204', '211', '221', '231', '233', '237', '242', '251', '263', '264', '265', '268', '27', '273', '278', '284', '286', '327', '356', '357', '366', '374', '390', '400', '402', '406', '413', '415', '429', '430', '437', '50', '75'],
-    "val": []
+    "train": [
+        "65",
+        "100",
+        "128",
+        "153",
+        "159",
+        "163",
+        "180",
+        "197",
+        "198",
+        "204",
+        "211",
+        "221",
+        "231",
+        "233",
+        "237",
+        "242",
+        "251",
+        "263",
+        "264",
+        "265",
+        "268",
+        "27",
+        "273",
+        "278",
+        "284",
+        "286",
+        "327",
+        "356",
+        "357",
+        "366",
+        "374",
+        "390",
+        "400",
+        "402",
+        "406",
+        "413",
+        "415",
+        "429",
+        "430",
+        "437",
+        "50",
+        "75",
+    ],
+    "val": [],
 }
 
 
-def world_to_pixel(K, rgb_matrix, destination,  curr_position):
+def world_to_pixel(K, rgb_matrix, destination, curr_position):
     point_3d = np.ones((4, destination.shape[1]))
     point_3d[0] = destination[0]
     point_3d[1] = destination[1]
@@ -41,16 +84,18 @@ def world_to_pixel(K, rgb_matrix, destination,  curr_position):
 
     cam_coords = rgb_matrix @ point_3d
     # cam_coords = rgb_matrix @ point_3d[:, None]
-    cam_coords = np.array([cam_coords[1], cam_coords[2]*-1, cam_coords[0]])
+    cam_coords = np.array([cam_coords[1], cam_coords[2] * -1, cam_coords[0]])
 
     # cam_coords = cam_coords[:, cam_coords[2, :] > 0]
     # cam_coords[2] = abs(cam_coords[2])
     points_2d = np.dot(K, cam_coords)
 
-    points_2d = np.array([
-        points_2d[0, :] / points_2d[2, :],
-        points_2d[1, :] / points_2d[2, :],
-        points_2d[2, :]]
+    points_2d = np.array(
+        [
+            points_2d[0, :] / points_2d[2, :],
+            points_2d[1, :] / points_2d[2, :],
+            points_2d[2, :],
+        ]
     )
     points_2d = points_2d.reshape(3, -1)
     points_2d = np.round(points_2d, decimals=2)
@@ -58,7 +103,9 @@ def world_to_pixel(K, rgb_matrix, destination,  curr_position):
 
 
 def get_curve_length(points):
-    return np.sum([np.linalg.norm(points[i + 1] - points[i]) for i in range(len(points) - 1)])
+    return np.sum(
+        [np.linalg.norm(points[i + 1] - points[i]) for i in range(len(points) - 1)]
+    )
 
 
 class CarlaDataset(Dataset):
@@ -76,7 +123,7 @@ class CarlaDataset(Dataset):
         sequence_len=16,
         mode="image",
         image_dim=224,
-        mask_dim=112
+        mask_dim=112,
     ):
         self.data_dir = os.path.join(data_root, split)
 
@@ -92,7 +139,7 @@ class CarlaDataset(Dataset):
         self.mask_dim = mask_dim
 
         if self.mode == "video":
-            self.dataset_len = self.dataset_len//self.sequence_len
+            self.dataset_len = self.dataset_len // self.sequence_len
 
         self.episodes = sorted(os.listdir(self.data_dir))
         print("Number of episodes before removal: ", len(self.episodes))
@@ -159,8 +206,7 @@ class CarlaDataset(Dataset):
     def __getitem__(self, idx):
         output = {}
 
-        episode_dir = os.path.join(
-            self.data_dir, np.random.choice(self.episodes))
+        episode_dir = os.path.join(self.data_dir, np.random.choice(self.episodes))
 
         image_files = sorted(glob(episode_dir + f"/images/*.png"))
         mask_files = sorted(glob(episode_dir + f"/masks/*.png"))
@@ -236,7 +282,7 @@ class CarlaFullDataset(Dataset):
         self.traj_size = traj_size
 
         if self.mode == "video":
-            self.dataset_len = self.dataset_len//self.sequence_len
+            self.dataset_len = self.dataset_len // self.sequence_len
 
         self.episodes = sorted(os.listdir(self.data_dir))
         print("Number of episodes before removal: ", len(self.episodes))
@@ -248,11 +294,23 @@ class CarlaFullDataset(Dataset):
 
         self.corpus = Corpus(glove_path)
 
+        self.sub_command_data = pd.read_csv(f"./sub_commands_{self.split}", index_col=0)
+
     def __len__(self):
         return self.dataset_len
 
     # TODO - Include Vehicle Position
-    def get_video_data(self, K, image_files, mask_files, matrix_files, vehicle_positions, target_positions, T=10):
+    def get_video_data(
+        self,
+        episode_num,
+        K,
+        image_files,
+        mask_files,
+        matrix_files,
+        vehicle_positions,
+        target_positions,
+        T=10,
+    ):
 
         num_files = len(image_files)
 
@@ -283,7 +341,7 @@ class CarlaFullDataset(Dataset):
 
         valid_indices = list(range(0, sample_idx, self.one_in_n))
         if len(valid_indices) > self.sequence_len:
-            indices = valid_indices[-self.sequence_len:]
+            indices = valid_indices[-self.sequence_len :]
         else:
             indices = [0] * (self.sequence_len - len(valid_indices)) + valid_indices
         start_idx = indices[0]
@@ -297,7 +355,9 @@ class CarlaFullDataset(Dataset):
         #         range(0, self.sequence_len*self.one_in_n, self.one_in_n))
         #     start_idx = sample_idx - self.sequence_len * self.one_in_n + 1
 
-        final_click_idx = target_positions['click_no'].max()
+        final_click_idx = target_positions["click_no"].max()
+        
+        sub_commands = []
 
         for index in indices:
             # print(target_positions.shape, sample_idx, index)
@@ -324,13 +384,16 @@ class CarlaFullDataset(Dataset):
 
             if curr_click_idx == final_click_idx:
                 mask_[1] = mask[0]
+                sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
             else:
                 mask_[0] = mask[0]
+                sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
 
             mask = mask_ + 1e-4
 
             frames.append(img)
             frame_masks.append(mask)
+            sub_commands.append(sub_command)
 
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
@@ -369,17 +432,32 @@ class CarlaFullDataset(Dataset):
         pixel_coordinates = np.vstack(pixel_coordinates[1:])[:, None]
 
         traj_mask = np.zeros((orig_frames.shape[1], orig_frames.shape[2]))
-        traj_mask = cv2.polylines(traj_mask, [pixel_coordinates], isClosed=False, color=(
-            255), thickness=self.traj_size)
+        traj_mask = cv2.polylines(
+            traj_mask,
+            [pixel_coordinates],
+            isClosed=False,
+            color=(255),
+            thickness=self.traj_size,
+        )
         traj_mask = Image.fromarray(traj_mask)
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
 
         # print(traj_mask.min(), traj_mask.max(), pixel_coordinates.shape)
         # print(traj_mask.shape, orig_frames.shape)
-        return frames, orig_frames, frame_masks, traj_mask, sample_idx
+        return frames, orig_frames, frame_masks, traj_mask, sub_commands, sample_idx
 
-    def get_image_data(self, K, image_files, mask_files, matrix_files, vehicle_positions, target_positions, T=10):
+    def get_image_data(
+        self,
+        episode_num,
+        K,
+        image_files,
+        mask_files,
+        matrix_files,
+        vehicle_positions,
+        target_positions,
+        T=10,
+    ):
 
         num_files = len(image_files)
 
@@ -409,7 +487,7 @@ class CarlaFullDataset(Dataset):
         img = Image.open(img_path).convert("RGB")
         mask = Image.open(mask_path).convert("L")
 
-        final_click_idx = target_positions['click_no'].max()
+        final_click_idx = target_positions["click_no"].max()
         curr_click_idx = target_positions.iloc[sample_idx].to_list()[-1]
 
         orig_image = np.array(img)
@@ -462,8 +540,13 @@ class CarlaFullDataset(Dataset):
         pixel_coordinates = np.vstack(pixel_coordinates[1:])[:, None]
 
         traj_mask = np.zeros((orig_image.shape[0], orig_image.shape[1]))
-        traj_mask = cv2.polylines(traj_mask, [pixel_coordinates], isClosed=False, color=(
-            255), thickness=self.traj_size)
+        traj_mask = cv2.polylines(
+            traj_mask,
+            [pixel_coordinates],
+            isClosed=False,
+            color=(255),
+            thickness=self.traj_size,
+        )
         traj_mask = Image.fromarray(traj_mask)
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
@@ -473,8 +556,10 @@ class CarlaFullDataset(Dataset):
     def __getitem__(self, idx):
         output = {}
 
-        episode_dir = os.path.join(
-            self.data_dir, np.random.choice(self.episodes))
+        episode = np.random.choice(self.episodes)
+        episode_dir = os.path.join(self.data_dir, episode)
+
+        episode_num = int(episode.split("/")[-1])
 
         image_files = sorted(glob(episode_dir + f"/images/*.png"))
         mask_files = sorted(glob(episode_dir + f"/masks/*.png"))
@@ -492,18 +577,45 @@ class CarlaFullDataset(Dataset):
                 position = np.array(line.split(","), dtype=np.float32)
                 vehicle_positions.append(position)
 
-        target_positions = pd.read_csv(
-            target_path, names=['x', 'y', 'z', 'click_no'])
+        target_positions = pd.read_csv(target_path, names=["x", "y", "z", "click_no"])
 
         traj_mask = None
         sample_idx = None
         if self.mode == "image":
-            frames, orig_frames, frame_masks, traj_mask, sample_idx = self.get_image_data(
-                K, image_files, mask_files, matrix_files, vehicle_positions, target_positions, T=self.traj_frames
+            (
+                frames,
+                orig_frames,
+                frame_masks,
+                traj_mask,
+                sub_commands,
+                sample_idx,
+            ) = self.get_image_data(
+                episode_num,
+                K,
+                image_files,
+                mask_files,
+                matrix_files,
+                vehicle_positions,
+                target_positions,
+                T=self.traj_frames,
             )
         elif self.mode == "video":
-            frames, orig_frames, frame_masks, traj_mask, sample_idx = self.get_video_data(
-                K, image_files, mask_files, matrix_files, vehicle_positions, target_positions, T=self.traj_frames
+            (
+                frames,
+                orig_frames,
+                frame_masks,
+                traj_mask,
+                sub_commands,
+                sample_idx,
+            ) = self.get_video_data(
+                episode_num,
+                K,
+                image_files,
+                mask_files,
+                matrix_files,
+                vehicle_positions,
+                target_positions,
+                T=self.traj_frames,
             )
         else:
             raise NotImplementedError(f"{self.mode} mode not implemented!")
@@ -516,11 +628,27 @@ class CarlaFullDataset(Dataset):
         output["sample_idx"] = sample_idx
 
         command = open(command_path, "r").read()
+        command = self.sub_command_data.loc[episode_num]['command']
         command = re.sub(r"[^\w\s]", "", command)
         output["orig_text"] = command
 
         tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
         output["text"] = tokens
         output["text_mask"] = phrase_mask
+        
+        sub_tokens = []
+        sub_phrase_masks = []
+        for sub_command in sub_commands:
+            sub_command = re.sub(r"[^\w\s]", "", sub_command.lower())
+            sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
+            sub_tokens.append(sub_token)
+            sub_phrase_masks.append(sub_phrase_mask)
+        
+        sub_tokens = torch.stack(sub_tokens, dim=1)
+        sub_phrase_masks = torch.stack(sub_phrase_masks, dim=1)
+        
+        output['sub_commands'] = sub_commands
+        output['sub_tokens'] = sub_tokens
+        output['sub_phrase_masks'] = sub_phrase_masks
 
         return output
