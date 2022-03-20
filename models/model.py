@@ -558,7 +558,7 @@ class ConvLSTMBaseline(nn.Module):
         text_feat = rearrange(text_feat, "b l c -> b c l")
         
         mm_feat = self.bilinear(vision_feat, text_feat)
-        mm_feat = rearrange(mm_feat, "b c (t h w) -> b c t h w", t=nf, h=7, w=7)
+        mm_feat = rearrange(mm_feat, "b c (t h w) -> b t c h w", t=nf, h=7, w=7)
         
         sub_text = rearrange(sub_text, "b n l c -> (b n) l c")
         sub_text_feat = self.sub_text_encoder(sub_text)

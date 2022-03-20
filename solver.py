@@ -407,7 +407,7 @@ class Solver(object):
 
             total_loss += float(loss.item())
 
-            if step % 100 == 0:
+            if step % 1000 == 0:
                 if self.mode == "image":
                     log_frame_predicitons(
                         batch["orig_frame"],
@@ -433,7 +433,7 @@ class Solver(object):
                         title="training",
                     )
 
-            if iterId % 50 == 0 and step != 0:
+            if iterId % 250 == 0 and step != 0:
                 # import pdb; pdb.set_trace()
                 # print(mask.min(), mask.max())
                 gc.collect()
@@ -631,7 +631,7 @@ class Solver(object):
                         batch["sample_idx"],
                         title="validation",
                     )
-            if step % 100 == 0:
+            if step % 250 == 0:
                 # print(mask.min(), mask.max())
 
                 gc.collect()

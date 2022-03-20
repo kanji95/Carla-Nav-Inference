@@ -655,8 +655,8 @@ class CarlaFullDataset(Dataset):
         sub_tokens = torch.stack(sub_tokens, dim=0)
         sub_phrase_masks = torch.stack(sub_phrase_masks, dim=0)
         
-        output['sub_text'] = sub_commands
-        output['sub_tokens'] = sub_tokens
-        output['sub_text_masks'] = sub_phrase_masks
+        output['orig_sub_text'] = sub_commands
+        output['sub_text'] = sub_tokens
+        output['sub_text_mask'] = sub_phrase_masks
 
         return output

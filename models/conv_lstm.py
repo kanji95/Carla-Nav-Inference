@@ -233,6 +233,8 @@ class ConvLSTM(nn.Module):
                 # attention masks
                 padding = 1 - torch.einsum('bi,bj->bij', (input_mask, context_mask[:, t]))
                 combined_padding = torch.concat([input_mask, context_mask[:, t]], dim=-1)
+
+                # import pdb; pdb.set_trace()
         
                 visual_tensor = cur_layer_input[:, t, :, :, :]
                 visual_tensor = rearrange(visual_tensor, "b c h w -> b (h w) c")
