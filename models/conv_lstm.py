@@ -6,6 +6,7 @@ import torch
 from models.attentions import CustomizingAttention, DotProductAttention, MultiHeadAttention, RelativeMultiHeadAttention, ScaledDotProductAttention
 
 from .mask_decoder import *
+from .position_encoding import *
 from einops import rearrange
 
 
@@ -125,6 +126,8 @@ class ConvLSTM(nn.Module):
 
         self._check_kernel_size_consistency(kernel_size)
 
+        self.hidden_feat = hidden_dim
+
         # Make sure that both `kernel_size` and `hidden_dim` are lists having len == num_layers
         kernel_size = self._extend_for_multilayer(kernel_size, num_layers)
         hidden_dim = self._extend_for_multilayer(hidden_dim, num_layers)
@@ -143,15 +146,15 @@ class ConvLSTM(nn.Module):
         self.attn_type = attn_type
         
         if self.attn_type == "dot_product":
-            self.attention = DotProductAttention(self.hidden_dim)
+            self.attention = DotProductAttention(self.hidden_feat)
         elif self.attn_type == "scaled_dot_product":
-            self.attention = ScaledDotProductAttention(self.hidden_dim)
+            self.attention = ScaledDotProductAttention(self.hidden_feat)
         elif self.attn_type == "multi_head":
-            self.attention = MultiHeadAttention(d_model = self.hidden_dim, num_heads=8)
+            self.attention = MultiHeadAttention(d_model = self.hidden_feat, num_heads=8)
         elif self.attn_type == "rel_multi_head":
-            self.attention = RelativeMultiHeadAttention(d_model=self.hidden_dim, num_heads=8)
+            self.attention = RelativeMultiHeadAttention(d_model=self.hidden_feat, num_heads=8)
         elif self.attn_type == "custom_attn":
-            self.attention = CustomizingAttention(hidden_dim=self.hidden_dim, num_heads=8, conv_out_channel=self.hidden_dim)
+            self.attention = CustomizingAttention(hidden_dim=self.hidden_feat, num_heads=8, conv_out_channel=self.hidden_feat)
         else:
             raise NotImplementedError(f'{self.attn_type} not implemented!')
 
@@ -201,7 +204,8 @@ class ConvLSTM(nn.Module):
             # (t, b, c, h, w) -> (b, t, c, h, w)
             input_tensor = rearrange(input_tensor, "t b c h w -> b t c h w")
 
-        b, _, _, h, w = input_tensor.size()
+        b, _, c, h, w = input_tensor.shape
+        l = context_tensor.shape[2]
 
         # Implement stateful ConvLSTM
         if hidden_state is not None:
@@ -221,6 +225,12 @@ class ConvLSTM(nn.Module):
         # padding = 1 - torch.einsum('bi,bj->bij', (frame_mask, lang_mask))
         # combined_padding = torch.concat([frame_mask, lang_mask], dim=-1)
 
+
+        vis_pos_embd = positionalencoding2d(b, c, height=7, width=7)
+        vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
+
+        txt_pos_embd = positionalencoding1d(b, c, max_len=l)
+
         for layer_idx in range(self.num_layers):
 
             hidden, cell = hidden_state[layer_idx]
@@ -231,8 +241,8 @@ class ConvLSTM(nn.Module):
             for t in range(seq_len):
                 
                 # attention masks
-                padding = 1 - torch.einsum('bi,bj->bij', (input_mask, context_mask[:, t]))
-                combined_padding = torch.concat([input_mask, context_mask[:, t]], dim=-1)
+                padding = ~torch.einsum('bi,bj->bij', (input_mask, context_mask[:, t])).bool()
+                combined_padding = ~torch.concat([input_mask, context_mask[:, t]], dim=-1).bool()[:, None]
 
                 # import pdb; pdb.set_trace()
         
@@ -249,7 +259,9 @@ class ConvLSTM(nn.Module):
                     multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor, lang_tensor, padding)
                 elif self.attn_type == "rel_multi_head":
                     combined_tensor = torch.concat([visual_tensor, lang_tensor], dim=1)
-                    multi_modal_tensor, attn = self.attention(combined_tensor, combined_tensor, combined_tensor, combined_padding)
+                    combined_pos_embd = torch.concat([vis_pos_embd, txt_pos_embd], dim=1)
+
+                    multi_modal_tensor, attn = self.attention(combined_tensor, combined_tensor, combined_tensor, combined_pos_embd, combined_padding)
                     # TODO - Other way to process
                     multi_modal_tensor = multi_modal_tensor[:, :h*w]
                 elif self.attn_type == "custom_attn":
