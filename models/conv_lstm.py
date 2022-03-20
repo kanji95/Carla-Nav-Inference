@@ -183,7 +183,7 @@ class ConvLSTM(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, input_tensor, lang_tensor, frame_mask, lang_mask, hidden_state=None):
+    def forward(self, input_tensor, context_tensor, input_mask, context_mask, hidden_state=None):
         """
 
         Parameters
@@ -217,9 +217,9 @@ class ConvLSTM(nn.Module):
         seq_len = input_tensor.size(1)
         cur_layer_input = input_tensor
         
-        # attention masks
-        padding = 1 - torch.einsum('bi,bj->bij', (frame_mask, lang_mask))
-        combined_padding = torch.concat([frame_mask, lang_mask], dim=-1)
+        # # attention masks
+        # padding = 1 - torch.einsum('bi,bj->bij', (frame_mask, lang_mask))
+        # combined_padding = torch.concat([frame_mask, lang_mask], dim=-1)
 
         for layer_idx in range(self.num_layers):
 
@@ -229,8 +229,15 @@ class ConvLSTM(nn.Module):
             attn = None
             
             for t in range(seq_len):
+                
+                # attention masks
+                padding = 1 - torch.einsum('bi,bj->bij', (input_mask, context_mask[:, t]))
+                combined_padding = torch.concat([input_mask, context_mask[:, t]], dim=-1)
+        
                 visual_tensor = cur_layer_input[:, t, :, :, :]
                 visual_tensor = rearrange(visual_tensor, "b c h w -> b (h w) c")
+                
+                lang_tensor = context_tensor[:, t]
                 
                 if self.attn_type == "dot_product":
                     multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor)

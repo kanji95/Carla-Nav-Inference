@@ -513,8 +513,11 @@ class ConvLSTMBaseline(nn.Module):
 
         self.vision_encoder = vision_encoder
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
+        self.sub_text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
 
         self.conv3d = nn.Conv3d(192, hidden_dim, kernel_size=3, stride=1, padding=1)
+        
+        self.bilinear = nn.Bilinear(self.num_frames * 49, 20, self.num_frames * 49)
         
         self.mm_decoder = ConvLSTM(
             input_dim=hidden_dim,
@@ -542,23 +545,26 @@ class ConvLSTMBaseline(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, frames, text, frame_mask, text_mask):
+    def forward(self, frames, text, sub_text, frame_mask, text_mask, sub_text_mask):
 
-        # vision_feat, _ = self.vision_encoder(frames)  # B, N, C
-        # vision_feat = F.normalize(vision_feat, p=2, dim=1)  # B x N x C
-        # vision_feat = rearrange(vision_feat, "b (t h w) c -> b t c h w",
-        #                         t=self.num_frames, h=self.spatial_dim, w=self.spatial_dim)
-
+        bs = frames.shape[0]
+        nf = self.num_frames
+        
         vision_feat = self.vision_encoder(frames)
         vision_feat = F.relu(self.conv3d(vision_feat))
-        vision_feat = rearrange(vision_feat, "b c t h w -> b t c h w")
+        vision_feat = rearrange(vision_feat, "b c t h w -> b c (t h w)")
 
-        text_feat = self.text_encoder(text)  # B x L x C
-        # text_feat = F.normalize(text_feat, p=2, dim=1)  # B x L x C
-        # import pdb; pdb.set_trace()
-        # text_feat = text_feat * text_mask[:, :, None]
+        text_feat = self.text_encoder(text)
+        text_feat = rearrange(text_feat, "b l c -> b c l")
+        
+        mm_feat = self.bilinear(vision_feat, text_feat)
+        mm_feat = rearrange(mm_feat, "b c (t h w) -> b c t h w", t=nf, h=7, w=7)
+        
+        sub_text = rearrange(sub_text, "b n l c -> (b n) l c")
+        sub_text_feat = self.sub_text_encoder(sub_text)
+        sub_text_feat = rearrange(sub_text_feat, "(b n) l c -> b n l c", b=bs, n=nf)
 
-        hidden_feat, segm_mask = self.mm_decoder(vision_feat, text_feat, frame_mask, text_mask)  # .squeeze(1)
+        hidden_feat, segm_mask = self.mm_decoder(mm_feat, sub_text_feat, frame_mask, sub_text_mask)  # .squeeze(1)
         
         # use last hidden state
         traj_mask = self.traj_decoder(hidden_feat[-1][0])

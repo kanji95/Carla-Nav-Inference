@@ -320,8 +320,13 @@ class Solver(object):
             iterId = step + (epochId * data_len) - 1
             with torch.no_grad():
                 frame = batch["frame"].cuda(non_blocking=True)
+                
                 text = batch["text"].cuda(non_blocking=True)
+                sub_text = batch["sub_text"].cuda(non_blocking=True)
+                
                 text_mask = batch["text_mask"].cuda(non_blocking=True)
+                sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
+                
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
@@ -342,7 +347,7 @@ class Solver(object):
 
             start_time = time()
 
-            mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
+            mask, traj_mask = self.network(frame, text, sub_text, frame_mask, text_mask, sub_text_mask)
             re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
             
             if self.loss_func == "bce":
@@ -525,8 +530,13 @@ class Solver(object):
 
         for step, batch in enumerate(self.val_loader):
             frame = batch["frame"].cuda(non_blocking=True)
+            
             text = batch["text"].cuda(non_blocking=True)
+            sub_text = batch["sub_text"].cuda(non_blocking=True)
+                
             text_mask = batch["text_mask"].cuda(non_blocking=True)
+            sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
+                
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
             gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
@@ -546,7 +556,7 @@ class Solver(object):
 
             start_time = time()
 
-            mask, traj_mask = self.network(frame, text, frame_mask, text_mask)
+            mask, traj_mask = self.network(frame, text, sub_text, frame_mask, text_mask, sub_text_mask)
             re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
 
             if self.loss_func == "bce":

@@ -644,19 +644,19 @@ class CarlaFullDataset(Dataset):
 
         # import pdb; pdb.set_trace()
         
-        # sub_tokens = []
-        # sub_phrase_masks = []
-        # for sub_command in sub_commands:
-        #     sub_command = re.sub(r"[^\w\s]", "", sub_command.lower())
-        #     sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
-        #     sub_tokens.append(sub_token)
-        #     sub_phrase_masks.append(sub_phrase_mask)
-        # 
-        # sub_tokens = torch.stack(sub_tokens, dim=0)
-        # sub_phrase_masks = torch.stack(sub_phrase_masks, dim=0)
-        # 
-        # output['sub_commands'] = sub_commands
-        # output['sub_tokens'] = sub_tokens
-        # output['sub_phrase_masks'] = sub_phrase_masks
+        sub_tokens = []
+        sub_phrase_masks = []
+        for sub_command in sub_commands:
+            sub_command = re.sub(r"[^\w\s]", "", sub_command.lower())
+            sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
+            sub_tokens.append(sub_token)
+            sub_phrase_masks.append(sub_phrase_mask)
+        
+        sub_tokens = torch.stack(sub_tokens, dim=0)
+        sub_phrase_masks = torch.stack(sub_phrase_masks, dim=0)
+        
+        output['sub_text'] = sub_commands
+        output['sub_tokens'] = sub_tokens
+        output['sub_text_masks'] = sub_phrase_masks
 
         return output
