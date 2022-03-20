@@ -28,9 +28,8 @@ class Solver(object):
     def __init__(self, args):
         self.args = args
 
-        self.experiment = wandb.init(
-            project="Language Navigation", config=self.args)
-        self.experiment.name = f'{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{self.experiment.id}'
+        self.experiment = wandb.init(project="Language Navigation", config=self.args)
+        self.experiment.name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{self.experiment.id}"
 
         self.epochs = self.args.epochs
         self.batch_size = self.args.batch_size
@@ -47,7 +46,7 @@ class Solver(object):
         self.img_backbone = self.args.img_backbone
         self.imtext_matching = self.args.imtext_matching
         self.attn_type = self.args.attn_type
-        
+
         self.image_dim = self.args.image_dim
         self.mask_dim = self.args.mask_dim
         self.traj_dim = self.args.traj_dim
@@ -62,19 +61,15 @@ class Solver(object):
 
         self.threshold = self.args.threshold
 
-
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.num_gpu = torch.cuda.device_count()
         print(f"Using {self.device} with {self.num_gpu} GPUS!")
 
-        return_layers = {"layer2": "layer2",
-                         "layer3": "layer3", "layer4": "layer4"}
+        return_layers = {"layer2": "layer2", "layer3": "layer3", "layer4": "layer4"}
 
         self.mode = "image"
         if "vit_" in self.img_backbone:
-            img_backbone = timm.create_model(
-                self.img_backbone, pretrained=True)
+            img_backbone = timm.create_model(self.img_backbone, pretrained=True)
             visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
             self.network = JointSegmentationBaseline(
                 visual_encoder,
@@ -85,20 +80,33 @@ class Solver(object):
                 backbone=self.img_backbone,
             )
         elif "dino_resnet50" in self.img_backbone:
-            img_backbone = torch.hub.load(
-                "facebookresearch/dino:main", "dino_resnet50")
-            visual_encoder = IntermediateLayerGetter(
-                img_backbone, return_layers)
+            img_backbone = torch.hub.load("facebookresearch/dino:main", "dino_resnet50")
+            visual_encoder = IntermediateLayerGetter(img_backbone, return_layers)
             self.network = IROSBaseline(
-                visual_encoder, hidden_dim=self.hidden_dim, image_dim=self.image_dim, mask_dim=self.mask_dim
+                visual_encoder,
+                hidden_dim=self.hidden_dim,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
             )
         elif "timesformer" in self.img_backbone:
             self.mode = "video"
-            spatial_dim = self.image_dim//self.patch_size
-            visual_encoder = VisionTransformer(img_size=self.image_dim, patch_size=self.patch_size,
-                                               embed_dim=self.hidden_dim, depth=2, num_heads=8, num_frames=self.num_frames)
+            spatial_dim = self.image_dim // self.patch_size
+            visual_encoder = VisionTransformer(
+                img_size=self.image_dim,
+                patch_size=self.patch_size,
+                embed_dim=self.hidden_dim,
+                depth=2,
+                num_heads=8,
+                num_frames=self.num_frames,
+            )
             self.network = JointVideoSegmentationBaseline(
-                visual_encoder, hidden_dim=self.hidden_dim, image_dim=self.image_dim, mask_dim=self.mask_dim, traj_dim=self.traj_dim, spatial_dim=spatial_dim, num_frames=self.num_frames,
+                visual_encoder,
+                hidden_dim=self.hidden_dim,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
+                traj_dim=self.traj_dim,
+                spatial_dim=spatial_dim,
+                num_frames=self.num_frames,
             )
         elif "deeplabv3_" in self.img_backbone:
             img_backbone = torch.hub.load(
@@ -117,20 +125,23 @@ class Solver(object):
             )
         elif "convlstm" in self.img_backbone:
             self.mode = "video"
-            spatial_dim = self.image_dim//self.patch_size
-            # visual_encoder = VisionTransformer(img_size=self.image_dim, patch_size=self.patch_size,
-            #                                   embed_dim=self.hidden_dim, depth=2, num_heads=8, num_frames=self.num_frames)
+            spatial_dim = self.image_dim // self.patch_size
 
-            video_encoder = torch.hub.load('facebookresearch/pytorchvideo', 'x3d_s', pretrained=True)
+            video_encoder = torch.hub.load(
+                "facebookresearch/pytorchvideo", "x3d_s", pretrained=True
+            )
             visual_encoder = nn.Sequential(*list(video_encoder.blocks.children())[:-1])
 
-            # for param in visual_encoder.parameters():
-            #     param.requires_grad_(False)
-
             self.network = ConvLSTMBaseline(
-                visual_encoder, hidden_dim=self.hidden_dim, image_dim=self.image_dim, mask_dim=self.mask_dim, traj_dim=self.traj_dim, spatial_dim=spatial_dim, num_frames=self.num_frames,
+                visual_encoder,
+                hidden_dim=self.hidden_dim,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
+                traj_dim=self.traj_dim,
+                spatial_dim=spatial_dim,
+                num_frames=self.num_frames,
+                attn_type=self.attn_type,
             )
-
 
         wandb.watch(self.network, log="all")
 
@@ -237,22 +248,21 @@ class Solver(object):
         self.bce_loss = nn.BCELoss(reduction="mean")
         self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
         self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
-        
-        self.focal_loss = FocalLoss(mode='binary', alpha=0.5, ignore_index=0)
-        self.tversky_loss = TverskyLoss(mode='binary', alpha=0.5, beta=0.5, ignore_index=0)
-        self.lovasz_loss = LovaszLoss(mode='binary', ignore_index=0)
+
+        self.focal_loss = FocalLoss(mode="binary", alpha=0.5, ignore_index=0)
+        self.tversky_loss = TverskyLoss(
+            mode="binary", alpha=0.5, beta=0.5, ignore_index=0
+        )
+        self.lovasz_loss = LovaszLoss(mode="binary", ignore_index=0)
 
     def initialize_optimizer(self):
-        params = list(
-            [p for p in self.network.parameters() if p.requires_grad])
+        params = list([p for p in self.network.parameters() if p.requires_grad])
 
         print(f"Using {self.args.optimizer} optimizer!!")
         if self.args.optimizer == "AdamW":
-            optimizer = AdamW(params, lr=self.lr,
-                              weight_decay=self.weight_decay)
+            optimizer = AdamW(params, lr=self.lr, weight_decay=self.weight_decay)
         elif self.args.optimizer == "Adam":
-            optimizer = Adam(params, lr=self.lr,
-                             weight_decay=self.weight_decay)
+            optimizer = Adam(params, lr=self.lr, weight_decay=self.weight_decay)
         elif self.args.optimizer == "SGD":
             optimizer = SGD(
                 params, lr=self.lr, momentum=0.8, weight_decay=self.weight_decay
@@ -271,24 +281,22 @@ class Solver(object):
             optimizer = Rprop(
                 params, lr=self.lr, etas=(0.5, 1.2), step_sizes=(1e-06, 50)
             )
-        elif self.args.optimizer == "RAdam":
-            optimizer = RAdam(
-                params,
-                lr=self.lr,
-                betas=(0.9, 0.999),
-                eps=1e-08,
-                weight_decay=self.weight_decay,
-            )
+        # elif self.args.optimizer == "RAdam":
+        #     optimizer = RAdam(
+        #         params,
+        #         lr=self.lr,
+        #         betas=(0.9, 0.999),
+        #         eps=1e-08,
+        #         weight_decay=self.weight_decay,
+        #     )
         elif self.args.optimizer == "ASGD":
-            optimizer = ASGD(params, lr=self.lr,
-                             weight_decay=self.weight_decay)
+            optimizer = ASGD(params, lr=self.lr, weight_decay=self.weight_decay)
         return optimizer
 
     def log_parameter_info(self):
         total_parameters = 0
         for name, child in self.network.named_children():
-            num_params = sum([p.numel()
-                             for p in child.parameters() if p.requires_grad])
+            num_params = sum([p.numel() for p in child.parameters() if p.requires_grad])
             if num_params > 0:
                 print(f"No. of params in {name}: {num_params}")
                 total_parameters += num_params
@@ -320,13 +328,13 @@ class Solver(object):
             iterId = step + (epochId * data_len) - 1
             with torch.no_grad():
                 frame = batch["frame"].cuda(non_blocking=True)
-                
+
                 text = batch["text"].cuda(non_blocking=True)
                 sub_text = batch["sub_text"].cuda(non_blocking=True)
-                
+
                 text_mask = batch["text_mask"].cuda(non_blocking=True)
                 sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
-                
+
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
@@ -335,36 +343,46 @@ class Solver(object):
                     non_blocking=True
                 )
                 num_samples += batch_size
-                
+
                 # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
                 re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
                 bs, _, h, w = re_gt_mask.shape
-                
-                new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
-                new_gt_mask[re_gt_mask[:,  0] == 1] = 1
-                new_gt_mask[re_gt_mask[:,  1] == 1] = 2
 
+                new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
+                new_gt_mask[re_gt_mask[:, 0] == 1] = 1
+                new_gt_mask[re_gt_mask[:, 1] == 1] = 2
 
             start_time = time()
 
-            mask, traj_mask = self.network(frame, text, sub_text, frame_mask, text_mask, sub_text_mask)
+            mask, traj_mask = self.network(
+                frame, text, sub_text, frame_mask, text_mask, sub_text_mask
+            )
             re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
-            
+
             if self.loss_func == "bce":
-                loss = self.bce_loss(re_mask, new_gt_mask) + \
-                    self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             elif self.loss_func == "combo":
-                loss = self.combo_loss(re_mask, new_gt_mask) + \
-                    self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.combo_loss(re_mask, new_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             elif "class_level" in self.loss_func:
-                loss = self.class_level_loss(
-                    re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.class_level_loss(re_mask, re_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
@@ -381,8 +399,7 @@ class Solver(object):
             elapsed_time = end_time - start_time
 
             with torch.no_grad():
-                inter_mask, union_mask = compute_mask_IOU(
-                    mask, gt_mask, self.threshold)
+                inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
                 inter_traj, union_traj = compute_mask_IOU(
                     traj_mask, gt_traj_mask, self.threshold
                 )
@@ -530,13 +547,13 @@ class Solver(object):
 
         for step, batch in enumerate(self.val_loader):
             frame = batch["frame"].cuda(non_blocking=True)
-            
+
             text = batch["text"].cuda(non_blocking=True)
             sub_text = batch["sub_text"].cuda(non_blocking=True)
-                
+
             text_mask = batch["text_mask"].cuda(non_blocking=True)
             sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
-                
+
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
             gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
@@ -545,43 +562,53 @@ class Solver(object):
                 non_blocking=True
             )
             num_samples += batch_size
-            
+
             # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
             re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
             bs, _, h, w = re_gt_mask.shape
-            
+
             new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
-            new_gt_mask[re_gt_mask[:,  0] == 1] = 1
-            new_gt_mask[re_gt_mask[:,  1] == 1] = 2
+            new_gt_mask[re_gt_mask[:, 0] == 1] = 1
+            new_gt_mask[re_gt_mask[:, 1] == 1] = 2
 
             start_time = time()
 
-            mask, traj_mask = self.network(frame, text, sub_text, frame_mask, text_mask, sub_text_mask)
+            mask, traj_mask = self.network(
+                frame, text, sub_text, frame_mask, text_mask, sub_text_mask
+            )
             re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
 
             if self.loss_func == "bce":
-                loss = self.bce_loss(re_mask, new_gt_mask) + \
-                    self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             elif self.loss_func == "combo":
-                loss = self.combo_loss(re_mask, new_gt_mask) + \
-                    self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.combo_loss(re_mask, new_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             elif "class_level" in self.loss_func:
-                loss = self.class_level_loss(
-                    re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.class_level_loss(re_mask, re_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(traj_mask, gt_traj_mask)
+                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(
+                    traj_mask, gt_traj_mask
+                )
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
             end_time = time()
             elapsed_time = end_time - start_time
 
-            inter_mask, union_mask = compute_mask_IOU(
-                mask, gt_mask, self.threshold)
+            inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
             inter_traj, union_traj = compute_mask_IOU(
                 traj_mask, gt_traj_mask, self.threshold
             )
@@ -663,7 +690,7 @@ class Solver(object):
                 # print(
                 #     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 # )
-        
+
         # print(mask.min(), mask.max())
 
         val_loss = total_loss / data_len

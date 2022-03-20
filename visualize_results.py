@@ -92,7 +92,14 @@ def main(args):
             visual_encoder = nn.Sequential(*list(video_encoder.blocks.children())[:-1])
 
             network = ConvLSTMBaseline(
-                visual_encoder, hidden_dim=args.hidden_dim, image_dim=args.image_dim, mask_dim=args.mask_dim, traj_dim=args.traj_dim, spatial_dim=spatial_dim, num_frames=args.num_frames,
+                visual_encoder,
+                hidden_dim=args.hidden_dim,
+                image_dim=args.image_dim,
+                mask_dim=args.mask_dim,
+                traj_dim=args.traj_dim,
+                spatial_dim=spatial_dim,
+                num_frames=args.num_frames,
+                attn_type=args.attn_type,
             )
     wandb.watch(network, log="all")
 
@@ -122,16 +129,16 @@ def main(args):
         ]
     )
 
-    traj_transform = transforms.Compose(
-        [
-            transforms.Resize((args.traj_dim, args.traj_dim)),
-            transforms.ToTensor(),
-        ]
-    )
+    # traj_transform = transforms.Compose(
+    #     [
+    #         transforms.Resize((args.traj_dim, args.traj_dim)),
+    #         transforms.ToTensor(),
+    #     ]
+    # )
 
     frame_mask = torch.ones(1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
 
-    columns = ["Command"]
+    # columns = ["Command"]
 
     episodes = glob(val_path + "*")
     episode_num = 0
@@ -322,6 +329,19 @@ if __name__ == "__main__":
         "--model",
         default="baseline",
         choices=["baseline"],
+        type=str,
+    )
+    
+    parser.add_argument(
+        "--attn_type",
+        default='dot_product',
+        choices=[
+            'dot_product',
+            'scaled_dot_product',
+            'multi_head',
+            'rel_multi_head',
+            'custom_attn'
+        ],
         type=str,
     )
 
