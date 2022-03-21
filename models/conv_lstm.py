@@ -7,7 +7,7 @@ from models.attentions import CustomizingAttention, DotProductAttention, MultiHe
 
 from .mask_decoder import *
 from .position_encoding import *
-from einops import rearrange
+from einops import rearrange, repeat
 
 
 class ConvLSTMCell(nn.Module):
@@ -265,6 +265,8 @@ class ConvLSTM(nn.Module):
                     # TODO - Other way to process
                     multi_modal_tensor = multi_modal_tensor[:, :h*w]
                 elif self.attn_type == "custom_attn":
+                    # import pdb; pdb.set_trace()
+                    padding = repeat(padding, "b n l -> (rep b) n l", rep=8)
                     multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor, attn, padding)
                 else:
                     raise NotImplementedError(f'{self.attn_type} not implemented!')

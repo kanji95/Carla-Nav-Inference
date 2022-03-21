@@ -6,6 +6,7 @@ import argparse
 from glob import glob
 
 import numpy as np
+import pandas as pd
 from PIL import Image
 
 import torch
@@ -136,7 +137,7 @@ def main(args):
     #     ]
     # )
 
-    frame_mask = torch.ones(1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
+    frame_mask = torch.ones(1, 7 * 7, dtype=torch.int64).cuda(non_blocking=True)
 
     # columns = ["Command"]
 
@@ -144,13 +145,38 @@ def main(args):
     episode_num = 0
     for episode in episodes:
 
-        command_path = episode + "/command.txt"
-        command = open(command_path, "r").read()
+        # command_path = episode + "/command.txt"
+        # command = open(command_path, "r").read()
+        # command = re.sub(r"[^\w\s]", "", command)
+        
+        episode_num = int(episode.split("/")[-1])
+
+        command_df = pd.read_csv("./dataloader/sub_commands_val.csv", index_col=0)
+        command = command_df.loc[episode_num]['command']
         command = re.sub(r"[^\w\s]", "", command)
+
+        sub_commands = [command_df.loc[episode_num]['sub_command_0'], command_df.loc[episode_num]['sub_command_1']]
+        if pd.isna(command_df.loc[episode_num]['sub_command_1']):
+            sub_commands[1] = command_df.loc[episode_num]['sub_command_0']
+        sub_commands = [re.sub(r"[^\w\s]", "", sub_command) for sub_command in sub_commands]
 
         phrase, phrase_mask = corpus.tokenize(command)
         phrase = phrase.unsqueeze(0)
         phrase_mask = phrase_mask.unsqueeze(0)
+
+        sub_phrase = torch.stack([phrase]*args.num_frames, dim=1)
+        sub_phrase_mask = torch.stack([phrase_mask]*args.num_frames, dim=1)
+
+        # sub_tokens = []
+        # sub_phrase_masks = []
+        # for sub_command in sub_commands:
+        #     sub_command = re.sub(r"[^\w\s]", "", sub_command.lower())
+        #     sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
+        #     sub_tokens.append(sub_token)
+        #     sub_phrase_masks.append(sub_phrase_mask)
+
+        # sub_tokens = torch.stack(sub_tokens, dim=0)[None]
+        # sub_phrase_masks = torch.stack(sub_phrase_masks, dim=0)[None]
 
         image_files = sorted(glob(episode + "/images/*.png"))
         mask_files = sorted(glob(episode + "/masks/*.png"))
@@ -167,7 +193,9 @@ def main(args):
                 mask_transform,
                 frame_mask,
                 phrase,
+                sub_phrase,
                 phrase_mask,
+                sub_phrase_mask,
                 image_files,
                 mask_files,
                 frame_video,
@@ -182,7 +210,9 @@ def main(args):
                 mask_transform,
                 frame_mask,
                 phrase,
+                sub_phrase,
                 phrase_mask,
+                sub_phrase_mask,
                 image_files,
                 mask_files,
                 frame_video,
@@ -244,7 +274,9 @@ def run_image_model(
     mask_transform,
     frame_mask,
     phrase,
+    sub_phrase,
     phrase_mask,
+    sub_phrase_mask,
     image_files,
     mask_files,
     frame_video,
@@ -259,7 +291,7 @@ def run_image_model(
         frame = img_transform(image).cuda(non_blocking=True).unsqueeze(0)
         gt_mask = mask_transform(gt_mask).unsqueeze(0) #.cuda(non_blocking=True).unsqueeze(0)
 
-        mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
+        mask, traj_mask = network(frame, phrase, sub_phrase, frame_mask, phrase_mask, sub_phrase_mask)
 
         frame_video.append(frame.detach().cpu().numpy())
         mask_video.append(mask.detach().cpu().numpy())
@@ -273,7 +305,9 @@ def run_video_model(
     mask_transform,
     frame_mask,
     phrase,
+    sub_phrase,
     phrase_mask,
+    sub_phrase_mask,
     image_files,
     mask_files,
     frame_video,
@@ -299,7 +333,7 @@ def run_video_model(
         
         video_frames = torch.stack(video_queue, dim=1).cuda(non_blocking=True).unsqueeze(0)
 
-        mask, traj_mask = network(video_frames, phrase, frame_mask, phrase_mask)
+        mask, traj_mask = network(video_frames, phrase, sub_phrase, frame_mask, phrase_mask, sub_phrase_mask)
 
         frame_video.append(frame[None].detach().cpu().numpy())
         mask_video.append(mask[:, :, -1].detach().cpu().numpy())

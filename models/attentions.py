@@ -445,7 +445,7 @@ class CustomizingAttention(nn.Module):
         context = context.view(self.num_heads, batch_size, q_len, self.dim).permute(1, 2, 0, 3)
         context = context.contiguous().view(batch_size, q_len, -1)
 
-        return context, attn
+        return context, attn.mean(dim=1)
 
     def get_loc_energy(self, last_attn: Tensor, batch_size: int, v_len: int) -> Tensor:
         conv_feat = self.conv1d(last_attn.unsqueeze(1))

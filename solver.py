@@ -354,6 +354,7 @@ class Solver(object):
 
             start_time = time()
 
+            # import pdb; pdb.set_trace()
             mask, traj_mask = self.network(
                 frame, text, sub_text, frame_mask, text_mask, sub_text_mask
             )
