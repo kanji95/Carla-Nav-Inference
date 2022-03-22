@@ -3,7 +3,13 @@ from matplotlib.cm import ScalarMappable
 import torch.nn as nn
 import torch
 
-from models.attentions import CustomizingAttention, DotProductAttention, MultiHeadAttention, RelativeMultiHeadAttention, ScaledDotProductAttention
+from models.attentions import (
+    CustomizingAttention,
+    DotProductAttention,
+    MultiHeadAttention,
+    RelativeMultiHeadAttention,
+    ScaledDotProductAttention,
+)
 
 from .mask_decoder import *
 from .position_encoding import *
@@ -60,7 +66,7 @@ class ConvLSTMCell(nn.Module):
 
         c_next = f * c_cur + i * g
         h_next = o * torch.tanh(c_next)
-        
+
         return h_next, c_next
 
     def init_hidden(self, batch_size, image_size):
@@ -81,6 +87,7 @@ class ConvLSTMCell(nn.Module):
                 device=self.conv.weight.device,
             ),
         )
+
 
 class ConvLSTM(nn.Module):
 
@@ -120,7 +127,7 @@ class ConvLSTM(nn.Module):
         batch_first=False,
         bias=True,
         return_all_layers=False,
-        attn_type='dot_product',
+        attn_type="dot_product",
     ):
         super(ConvLSTM, self).__init__()
 
@@ -142,21 +149,40 @@ class ConvLSTM(nn.Module):
         self.batch_first = batch_first
         self.bias = bias
         self.return_all_layers = return_all_layers
-        
+
         self.attn_type = attn_type
-        
+
         if self.attn_type == "dot_product":
             self.attention = DotProductAttention(self.hidden_feat)
         elif self.attn_type == "scaled_dot_product":
             self.attention = ScaledDotProductAttention(self.hidden_feat)
         elif self.attn_type == "multi_head":
-            self.attention = MultiHeadAttention(d_model = self.hidden_feat, num_heads=8)
+            self.attention = MultiHeadAttention(d_model=self.hidden_feat, num_heads=8)
         elif self.attn_type == "rel_multi_head":
-            self.attention = RelativeMultiHeadAttention(d_model=self.hidden_feat, num_heads=8)
+            self.attention = RelativeMultiHeadAttention(
+                d_model=self.hidden_feat, num_heads=8
+            )
         elif self.attn_type == "custom_attn":
-            self.attention = CustomizingAttention(hidden_dim=self.hidden_feat, num_heads=8, conv_out_channel=self.hidden_feat)
+            self.attention = CustomizingAttention(
+                hidden_dim=self.hidden_feat,
+                num_heads=8,
+                conv_out_channel=self.hidden_feat,
+            )
         else:
-            raise NotImplementedError(f'{self.attn_type} not implemented!')
+            raise NotImplementedError(f"{self.attn_type} not implemented!")
+        
+        
+        self.command_classifier = nn.Sequential(
+            nn.Conv2d(3*self.hidden_feat, self.hidden_feat, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(self.hidden_feat, self.hidden_feat, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(self.hidden_feat, 2, kernel_size=1, stride=1, padding=0),
+            # nn.Flatten(dim=1),
+            nn.Softmax(dim=1)
+        )
 
         cell_list = []
         for i in range(0, self.num_layers):
@@ -174,7 +200,11 @@ class ConvLSTM(nn.Module):
         self.cell_list = nn.ModuleList(cell_list)
 
         self.mask_decoder = nn.Sequential(
-            ASPP(in_channels=self.hidden_dim[-1], atrous_rates=[4, 6, 8], out_channels=256),
+            ASPP(
+                in_channels=self.hidden_dim[-1],
+                atrous_rates=[4, 6, 8],
+                out_channels=256,
+            ),
             ConvUpsample(
                 in_channels=256,
                 out_channels=2,
@@ -186,7 +216,9 @@ class ConvLSTM(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, input_tensor, context_tensor, input_mask, context_mask, hidden_state=None):
+    def forward(
+        self, input_tensor, context_tensor, input_mask, context_mask, hidden_state=None
+    ):
         """
 
         Parameters
@@ -201,7 +233,9 @@ class ConvLSTM(nn.Module):
         last_state_list, layer_output
         """
 
-        import pdb; pdb.set_trace()
+        import pdb
+
+        pdb.set_trace()
 
         if not self.batch_first:
             # (t, b, c, h, w) -> (b, t, c, h, w)
@@ -220,14 +254,15 @@ class ConvLSTM(nn.Module):
         layer_output_list = []
         last_state_list = []
         mask_list = []
+        
+        sub_cmd_wts = []
 
         seq_len = input_tensor.size(1)
         cur_layer_input = input_tensor
-        
+
         # # attention masks
         # padding = 1 - torch.einsum('bi,bj->bij', (frame_mask, lang_mask))
         # combined_padding = torch.concat([frame_mask, lang_mask], dim=-1)
-
 
         vis_pos_embd = positionalencoding2d(b, c, height=7, width=7)
         vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
@@ -238,22 +273,26 @@ class ConvLSTM(nn.Module):
 
             hidden, cell = hidden_state[layer_idx]
             output_inner = []
-            
+
             attn = None
-            
+
             for t in range(seq_len):
-                
+
                 # attention masks
-                padding = ~torch.einsum('bi,bj->bij', (input_mask, context_mask[:, t])).bool()
-                combined_padding = ~torch.concat([input_mask, context_mask[:, t]], dim=-1).bool()[:, None]
+                padding = ~torch.einsum(
+                    "bi,bj->bij", (input_mask, context_mask[:, t])
+                ).bool()
+                combined_padding = ~torch.concat(
+                    [input_mask, context_mask[:, t]], dim=-1
+                ).bool()[:, None]
 
                 # import pdb; pdb.set_trace()
-        
+
                 # visual_tensor = cur_layer_input[:, t, :, :, :]
                 # visual_tensor = rearrange(visual_tensor, "b c h w -> b (h w) c")
-                
+
                 # lang_tensor = context_tensor[:, t]
-                
+
                 # if self.attn_type == "dot_product":
                 #     multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor)
                 # elif self.attn_type == "scaled_dot_product":
@@ -272,66 +311,103 @@ class ConvLSTM(nn.Module):
                 #     multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor, attn, padding)
                 # else:
                 #     raise NotImplementedError(f'{self.attn_type} not implemented!')
-                    
+
                 # multi_modal_tensor = rearrange(multi_modal_tensor, "b (h w) c -> b c h w", h=h, w=w)
-                
+
                 # hidden, cell = self.cell_list[layer_idx](
-                #     input_tensor=multi_modal_tensor, 
+                #     input_tensor=multi_modal_tensor,
                 #     cur_state=[hidden, cell],
                 # )
-                
+
                 visual_tensor = cur_layer_input[:, t, :, :, :]
                 hidden, cell = self.cell_list[layer_idx](
-                    input_tensor=visual_tensor, 
+                    input_tensor=visual_tensor,
                     cur_state=[hidden, cell],
                 )
+                # hidden = rearrange(hidden, "b c h w -> b (h w) c")
+
+                sub_cmd_context = context_tensor.mean(dim=2)  # B, 2, C
+
+                joint_feat = torch.cat(
+                    [
+                        hidden,
+                        repeat(
+                            sub_cmd_context[:, 0], "b c -> b c (r1 1) (r2 1)", r1=7, r2=7
+                        ),
+                        repeat(
+                            sub_cmd_context[:, 1], "b c -> b c (r1 1) (r2 1)", r1=7, r2=7
+                        ),
+                    ],
+                    dim=1,
+                )
+                
+                sub_cmd_wt = self.command_classifier(joint_feat)
+                lang_tensor = torch.sum(sub_cmd_wt * context_tensor, dim=1)
+                
                 hidden = rearrange(hidden, "b c h w -> b (h w) c")
-                
-                ## Binary classification
-                ## sub command wt attn
-                
-                lang_tensor = context_tensor[:, t]
-                
+
                 if self.attn_type == "dot_product":
                     multi_modal_tensor, attn = self.attention(hidden, lang_tensor)
                 elif self.attn_type == "scaled_dot_product":
-                    multi_modal_tensor, attn = self.attention(hidden, lang_tensor, lang_tensor, padding)
+                    multi_modal_tensor, attn = self.attention(
+                        hidden, lang_tensor, lang_tensor, padding
+                    )
                 elif self.attn_type == "multi_head":
-                    multi_modal_tensor, attn = self.attention(hidden, lang_tensor, lang_tensor, padding)
+                    multi_modal_tensor, attn = self.attention(
+                        hidden, lang_tensor, lang_tensor, padding
+                    )
                 elif self.attn_type == "rel_multi_head":
                     combined_tensor = torch.concat([hidden, lang_tensor], dim=1)
-                    combined_pos_embd = torch.concat([vis_pos_embd, txt_pos_embd], dim=1)
+                    combined_pos_embd = torch.concat(
+                        [vis_pos_embd, txt_pos_embd], dim=1
+                    )
 
-                    multi_modal_tensor, attn = self.attention(combined_tensor, combined_tensor, combined_tensor, combined_pos_embd, combined_padding)
-                    multi_modal_tensor = multi_modal_tensor[:, :h*w]
+                    multi_modal_tensor, attn = self.attention(
+                        combined_tensor,
+                        combined_tensor,
+                        combined_tensor,
+                        combined_pos_embd,
+                        combined_padding,
+                    )
+                    multi_modal_tensor = multi_modal_tensor[:, : h * w]
                 elif self.attn_type == "custom_attn":
                     # import pdb; pdb.set_trace()
                     padding = repeat(padding, "b n l -> (rep b) n l", rep=8)
-                    multi_modal_tensor, attn = self.attention(hidden, lang_tensor, attn, padding)
+                    multi_modal_tensor, attn = self.attention(
+                        hidden, lang_tensor, attn, padding
+                    )
                 else:
-                    raise NotImplementedError(f'{self.attn_type} not implemented!')
-                    
-                multi_modal_tensor = rearrange(multi_modal_tensor, "b (h w) c -> b c h w", h=h, w=w)
-                hidden = rearrange(hidden, "b (h w) c -> b c h w", h=h, w=w)
-                
+                    raise NotImplementedError(f"{self.attn_type} not implemented!")
+
+                multi_modal_tensor = rearrange(
+                    multi_modal_tensor, "b (h w) c -> b c h w", h=h, w=w
+                )
+                # hidden = rearrange(hidden, "b (h w) c -> b c h w", h=h, w=w)
+
                 if layer_idx == self.num_layers - 1:
-                    mask = self.mask_decoder(hidden)
+                    mask = self.mask_decoder(multi_modal_tensor)
                     mask_list.append(mask)
-            
+                    
+                    sub_cmd_wts.append(sub_cmd_wt.flatten(dim=1))
+                
+                hidden = rearrange(hidden, "b (h w) c -> b c h w", h=h, w=w)
                 output_inner.append(hidden)
 
             layer_output = torch.stack(output_inner, dim=1)
             cur_layer_input = layer_output
+            
+            ## check the shape
+            sub_cmd_wts = torch.stack([sub_cmd_wts], dim=2)
 
             layer_output_list.append(layer_output)
             last_state_list.append([hidden, cell])
-            
+
         final_mask = torch.stack(mask_list, dim=2)
 
         if not self.return_all_layers:
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
-            
+
         return last_state_list, final_mask
 
     def _init_hidden(self, batch_size, image_size):
