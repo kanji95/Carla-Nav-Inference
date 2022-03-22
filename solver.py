@@ -334,6 +334,8 @@ class Solver(object):
 
                 text_mask = batch["text_mask"].cuda(non_blocking=True)
                 sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
+                
+                sub_text_labels = batch["sub_text_labels"].cuda(non_blocking=True)
 
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)

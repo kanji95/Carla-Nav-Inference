@@ -361,7 +361,8 @@ class CarlaFullDataset(Dataset):
 
         final_click_idx = target_positions["click_no"].max()
         
-        sub_commands = []
+        # sub_commands = []
+        sub_command_labels = []
 
         for index in indices:
             # print(target_positions.shape, sample_idx, index)
@@ -388,22 +389,28 @@ class CarlaFullDataset(Dataset):
 
             if curr_click_idx == final_click_idx:
                 mask_[1] = mask[0]
-                sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
+                # sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
+                sub_cmd_label = 1
                 if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
-                    sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+                    # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+                    sub_cmd_label = 0
             else:
                 mask_[0] = mask[0]
-                sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+                # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+                sub_cmd_label = 0
+                
+            sub_command_labels.append(sub_cmd_label)
 
             mask = mask_ + 1e-4
 
             frames.append(img)
             frame_masks.append(mask)
-            sub_commands.append(sub_command)
+            # sub_commands.append(sub_command)
 
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
         frame_masks = torch.stack(frame_masks, dim=1)
+        sub_command_labels = torch.tensor(sub_command_labels)
         # frame_masks = frame_masks[-1]
 
         rgb_matrix = np.load(matrix_files[sample_idx])
@@ -451,7 +458,7 @@ class CarlaFullDataset(Dataset):
 
         # print(traj_mask.min(), traj_mask.max(), pixel_coordinates.shape)
         # print(traj_mask.shape, orig_frames.shape)
-        return frames, orig_frames, frame_masks, traj_mask, sub_commands, sample_idx
+        return frames, orig_frames, frame_masks, traj_mask, sub_command_labels, sample_idx
 
     def get_image_data(
         self,
@@ -593,7 +600,7 @@ class CarlaFullDataset(Dataset):
                 orig_frames,
                 frame_masks,
                 traj_mask,
-                sub_commands,
+                sub_command_labels,
                 sample_idx,
             ) = self.get_image_data(
                 episode_num,
@@ -611,7 +618,7 @@ class CarlaFullDataset(Dataset):
                 orig_frames,
                 frame_masks,
                 traj_mask,
-                sub_commands,
+                sub_command_labels,
                 sample_idx,
             ) = self.get_video_data(
                 episode_num,
@@ -643,6 +650,9 @@ class CarlaFullDataset(Dataset):
         output["text_mask"] = phrase_mask
 
         # import pdb; pdb.set_trace()
+        sub_commands = [self.sub_command_data.loc[episode_num]['sub_command_0'], self.sub_command_data.loc[episode_num]['sub_command_1']]
+        if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
+            sub_commands[1] = self.sub_command_data.loc[episode_num]['sub_command_0']
         
         sub_tokens = []
         sub_phrase_masks = []
@@ -658,5 +668,6 @@ class CarlaFullDataset(Dataset):
         output['orig_sub_text'] = sub_commands
         output['sub_text'] = sub_tokens
         output['sub_text_mask'] = sub_phrase_masks
+        output['sub_text_labels'] = sub_command_labels
 
         return output
