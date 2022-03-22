@@ -200,6 +200,9 @@ class ConvLSTM(nn.Module):
         -------
         last_state_list, layer_output
         """
+
+        import pdb; pdb.set_trace()
+
         if not self.batch_first:
             # (t, b, c, h, w) -> (b, t, c, h, w)
             input_tensor = rearrange(input_tensor, "t b c h w -> b t c h w")
