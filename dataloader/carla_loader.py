@@ -286,7 +286,9 @@ class CarlaFullDataset(Dataset):
         if self.mode == "video":
             self.dataset_len = self.dataset_len // self.sequence_len
 
+        # import pdb; pdb.set_trace()
         self.episodes = sorted(os.listdir(self.data_dir))
+        self.episodes = [episode for episode in self.episodes if episode.isnumeric()]
         print("Number of episodes before removal: ", len(self.episodes))
 
         # Remove Episodes
@@ -572,6 +574,7 @@ class CarlaFullDataset(Dataset):
         episode = np.random.choice(self.episodes)
         episode_dir = os.path.join(self.data_dir, episode)
 
+        import pdb; pdb.set_trace()
         episode_num = int(episode.split("/")[-1])
 
         image_files = sorted(glob(episode_dir + f"/images/*.png"))
