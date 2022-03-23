@@ -574,7 +574,7 @@ class CarlaFullDataset(Dataset):
         episode = np.random.choice(self.episodes)
         episode_dir = os.path.join(self.data_dir, episode)
 
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         episode_num = int(episode.split("/")[-1])
 
         image_files = sorted(glob(episode_dir + f"/images/*.png"))

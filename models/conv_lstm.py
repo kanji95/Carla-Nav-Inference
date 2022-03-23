@@ -233,9 +233,7 @@ class ConvLSTM(nn.Module):
         last_state_list, layer_output
         """
 
-        import pdb
-
-        pdb.set_trace()
+        import pdb; pdb.set_trace()
 
         if not self.batch_first:
             # (t, b, c, h, w) -> (b, t, c, h, w)
@@ -383,12 +381,12 @@ class ConvLSTM(nn.Module):
                     multi_modal_tensor, "b (h w) c -> b c h w", h=h, w=w
                 )
                 # hidden = rearrange(hidden, "b (h w) c -> b c h w", h=h, w=w)
-
+                
                 if layer_idx == self.num_layers - 1:
                     mask = self.mask_decoder(multi_modal_tensor)
                     mask_list.append(mask)
                     
-                    sub_cmd_wts.append(sub_cmd_wt.flatten(dim=1))
+                    sub_cmd_wts.append(sub_cmd_wt.flatten(1))
                 
                 hidden = rearrange(hidden, "b (h w) c -> b c h w", h=h, w=w)
                 output_inner.append(hidden)
