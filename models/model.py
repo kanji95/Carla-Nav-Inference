@@ -565,12 +565,12 @@ class ConvLSTMBaseline(nn.Module):
         sub_text_feat = rearrange(sub_text_feat, "(b n) l c -> b n l c", b=bs, n=2)
 
         # import pdb; pdb.set_trace()
-        hidden_feat, segm_mask = self.mm_decoder(mm_feat, sub_text_feat, frame_mask, sub_text_mask)  # .squeeze(1)
+        hidden_feat, segm_mask, sub_cmd_wts = self.mm_decoder(mm_feat, sub_text_feat, frame_mask, sub_text_mask)  # .squeeze(1)
         
         # use last hidden state
         traj_mask = self.traj_decoder(hidden_feat[-1][0])
 
-        return segm_mask, traj_mask
+        return segm_mask, traj_mask, sub_cmd_wts
 
 
 class TextEncoder(nn.Module):

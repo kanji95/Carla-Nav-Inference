@@ -246,6 +246,7 @@ class Solver(object):
         )
 
         self.bce_loss = nn.BCELoss(reduction="mean")
+        self.ce_loss = nn.CrossEntropyLoss(reduction='sum')
         self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
         self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
 
@@ -357,7 +358,7 @@ class Solver(object):
             start_time = time()
 
             # import pdb; pdb.set_trace()
-            mask, traj_mask = self.network(
+            mask, traj_mask, sub_cmd_wts = self.network(
                 frame, text, sub_text, frame_mask, text_mask, sub_text_mask
             )
             re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
@@ -365,27 +366,27 @@ class Solver(object):
             if self.loss_func == "bce":
                 loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             elif self.loss_func == "combo":
                 loss = self.combo_loss(re_mask, new_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             elif "tversky" in self.loss_func:
                 loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             elif "lovasz" in self.loss_func:
                 loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
@@ -556,6 +557,8 @@ class Solver(object):
 
             text_mask = batch["text_mask"].cuda(non_blocking=True)
             sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
+            
+            sub_text_labels = batch["sub_text_labels"].cuda(non_blocking=True)
 
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
             gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
@@ -576,7 +579,7 @@ class Solver(object):
 
             start_time = time()
 
-            mask, traj_mask = self.network(
+            mask, traj_mask, sub_cmd_wts = self.network(
                 frame, text, sub_text, frame_mask, text_mask, sub_text_mask
             )
             re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
@@ -584,27 +587,27 @@ class Solver(object):
             if self.loss_func == "bce":
                 loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             elif self.loss_func == "combo":
                 loss = self.combo_loss(re_mask, new_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             elif "tversky" in self.loss_func:
                 loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             elif "lovasz" in self.loss_func:
                 loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(sub_cmd_wts, sub_text_labels)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 

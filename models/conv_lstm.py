@@ -408,7 +408,7 @@ class ConvLSTM(nn.Module):
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
 
-        return last_state_list, final_mask
+        return last_state_list, final_mask, sub_cmd_wts
 
     def _init_hidden(self, batch_size, image_size):
         init_states = []
