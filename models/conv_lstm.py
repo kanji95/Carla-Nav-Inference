@@ -343,7 +343,8 @@ class ConvLSTM(nn.Module):
                 )
                 
                 sub_cmd_wt = self.command_classifier(joint_feat)
-                lang_tensor = torch.sum(sub_cmd_wt * context_tensor, dim=1)
+                # lang_tensor = torch.sum(sub_cmd_wt * context_tensor, dim=1)
+                lang_tensor = torch.sum(sub_cmd_wt * context_tensor + (1 - sub_cmd_wt) * context_tensor, dim=1)
                 
                 hidden = rearrange(hidden, "b c h w -> b (h w) c")
 
