@@ -277,12 +277,12 @@ class ConvLSTM(nn.Module):
             for t in range(seq_len):
 
                 # attention masks
-                padding = ~torch.einsum(
-                    "bi,bj->bij", (input_mask, context_mask[:, t])
-                ).bool()
-                combined_padding = ~torch.concat(
-                    [input_mask, context_mask[:, t]], dim=-1
-                ).bool()[:, None]
+                # padding = ~torch.einsum(
+                #     "bi,bj->bij", (input_mask, context_mask[:, t])
+                # ).bool()
+                # combined_padding = ~torch.concat(
+                #     [input_mask, context_mask[:, t]], dim=-1
+                # ).bool()[:, None]
 
                 # import pdb; pdb.set_trace()
 
@@ -348,11 +348,11 @@ class ConvLSTM(nn.Module):
                     multi_modal_tensor, attn = self.attention(hidden, lang_tensor)
                 elif self.attn_type == "scaled_dot_product":
                     multi_modal_tensor, attn = self.attention(
-                        hidden, lang_tensor, lang_tensor, padding
+                        hidden, lang_tensor, lang_tensor, 
                     )
                 elif self.attn_type == "multi_head":
                     multi_modal_tensor, attn = self.attention(
-                        hidden, lang_tensor, lang_tensor, padding
+                        hidden, lang_tensor, lang_tensor, 
                     )
                 elif self.attn_type == "rel_multi_head":
                     combined_tensor = torch.concat([hidden, lang_tensor], dim=1)
@@ -365,14 +365,13 @@ class ConvLSTM(nn.Module):
                         combined_tensor,
                         combined_tensor,
                         combined_pos_embd,
-                        combined_padding,
                     )
                     multi_modal_tensor = multi_modal_tensor[:, : h * w]
                 elif self.attn_type == "custom_attn":
                     # import pdb; pdb.set_trace()
-                    padding = repeat(padding, "b n l -> (rep b) n l", rep=8)
+                    # padding = repeat(padding, "b n l -> (rep b) n l", rep=8)
                     multi_modal_tensor, attn = self.attention(
-                        hidden, lang_tensor, attn, padding
+                        hidden, lang_tensor, attn,
                     )
                 else:
                     raise NotImplementedError(f"{self.attn_type} not implemented!")
