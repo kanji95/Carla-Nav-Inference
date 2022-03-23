@@ -179,9 +179,10 @@ class ConvLSTM(nn.Module):
             nn.Conv2d(self.hidden_feat, self.hidden_feat, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2),
-            nn.Conv2d(self.hidden_feat, 2, kernel_size=1, stride=1, padding=0),
+            nn.Conv2d(self.hidden_feat, 1, kernel_size=1, stride=1, padding=0),
             # nn.Flatten(dim=1),
-            nn.Softmax(dim=1)
+            # nn.Softmax(dim=1)
+            nn.Sigmoid()
         )
 
         cell_list = []
@@ -233,7 +234,7 @@ class ConvLSTM(nn.Module):
         last_state_list, layer_output
         """
 
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
 
         if not self.batch_first:
             # (t, b, c, h, w) -> (b, t, c, h, w)
@@ -272,6 +273,7 @@ class ConvLSTM(nn.Module):
             hidden, cell = hidden_state[layer_idx]
             output_inner = []
 
+            # import pdb; pdb.set_trace()
             attn = None
 
             for t in range(seq_len):
@@ -326,6 +328,7 @@ class ConvLSTM(nn.Module):
 
                 sub_cmd_context = context_tensor.mean(dim=2)  # B, 2, C
 
+                # import pdb; pdb.set_trace()
                 joint_feat = torch.cat(
                     [
                         hidden,
@@ -394,7 +397,7 @@ class ConvLSTM(nn.Module):
             cur_layer_input = layer_output
             
             ## check the shape
-            sub_cmd_wts = torch.stack([sub_cmd_wts], dim=2)
+            sub_cmd_wts = torch.cat(sub_cmd_wts, dim=1)
 
             layer_output_list.append(layer_output)
             last_state_list.append([hidden, cell])

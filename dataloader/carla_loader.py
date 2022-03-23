@@ -671,6 +671,6 @@ class CarlaFullDataset(Dataset):
         output['orig_sub_text'] = sub_commands
         output['sub_text'] = sub_tokens
         output['sub_text_mask'] = sub_phrase_masks
-        output['sub_text_labels'] = sub_command_labels
+        output['sub_text_labels'] = sub_command_labels.float()
 
         return output
