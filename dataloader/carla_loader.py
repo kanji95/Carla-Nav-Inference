@@ -647,7 +647,7 @@ class CarlaFullDataset(Dataset):
         command = self.sub_command_data.loc[episode_num]['command']
         command = re.sub(r"[^\w\s]", "", command)
 
-        tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
+        tokens, phrase_mask = self.corpus.tokenize(command)
         
         output["orig_text"] = command
         output["text"] = tokens

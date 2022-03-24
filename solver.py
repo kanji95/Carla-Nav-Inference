@@ -324,6 +324,8 @@ class Solver(object):
 
         num_samples = 0
 
+        import pdb; pdb.set_trace()
+
         epoch_start = time()
         for step, batch in enumerate(self.train_loader):
             iterId = step + (epochId * data_len) - 1
@@ -561,9 +563,13 @@ class Solver(object):
             frame = batch["frame"].cuda(non_blocking=True)
 
             text = batch["text"].cuda(non_blocking=True)
+            text = torch.stack([text]*self.num_frames, dim=1)
+
             sub_text = batch["sub_text"].cuda(non_blocking=True)
 
             text_mask = batch["text_mask"].cuda(non_blocking=True)
+            text_mask = torch.stack([text_mask]*self.num_frames, dim=1)
+            
             sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
             
             # sub_text_labels = batch["sub_text_labels"].cuda(non_blocking=True)
