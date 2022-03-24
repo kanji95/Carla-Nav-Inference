@@ -172,18 +172,18 @@ class ConvLSTM(nn.Module):
             raise NotImplementedError(f"{self.attn_type} not implemented!")
         
         
-        self.command_classifier = nn.Sequential(
-            nn.Conv2d(3*self.hidden_feat, self.hidden_feat, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(self.hidden_feat, self.hidden_feat, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(self.hidden_feat, 1, kernel_size=1, stride=1, padding=0),
-            # nn.Flatten(dim=1),
-            # nn.Softmax(dim=1)
-            nn.Sigmoid()
-        )
+        # self.command_classifier = nn.Sequential(
+        #     nn.Conv2d(3*self.hidden_feat, self.hidden_feat, kernel_size=3, stride=1, padding=1),
+        #     nn.ReLU(),
+        #     nn.MaxPool2d(2),
+        #     nn.Conv2d(self.hidden_feat, self.hidden_feat, kernel_size=3, stride=1, padding=1),
+        #     nn.ReLU(),
+        #     nn.MaxPool2d(2),
+        #     nn.Conv2d(self.hidden_feat, 1, kernel_size=1, stride=1, padding=0),
+        #     # nn.Flatten(dim=1),
+        #     # nn.Softmax(dim=1)
+        #     nn.Sigmoid()
+        # )
 
         cell_list = []
         for i in range(0, self.num_layers):
@@ -282,7 +282,7 @@ class ConvLSTM(nn.Module):
                 padding = ~torch.einsum(
                     "bi,bj->bij", (input_mask, context_mask[:, t])
                 ).bool()
-                combined_padding = ~torch.concat(
+                combined_padding = ~torch.cat(
                     [input_mask, context_mask[:, t]], dim=-1
                 ).bool()[:, None]
 
