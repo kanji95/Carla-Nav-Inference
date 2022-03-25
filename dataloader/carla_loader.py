@@ -212,6 +212,7 @@ class CarlaFullDataset(Dataset):
         final_click_idx = target_positions["click_no"].max()
         
         sub_commands = []
+        similarity_gts = []
 
         for index in indices:
             
@@ -232,23 +233,28 @@ class CarlaFullDataset(Dataset):
                 mask = self.mask_transform(mask)
             mask[mask > 0] = 1
 
-            mask_ = torch.zeros_like(mask)
-            mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
+            sub_command = self.tree_embedding[episode_num]['frame_sub_command'][index]
+            similarity_gt = self.tree_embedding[episode_num]['frame_similarity_gt'][index]
+            
 
-            if curr_click_idx == final_click_idx:
-                mask_[1] = mask[0]
-                sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
-                if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
-                    sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
-            else:
-                mask_[0] = mask[0]
-                sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+            # mask_ = torch.zeros_like(mask)
+            # mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
 
-            mask = mask_ + 1e-4
+            # if curr_click_idx == final_click_idx:
+            #     mask_[1] = mask[0]
+            #     sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
+            #     if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
+            #         sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+            # else:
+            #     mask_[0] = mask[0]
+            #     sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+
+            # mask = mask_ + 1e-4
 
             frames.append(img)
             frame_masks.append(mask)
             sub_commands.append(sub_command)
+            similarity_gts.append(similarity_gt)
 
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
