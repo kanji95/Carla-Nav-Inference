@@ -35,32 +35,49 @@ model = DistilBertModel.from_pretrained("distilbert-base-uncased")
 
 predictor = load_predictor("structured-prediction-constituency-parser")
 
-df = pd.read_csv(f"./dataloader/sub_commands_{split}.csv", index_col=0)
-print(df.shape)
+df_command = pd.read_csv(f"./dataloader/sub_commands_{split}.csv", index_col=0)
+print(df_command.shape)
+
+data_path = f'/ssd_scratch/cvit/kanishk/carla_data/{split}/'
 
 results = {}
-for step, sentence in enumerate(df['command']):
-
-    preds = predictor.predict(sentence)
-
+for episode in range(df_command.shape[0]):
+    
+    # vehicle_path = data_path + str(episode) + "/vehicle_positions.txt"
+    target_path = data_path + str(episode) + "/target_positions.txt"
+    
+    # vehicle_positions = pd.read_csv(vehicle_path, names=["x", "y", "z"])
+    target_positions = pd.read_csv(target_path, names=["x", "y", "z", "click_no"])
+    
+    final_click_idx = target_positions["click_no"].max()
+    
+    
+    command = df_command.loc[episode]['command']
+    
+    preds = predictor.predict(command)
     hierplane_tree = preds['hierplane_tree']
     
     sub_phrases = []
     tree_traversal(hierplane_tree['root'], sub_phrases)
     
-    while sentence in sub_phrases:
-        sub_phrases.remove(sentence)
-    # print(f'{step}: {sub_phrases}')
+    while command in sub_phrases:
+        sub_phrases.remove(command)
+        
+    sub_command_0 = df_command.loc[episode]['sub_command_0']
+    sub_command_1 = df_command.loc[episode]['sub_command_1'] if not pd.isna(df_command.loc[episode]['sub_command_1']) else df_command.loc[episode]['sub_command_0']
+    sub_commands = [sub_command_0, sub_command_1]
     
-    distance = [0]*len(sub_phrases)
+    distance_0 = [0]*len(sub_phrases)
     for idx, phrase in enumerate(sub_phrases):
-        distance[idx] = sentence_distance(phrase, sentence)
-    distance = torch.tensor(distance)
-    # print(distance)
+        distance_0[idx] = sentence_distance(phrase, sub_command_0)
+    distance_0 = torch.tensor(distance_0)
     
-    ground_truth = torch.zeros(len(distance))
-    ground_truth[distance.argmin()] = 1
-    # print(ground_truth)
+    distance_1 = [0]*len(sub_phrases)
+    for idx, phrase in enumerate(sub_phrases):
+        distance_1[idx] = sentence_distance(phrase, sub_command_1)
+    distance_1 = torch.tensor(distance_1)
+    
+    distances = [distance_0, distance_1]
     
     encoded = tokenizer(
         text=sub_phrases,
@@ -77,14 +94,31 @@ for step, sentence in enumerate(df['command']):
     outputs = model(**encoded)
     
     last_hidden_states = outputs.last_hidden_state
-    # print(last_hidden_states.shape)
+
+    sub_command_list = []
+    similarity_gt_list = []
     
-    results[step] = {
+    for frame_no in range(target_positions.shape[0]):
+        
+        if target_positions.loc[frame_no]['click_no'] == final_click_idx:
+            sub_command = sub_commands[-1]
+            distance = distances[-1]
+        else:
+            sub_command = sub_commands[0]
+            distance = distances[0]
+        
+        similarity_gt = torch.zeros(len(distance))
+        similarity_gt[distance.argmin()] = 1
+
+        sub_command_list.append(sub_command)
+        similarity_gt_list.append(similarity_gt)
+        
+    results[episode] = {
         "sub_phrases": sub_phrases,
-        "embedding": torch.split(last_hidden_states, 1, dim=0),
+        "tree_embedding": torch.split(last_hidden_states, 1, dim=0),
         "attention_mask": attention_mask,
-        "ground_truth": ground_truth,
-    }
-    
+        "frame_sub_command": sub_command_list,
+        "frame_similarity_gt": similarity_gt_list
+    }    
 
 torch.save(results, f"./dataloader/{split}_tree_embeddings.pt")

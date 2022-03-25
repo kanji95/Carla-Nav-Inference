@@ -485,10 +485,10 @@ class CarlaFullDataset(Dataset):
         command = re.sub(r"[^\w\s]", "", command)
         tokens, phrase_mask = self.corpus.tokenize(command)
         
-        sub_phrases = self.tree_embedding[episode_num]["sub_phrases"]
-        attention_mask = self.tree_embedding[episode_num]["attention_mask"]
-        embedding = self.tree_embedding[episode_num]["embedding"]
-        similarity = self.tree_embedding[episode_num]["ground_truth"]
+        # sub_phrases = self.tree_embedding[episode_num]["sub_phrases"]
+        # attention_mask = self.tree_embedding[episode_num]["attention_mask"]
+        # embedding = self.tree_embedding[episode_num]["embedding"]
+        # similarity = self.tree_embedding[episode_num]["ground_truth"]
 
         output["orig_text"] = command
         output["text"] = tokens
