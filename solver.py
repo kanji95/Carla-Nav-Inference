@@ -135,7 +135,7 @@ class Solver(object):
             self.network = ConvLSTMBaseline(
                 visual_encoder,
                 hidden_dim=self.hidden_dim,
-                image_dim=self.image_dim,
+                # image_dim=self.image_dim,
                 mask_dim=self.mask_dim,
                 traj_dim=self.traj_dim,
                 spatial_dim=spatial_dim,
@@ -323,8 +323,6 @@ class Solver(object):
         data_len = len(self.train_loader)
 
         num_samples = 0
-
-        import pdb; pdb.set_trace()
 
         epoch_start = time()
         for step, batch in enumerate(self.train_loader):
