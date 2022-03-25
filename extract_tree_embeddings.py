@@ -80,9 +80,10 @@ for step, sentence in enumerate(df['command']):
     # print(last_hidden_states.shape)
     
     results[step] = {
-        'sub_phrases': sub_phrases,
+        "sub_phrases": sub_phrases,
         "embedding": torch.split(last_hidden_states, 1, dim=0),
-        "ground_truth": ground_truth
+        "attention_mask": attention_mask,
+        "ground_truth": ground_truth,
     }
     
 
