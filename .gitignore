@@ -12,3 +12,4 @@ _out/
 *.zip
 *.ipynb_checkpoints
 debug.log
+**.pt

@@ -28,7 +28,7 @@ def tree_traversal(root, sub_phrases):
         for node in root['children']:
             tree_traversal(node, sub_phrases)
 
-split = "val" # sys.argv[1]
+split = sys.argv[1]
             
 tokenizer = DistilBertTokenizer.from_pretrained("distilbert-base-uncased")
 model = DistilBertModel.from_pretrained("distilbert-base-uncased")
@@ -50,17 +50,17 @@ for step, sentence in enumerate(df['command']):
     
     while sentence in sub_phrases:
         sub_phrases.remove(sentence)
-    print(f'{step}: {sub_phrases}')
+    # print(f'{step}: {sub_phrases}')
     
     distance = [0]*len(sub_phrases)
     for idx, phrase in enumerate(sub_phrases):
         distance[idx] = sentence_distance(phrase, sentence)
     distance = torch.tensor(distance)
-    print(distance)
+    # print(distance)
     
     ground_truth = torch.zeros(len(distance))
     ground_truth[distance.argmin()] = 1
-    print(ground_truth)
+    # print(ground_truth)
     
     encoded = tokenizer(
         text=sub_phrases,
@@ -77,7 +77,7 @@ for step, sentence in enumerate(df['command']):
     outputs = model(**encoded)
     
     last_hidden_states = outputs.last_hidden_state
-    print(last_hidden_states.shape)
+    # print(last_hidden_states.shape)
     
     results[step] = {
         'sub_phrases': sub_phrases,
