@@ -21,9 +21,6 @@ from einops import repeat
 from .word_utils import Corpus
 
 IGNORE = {
-    # "train": ['107', '138', '164', '170', '175', '193', '211', '213', '219', '227', '238', '248', '250', '254', '260', '270', '28', '283', '284', '285', '288', '293', '298', '305', '52', '80'],
-    # "val": ['1', '44']
-    # "train": ['100', '128', '153', '159', '163', '180', '197', '198', '204', '211', '221', '231', '233', '237', '242', '251', '263', '264', '265', '268', '27', '273', '278', '284', '286', '327', '50', '65', '75'],
     "train": [
         "65",
         "100",
@@ -78,16 +75,11 @@ def world_to_pixel(K, rgb_matrix, destination, curr_position):
     point_3d[1] = destination[1]
     point_3d[2] = curr_position[2]
 
-    # point_3d = np.array([destination[0], destination[1], curr_position[2], 1])
     point_3d = np.round(point_3d, decimals=2)
-    # print("3D world coordinate: ", point_3d)
 
     cam_coords = rgb_matrix @ point_3d
-    # cam_coords = rgb_matrix @ point_3d[:, None]
     cam_coords = np.array([cam_coords[1], cam_coords[2] * -1, cam_coords[0]])
 
-    # cam_coords = cam_coords[:, cam_coords[2, :] > 0]
-    # cam_coords[2] = abs(cam_coords[2])
     points_2d = np.dot(K, cam_coords)
 
     points_2d = np.array(
@@ -106,139 +98,6 @@ def get_curve_length(points):
     return np.sum(
         [np.linalg.norm(points[i + 1] - points[i]) for i in range(len(points) - 1)]
     )
-
-
-class CarlaDataset(Dataset):
-    """Some Information about CarlaDataset"""
-
-    def __init__(
-        self,
-        data_root,
-        glove_path,
-        split="train",
-        img_transform=None,
-        mask_transform=None,
-        dataset_len=10000,
-        skip=5,
-        sequence_len=16,
-        mode="image",
-        image_dim=224,
-        mask_dim=112,
-    ):
-        self.data_dir = os.path.join(data_root, split)
-
-        self.img_transform = img_transform
-        self.mask_transform = mask_transform
-
-        self.dataset_len = dataset_len
-        self.skip = skip
-        self.sequence_len = sequence_len
-        self.mode = mode
-
-        self.image_dim = image_dim
-        self.mask_dim = mask_dim
-
-        if self.mode == "video":
-            self.dataset_len = self.dataset_len // self.sequence_len
-
-        self.episodes = sorted(os.listdir(self.data_dir))
-        print("Number of episodes before removal: ", len(self.episodes))
-
-        # Remove Episodes
-        for episode in IGNORE[split]:
-            self.episodes.remove(episode)
-        print("Number of episodes after removal: ", len(self.episodes))
-
-        self.corpus = Corpus(glove_path)
-
-    def __len__(self):
-        return self.dataset_len
-
-    def get_video_data(self, image_files, mask_files, num_files):
-        sample_idx = np.random.choice(range(num_files - self.sequence_len))
-
-        frames = []
-        orig_frames = []
-        frame_masks = []
-
-        for index in range(self.sequence_len):
-            img_path = image_files[sample_idx + index]
-            mask_path = mask_files[sample_idx + index]
-
-            img = Image.open(img_path).convert("RGB")
-            mask = Image.open(mask_path).convert("L")
-
-            orig_frames.append(np.array(img))
-
-            if self.img_transform:
-                img = self.img_transform(img)
-
-            if self.mask_transform:
-                mask = self.mask_transform(mask)
-                mask[mask > 0] = 1
-
-            frames.append(img)
-            frame_masks.append(mask)
-
-        orig_frames = np.stack(orig_frames, axis=0)
-        frames = torch.stack(frames, dim=1)
-        frame_masks = torch.stack(frame_masks, dim=1)
-        return frames, orig_frames[-1], frame_masks[:, -1]
-
-    def get_image_data(self, image_files, mask_files, num_files):
-        sample_idx = np.random.choice(range(num_files - self.skip))
-
-        img_path = image_files[sample_idx]
-        mask_path = mask_files[sample_idx]
-        img = Image.open(img_path).convert("RGB")
-        mask = Image.open(mask_path).convert("L")
-
-        orig_image = np.array(img)
-
-        if self.img_transform:
-            img = self.img_transform(img)
-
-        if self.mask_transform:
-            mask = self.mask_transform(mask)
-            mask[mask > 0] = 1
-        return img, orig_image, mask
-
-    def __getitem__(self, idx):
-        output = {}
-
-        episode_dir = os.path.join(self.data_dir, np.random.choice(self.episodes))
-
-        image_files = sorted(glob(episode_dir + f"/images/*.png"))
-        mask_files = sorted(glob(episode_dir + f"/masks/*.png"))
-        command_path = os.path.join(episode_dir, "command.txt")
-
-        num_files = len(image_files)
-
-        if self.mode == "image":
-            frames, orig_frames, frame_masks = self.get_image_data(
-                image_files, mask_files, num_files
-            )
-        elif self.mode == "video":
-            frames, orig_frames, frame_masks = self.get_video_data(
-                image_files, mask_files, num_files
-            )
-        else:
-            raise NotImplementedError(f"{self.mode} mode not implemented!")
-
-        output["orig_frame"] = orig_frames
-        output["frame"] = frames
-        output["gt_frame"] = frame_masks
-
-        command = open(command_path, "r").read()
-        command = re.sub(r"[^\w\s]", "", command)
-        output["orig_text"] = command
-
-        tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
-        output["text"] = tokens
-        output["text_mask"] = phrase_mask
-
-        return output
-
 
 class CarlaFullDataset(Dataset):
     """Some Information about CarlaDataset"""
@@ -286,21 +145,19 @@ class CarlaFullDataset(Dataset):
         if self.mode == "video":
             self.dataset_len = self.dataset_len // self.sequence_len
 
-        # import pdb; pdb.set_trace()
         self.episodes = sorted(os.listdir(self.data_dir))
         self.episodes = [episode for episode in self.episodes if episode.isnumeric()]
         print("Number of episodes before removal: ", len(self.episodes))
 
-        # Remove Episodes
         for episode in IGNORE[split]:
             self.episodes.remove(episode)
         print("Number of episodes after removal: ", len(self.episodes))
 
         self.corpus = Corpus(glove_path)
 
-        # import pdb; pdb.set_trace()
-        # print(os.getcwd())
         self.sub_command_data = pd.read_csv(f"./dataloader/sub_commands_{self.split}.csv", index_col=0)
+        
+        self.tree_embedding = torch.load('./dataloader/{self.split}_tree_embeddings.pt')
 
     def __len__(self):
         return self.dataset_len
@@ -351,27 +208,16 @@ class CarlaFullDataset(Dataset):
         else:
             indices = [0] * (self.sequence_len - len(valid_indices)) + valid_indices
         start_idx = indices[0]
-        # if sample_idx < self.sequence_len:
-        #     indices = [0]*(self.sequence_len - sample_idx)
-        #     indices.extend(
-        #         list(range(1, sample_idx * self.one_in_n + 1, self.one_in_n)))
-        #     start_idx = 0
-        # else:
-        #     indices = list(
-        #         range(0, self.sequence_len*self.one_in_n, self.one_in_n))
-        #     start_idx = sample_idx - self.sequence_len * self.one_in_n + 1
 
         final_click_idx = target_positions["click_no"].max()
         
         sub_commands = []
-        # sub_command_labels = []
 
         for index in indices:
-            # print(target_positions.shape, sample_idx, index)
+            
             img_path = image_files[index]
             mask_path = mask_files[index]
 
-            # print(target_positions.shape, sample_idx, index)
             curr_click_idx = target_positions.iloc[index].to_list()[-1]
 
             img = Image.open(img_path).convert("RGB")
@@ -392,16 +238,11 @@ class CarlaFullDataset(Dataset):
             if curr_click_idx == final_click_idx:
                 mask_[1] = mask[0]
                 sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
-                # sub_cmd_label = 1
                 if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
                     sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
-                    # sub_cmd_label = 0
             else:
                 mask_[0] = mask[0]
                 sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
-                # sub_cmd_label = 0
-                
-            # sub_command_labels.append(sub_cmd_label)
 
             mask = mask_ + 1e-4
 
@@ -412,8 +253,6 @@ class CarlaFullDataset(Dataset):
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
         frame_masks = torch.stack(frame_masks, dim=1)
-        # sub_command_labels = torch.tensor(sub_command_labels)
-        # frame_masks = frame_masks[-1]
 
         rgb_matrix = np.load(matrix_files[sample_idx])
 
@@ -458,8 +297,6 @@ class CarlaFullDataset(Dataset):
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
 
-        # print(traj_mask.min(), traj_mask.max(), pixel_coordinates.shape)
-        # print(traj_mask.shape, orig_frames.shape)
         return frames, orig_frames, frame_masks, traj_mask, sub_commands, sample_idx
 
     def get_image_data(
@@ -646,32 +483,22 @@ class CarlaFullDataset(Dataset):
         command = open(command_path, "r").read()
         command = self.sub_command_data.loc[episode_num]['command']
         command = re.sub(r"[^\w\s]", "", command)
-
         tokens, phrase_mask = self.corpus.tokenize(command)
         
+        sub_phrases = self.tree_embedding[episode_num]["sub_phrases"]
+        attention_mask = self.tree_embedding[episode_num]["attention_mask"]
+        embedding = self.tree_embedding[episode_num]["embedding"]
+        similarity = self.tree_embedding[episode_num]["ground_truth"]
+
         output["orig_text"] = command
         output["text"] = tokens
         output["text_mask"] = phrase_mask
-
-        # import pdb; pdb.set_trace()
-        # sub_commands = [self.sub_command_data.loc[episode_num]['sub_command_0'], self.sub_command_data.loc[episode_num]['sub_command_1']]
-        # if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
-        #     sub_commands[1] = self.sub_command_data.loc[episode_num]['sub_command_0']
         
-        sub_tokens = []
-        sub_phrase_masks = []
-        for sub_command in sub_commands:
-            sub_command = re.sub(r"[^\w\s]", "", sub_command.lower())
-            sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
-            sub_tokens.append(sub_token)
-            sub_phrase_masks.append(sub_phrase_mask)
         
-        sub_tokens = torch.stack(sub_tokens, dim=0)
-        sub_phrase_masks = torch.stack(sub_phrase_masks, dim=0)
         
-        output['orig_sub_text'] = sub_commands
-        output['sub_text'] = sub_tokens
-        output['sub_text_mask'] = sub_phrase_masks
-        # output['sub_text_labels'] = sub_command_labels.float()
-
+        # output["sub_phrases"] = sub_phrases
+        # output["attention_mask"] = attention_mask
+        # output["embedding"] = embedding
+        # output["similarity"] = similarity
+        
         return output
