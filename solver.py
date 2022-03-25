@@ -332,17 +332,13 @@ class Solver(object):
             with torch.no_grad():
                 frame = batch["frame"].cuda(non_blocking=True)
 
-                text = batch["text"].cuda(non_blocking=True)
-
-                text_mask = batch["text_mask"].cuda(non_blocking=True)
-
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
                 
                 sub_phrases = batch["sub_phrases"].cuda(non_blocking=True)
                 attention_mask = batch["attention_mask"].cuda(non_blocking=True)
-                tree_embd = batch["embedding"].cuda(non_blocking=True)
-                node_sim = batch["similarity"].cuda(non_blocking=True)
+                tree_embd = batch["tree_embedding"].cuda(non_blocking=True)
+                sim_gts = batch["similarity_gts"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
                 frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
@@ -350,21 +346,12 @@ class Solver(object):
                 )
                 num_samples += batch_size
 
-                # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
-                re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
-                bs, _, h, w = re_gt_mask.shape
-
-                new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
-                new_gt_mask[re_gt_mask[:, 0] == 1] = 1
-                new_gt_mask[re_gt_mask[:, 1] == 1] = 2
-
             start_time = time()
 
             # import pdb; pdb.set_trace()
             mask, traj_mask = self.network(
                 frame, frame_mask, tree_embd, attention_mask
             )
-            re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(

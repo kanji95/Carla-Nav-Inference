@@ -107,7 +107,7 @@ for episode in range(df_command.shape[0]):
             sub_command = sub_commands[0]
             distance = distances[0]
         
-        similarity_gt = torch.zeros(len(distance))
+        similarity_gt = torch.ones(len(distance)) * -1
         similarity_gt[distance.argmin()] = 1
 
         sub_command_list.append(sub_command)

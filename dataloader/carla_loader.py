@@ -1,4 +1,5 @@
 import os
+import random
 from random import sample
 import re
 from glob import glob
@@ -99,6 +100,7 @@ def get_curve_length(points):
         [np.linalg.norm(points[i + 1] - points[i]) for i in range(len(points) - 1)]
     )
 
+
 class CarlaFullDataset(Dataset):
     """Some Information about CarlaDataset"""
 
@@ -155,9 +157,11 @@ class CarlaFullDataset(Dataset):
 
         self.corpus = Corpus(glove_path)
 
-        self.sub_command_data = pd.read_csv(f"./dataloader/sub_commands_{self.split}.csv", index_col=0)
-        
-        self.tree_embedding = torch.load('./dataloader/{self.split}_tree_embeddings.pt')
+        self.sub_command_data = pd.read_csv(
+            f"./dataloader/sub_commands_{self.split}.csv", index_col=0
+        )
+
+        self.tree_embedding = torch.load("./dataloader/{self.split}_tree_embeddings.pt")
 
     def __len__(self):
         return self.dataset_len
@@ -210,12 +214,12 @@ class CarlaFullDataset(Dataset):
         start_idx = indices[0]
 
         final_click_idx = target_positions["click_no"].max()
-        
+
         sub_commands = []
         similarity_gts = []
 
         for index in indices:
-            
+
             img_path = image_files[index]
             mask_path = mask_files[index]
 
@@ -233,28 +237,20 @@ class CarlaFullDataset(Dataset):
                 mask = self.mask_transform(mask)
             mask[mask > 0] = 1
 
-            sub_command = self.tree_embedding[episode_num]['frame_sub_command'][index]
-            similarity_gt = self.tree_embedding[episode_num]['frame_similarity_gt'][index]
-            
-
-            # mask_ = torch.zeros_like(mask)
-            # mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
-
-            # if curr_click_idx == final_click_idx:
-            #     mask_[1] = mask[0]
-            #     sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
-            #     if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
-            #         sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
-            # else:
-            #     mask_[0] = mask[0]
-            #     sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
-
-            # mask = mask_ + 1e-4
+            sub_command = self.tree_embedding[episode_num]["frame_sub_command"][index]
+            similarity_gt = self.tree_embedding[episode_num]["frame_similarity_gt"][
+                index
+            ]
 
             frames.append(img)
             frame_masks.append(mask)
             sub_commands.append(sub_command)
             similarity_gts.append(similarity_gt)
+
+        sub_phrases = self.tree_embedding["sub_phrases"]
+        tree_embedding = self.tree_embedding["tree_embedding"]
+        attention_mask = self.tree_embedding["attention_mask"]
+        similarity_gts = torch.stack(similarity_gts, dim=0)
 
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
@@ -303,7 +299,17 @@ class CarlaFullDataset(Dataset):
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
 
-        return frames, orig_frames, frame_masks, traj_mask, sub_commands, sample_idx
+        return (
+            frames,
+            orig_frames,
+            frame_masks,
+            traj_mask,
+            sub_phrases,
+            tree_embedding,
+            attention_mask,
+            similarity_gts,
+            sample_idx,
+        )
 
     def get_image_data(
         self,
@@ -444,7 +450,7 @@ class CarlaFullDataset(Dataset):
             (
                 frames,
                 orig_frames,
-                frame_masks,
+                frame_mask,
                 traj_mask,
                 sub_commands,
                 sample_idx,
@@ -462,9 +468,12 @@ class CarlaFullDataset(Dataset):
             (
                 frames,
                 orig_frames,
-                frame_masks,
+                frame_mask,
                 traj_mask,
-                sub_commands,
+                sub_phrases,
+                tree_embedding,
+                attention_mask,
+                similarity_gts,
                 sample_idx,
             ) = self.get_video_data(
                 episode_num,
@@ -481,30 +490,31 @@ class CarlaFullDataset(Dataset):
 
         output["orig_frame"] = orig_frames
         output["frame"] = frames
-        output["gt_frame"] = frame_masks
+        output["gt_frame"] = frame_mask
         output["gt_traj_mask"] = traj_mask
         output["episode"] = episode_dir.split("/")[-1]
         output["sample_idx"] = sample_idx
 
         command = open(command_path, "r").read()
-        command = self.sub_command_data.loc[episode_num]['command']
+        command = self.sub_command_data.loc[episode_num]["command"]
         command = re.sub(r"[^\w\s]", "", command)
-        tokens, phrase_mask = self.corpus.tokenize(command)
-        
-        # sub_phrases = self.tree_embedding[episode_num]["sub_phrases"]
-        # attention_mask = self.tree_embedding[episode_num]["attention_mask"]
-        # embedding = self.tree_embedding[episode_num]["embedding"]
-        # similarity = self.tree_embedding[episode_num]["ground_truth"]
+        # tokens, phrase_mask = self.corpus.tokenize(command)
 
-        output["orig_text"] = command
-        output["text"] = tokens
-        output["text_mask"] = phrase_mask
+        output["sub_phrases"] = sub_phrases
+        output["tree_embedding"] = tree_embedding
+        output["attention_mask"] = attention_mask
+        output["similarity_gts"] = similarity_gts
+
+        positive_anchor = tree_embedding[similarity_gts.argmax()]
         
+        negative_indices = torch.where(similarity_gts == -1)
+        negative_index = random.choice(negative_indices)
+        negative_anchor = tree_embedding[negative_index]
         
-        
-        # output["sub_phrases"] = sub_phrases
-        # output["attention_mask"] = attention_mask
-        # output["embedding"] = embedding
-        # output["similarity"] = similarity
+        output["positive_anchor"] = positive_anchor
+        output["negative_anchor"] = negative_anchor
+        output["anchor"] = frames
+        output["anchor_mask"] = frame_mask
+        output["gt_traj_mask"] = traj_mask
         
         return output
