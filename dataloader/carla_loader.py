@@ -161,7 +161,7 @@ class CarlaFullDataset(Dataset):
             f"./dataloader/sub_commands_{self.split}.csv", index_col=0
         )
 
-        self.tree_embedding = torch.load("./dataloader/{self.split}_tree_embeddings.pt")
+        self.tree_embedding = torch.load(f"./dataloader/{self.split}_tree_embeddings.pt")
 
     def __len__(self):
         return self.dataset_len
@@ -247,9 +247,9 @@ class CarlaFullDataset(Dataset):
             sub_commands.append(sub_command)
             similarity_gts.append(similarity_gt)
 
-        sub_phrases = self.tree_embedding["sub_phrases"]
-        tree_embedding = self.tree_embedding["tree_embedding"]
-        attention_mask = self.tree_embedding["attention_mask"]
+        sub_phrases = self.tree_embedding[episode_num]["sub_phrases"]
+        tree_embedding = self.tree_embedding[episode_num]["tree_embedding"]
+        attention_mask = self.tree_embedding[episode_num]["attention_mask"]
         similarity_gts = torch.stack(similarity_gts, dim=0)
 
         orig_frames = np.stack(orig_frames, axis=0)
@@ -500,6 +500,7 @@ class CarlaFullDataset(Dataset):
         command = re.sub(r"[^\w\s]", "", command)
         # tokens, phrase_mask = self.corpus.tokenize(command)
 
+        import pdb; pdb.set_trace()
         output["sub_phrases"] = sub_phrases
         output["tree_embedding"] = tree_embedding
         output["attention_mask"] = attention_mask
