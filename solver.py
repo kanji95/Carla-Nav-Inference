@@ -555,22 +555,16 @@ class Solver(object):
         num_samples = 0
 
         for step, batch in enumerate(self.val_loader):
-            frame = batch["frame"].cuda(non_blocking=True)
-
-            text = batch["text"].cuda(non_blocking=True)
-            text = torch.stack([text]*self.num_frames, dim=1)
-
-            sub_text = batch["sub_text"].cuda(non_blocking=True)
-
-            text_mask = batch["text_mask"].cuda(non_blocking=True)
-            text_mask = torch.stack([text_mask]*self.num_frames, dim=1)
-            
-            sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
-            
-            # sub_text_labels = batch["sub_text_labels"].cuda(non_blocking=True)
-
-            gt_mask = batch["gt_frame"].cuda(non_blocking=True)
+            frame = batch["anchor"].cuda(non_blocking=True)
+                
+            gt_frame_mask = batch["anchor_mask"].cuda(non_blocking=True)
             gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
+            
+            positive_anchor = batch["positive_anchor"].cuda(non_blocking=True)
+            positive_anchor_mask = batch["positive_anchor_mask"].cuda(non_blocking=True)
+            
+            negative_anchor = batch["negative_anchor"].cuda(non_blocking=True)
+            negative_anchor_mask = batch["negative_anchor_mask"].cuda(non_blocking=True)
 
             batch_size = frame.shape[0]
             frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
@@ -578,43 +572,34 @@ class Solver(object):
             )
             num_samples += batch_size
 
-            # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
-            re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
-            bs, _, h, w = re_gt_mask.shape
-
-            new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
-            new_gt_mask[re_gt_mask[:, 0] == 1] = 1
-            new_gt_mask[re_gt_mask[:, 1] == 1] = 2
-
             start_time = time()
 
-            mask, traj_mask = self.network(
-                frame, text, frame_mask, text_mask
+            mask, traj_mask, anchor, positive, negative = self.network(
+                frame, positive_anchor, negative_anchor, frame_mask, positive_anchor_mask, negative_anchor_mask
             )
-            re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
 
             if self.loss_func == "bce":
-                loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
+                loss = self.bce_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 ) 
             elif self.loss_func == "combo":
-                loss = self.combo_loss(re_mask, new_gt_mask) + self.combo_loss(
+                loss = self.combo_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 ) 
             elif "class_level" in self.loss_func:
-                loss = self.class_level_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.class_level_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 ) 
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.focal_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 ) 
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.tversky_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 ) 
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.lovasz_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             else:
@@ -623,7 +608,7 @@ class Solver(object):
             end_time = time()
             elapsed_time = end_time - start_time
 
-            inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
+            inter_mask, union_mask = compute_mask_IOU(mask, gt_frame_mask, self.threshold)
             inter_traj, union_traj = compute_mask_IOU(
                 traj_mask, gt_traj_mask, self.threshold
             )
@@ -634,7 +619,7 @@ class Solver(object):
             total_inter_traj += inter_traj.item()
             total_union_traj += union_traj.item()
 
-            total_pg_mask += pointing_game(mask, gt_mask)
+            total_pg_mask += pointing_game(mask, gt_frame_mask)
             total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
 
             # total_it_mask += intersection_at_t(mask, gt_mask)
@@ -655,7 +640,7 @@ class Solver(object):
                         batch["orig_text"],
                         mask.detach().cpu(),
                         traj_mask.detach().cpu(),
-                        gt_mask.detach().cpu(),
+                        gt_frame_mask.detach().cpu(),
                         gt_traj_mask.detach().cpu(),
                         batch["episode"],
                         batch["sample_idx"],
@@ -667,7 +652,7 @@ class Solver(object):
                         batch["orig_text"],
                         mask.detach().cpu(),
                         traj_mask.detach().cpu(),
-                        gt_mask.detach().cpu(),
+                        gt_frame_mask.detach().cpu(),
                         gt_traj_mask.detach().cpu(),
                         batch["episode"],
                         batch["sample_idx"],
