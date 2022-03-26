@@ -185,7 +185,7 @@ class ConvLSTM(nn.Module):
         #     nn.Sigmoid()
         # )
         
-        self.lang_project = nn.Linear(768, self.hidden_dim)
+        self.lang_project = nn.Linear(768, self.hidden_dim[0])
 
         cell_list = []
         for i in range(0, self.num_layers):
