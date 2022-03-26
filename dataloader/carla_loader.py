@@ -222,6 +222,7 @@ class CarlaFullDataset(Dataset):
 
             img_path = image_files[index]
             mask_path = mask_files[index]
+            # print(sample_idx, index, mask_path, num_files)
 
             curr_click_idx = target_positions.iloc[index].to_list()[-1]
 
@@ -501,29 +502,15 @@ class CarlaFullDataset(Dataset):
         command = re.sub(r"[^\w\s]", "", command)
         output["orig_text"] = command
 
-        # tokens, phrase_mask = self.corpus.tokenize(command)
-
-        # import pdb; pdb.set_trace()
-        # output["sub_phrases"] = sub_phrases
-        # output["tree_embedding"] = tree_embedding
-        # output["attention_mask"] = attention_mask
-        # output["similarity_gts"] = similarity_gts
-
         positive_anchor = tree_embedding[similarity_gts.argmax()]
         positive_anchor = torch.stack([positive_anchor]*self.sequence_len, dim=0)
         positive_anchor_mask = attention_mask[similarity_gts.argmax()]
         positive_anchor_mask = torch.stack([positive_anchor_mask]*self.sequence_len, dim=0)
-        
-        # negative_indices = torch.where(similarity_gts == -1)
-        # negative_index = random.choice(negative_indices)
-        # negative_anchor = tree_embedding[negative_index]
 
         negative_anchor = []
         negative_anchor_mask = []
         for similarity_gt in similarity_gts:
             negative_indices = torch.where(similarity_gt == -1)[0]
-            # negative_index = random.choice(negative_indices)
-            # negative_anchor.append(tree_embedding[negative_index])
             negative_anchor.append(torch.cat([tree_embedding[idx] for idx in negative_indices], dim=0))
             negative_anchor_mask.append(torch.stack([attention_mask[idx] for idx in negative_indices], dim=0))
         negative_anchor = torch.stack(negative_anchor, dim=0)
@@ -538,9 +525,5 @@ class CarlaFullDataset(Dataset):
         output["anchor"] = frames
         output["anchor_mask"] = frame_mask
         output["gt_traj_mask"] = traj_mask
-
-        # for key in output:
-        #     if torch.is_tensor(output[key]):
-        #         print(output[key].shape)
         
         return output

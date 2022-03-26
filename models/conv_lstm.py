@@ -296,7 +296,7 @@ class ConvLSTM(nn.Module):
                     mask = self.mask_decoder(hidden)
                     mask_list.append(mask)
                 
-                hidden = rearrange(mm_tensor, "b (h w) c -> b c h w", h=h, w=w)
+                # hidden = rearrange(hidden, "b (h w) c -> b c h w", h=h, w=w)
                 output_inner.append(hidden)
 
             layer_output = torch.stack(output_inner, dim=1)
