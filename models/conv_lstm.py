@@ -251,7 +251,7 @@ class ConvLSTM(nn.Module):
 
             attn = None
             
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
 
             for t in range(seq_len):
 
@@ -268,21 +268,13 @@ class ConvLSTM(nn.Module):
                 negative_anchor = self.lang_project(negative_anchors[:, t])
                 
                 if self.attn_type == "dot_product":
-                    multi_modal_tensor, attn = self.attention(anchor, positive_anchor)
+                    mm_tensor, attn = self.attention(anchor, positive_anchor)
                 elif self.attn_type == "scaled_dot_product":
-                    multi_modal_tensor, attn = self.attention(anchor, positive_anchor, positive_anchor, padding)
+                    mm_tensor, attn = self.attention(anchor, positive_anchor, positive_anchor)
                 elif self.attn_type == "multi_head":
-                    multi_modal_tensor, attn = self.attention(anchor, positive_anchor, positive_anchor, padding)
-                # elif self.attn_type == "rel_multi_head":
-                #     combined_tensor = torch.concat([hidden, positive_anchor], dim=1)
-                #     # combined_pos_embd = torch.concat([vis_pos_embd, txt_pos_embd], dim=1)
-
-                #     # multi_modal_tensor, attn = self.attention(combined_tensor, combined_tensor, combined_tensor, combined_pos_embd, combined_padding)
-                #     multi_modal_tensor = multi_modal_tensor[:, :h*w]
+                    mm_tensor, attn = self.attention(anchor, positive_anchor, positive_anchor)
                 elif self.attn_type == "custom_attn":
-                    # import pdb; pdb.set_trace()
-                    # padding = repeat(padding, "b n l -> (rep b) n l", rep=8)
-                    multi_modal_tensor, attn = self.attention(hidden, pos_anchor, attn, padding)
+                    mm_tensor, attn = self.attention(anchor, positive_anchor, attn, padding)
                 else:
                     raise NotImplementedError(f'{self.attn_type} not implemented!')
                 

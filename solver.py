@@ -23,6 +23,8 @@ from utilities.loss import *
 from utilities.metrics import *
 from utilities.utilities import *
 
+from pytorch_metric_learning import miners, losses
+
 
 class Solver(object):
     def __init__(self, args):
@@ -244,6 +246,10 @@ class Solver(object):
             pin_memory=True,
             drop_last=False,
         )
+        
+        self.miner = miners.MultiSimilarityMiner()
+        
+        self.triplet_loss = losses.TripletMarginLoss()
 
         self.bce_loss = nn.BCELoss(reduction="mean")
         self.ce_loss = nn.CrossEntropyLoss(reduction='sum')
