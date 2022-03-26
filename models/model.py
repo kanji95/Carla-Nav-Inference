@@ -78,6 +78,66 @@ class ConvLSTMBaseline(nn.Module):
         return segm_mask, traj_mask
 
 
+class MetricSpaceBaseline(nn.Module):
+    """Some Information about MyModule"""
+
+    def __init__(self, vision_encoder, hidden_dim=768, mask_dim=112, traj_dim=56, spatial_dim=14, num_frames=16, attn_type="dot_product"):
+        super(MetricSpaceBaseline, self).__init__()
+
+        self.spatial_dim = spatial_dim
+        self.num_frames = num_frames
+        
+        self.attn_type = attn_type
+
+        self.vision_encoder = vision_encoder
+        self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
+        self.sub_text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
+
+        self.conv3d = nn.Conv3d(192, hidden_dim, kernel_size=3, stride=1, padding=1)
+        
+        self.bilinear = nn.Bilinear(self.num_frames * 49, 20, self.num_frames * 49)
+        
+        self.mm_decoder = ConvLSTM(
+            input_dim=hidden_dim,
+            mask_dim=mask_dim,
+            hidden_dim=hidden_dim,
+            kernel_size=(3, 3),
+            num_layers=1,
+            batch_first=True,
+            return_all_layers=False,
+            attn_type=self.attn_type
+        )
+
+        self.traj_decoder = nn.Sequential(
+            ASPP(in_channels=hidden_dim, atrous_rates=[
+                 4, 6, 8], out_channels=256),
+            ConvUpsample(in_channels=256,
+                         out_channels=1,
+                         channels=[256, 256, 128],
+                         upsample=[True, True, True],
+                         drop=0.2,
+                         ),
+            nn.Upsample(
+                size=(traj_dim, traj_dim), mode="bilinear", align_corners=True
+            ),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, frames, pos_anchors, neg_anchors):
+        
+        import pdb; pdb.set_trace()
+        
+        bs = frames.shape[0]
+        nf = self.num_frames
+        
+        vision_feat = self.vision_encoder(frames)
+        vision_feat = F.relu(self.conv3d(vision_feat))
+        
+        
+        
+        pass
+
+
 class TextEncoder(nn.Module):
     def __init__(
         self,

@@ -328,15 +328,13 @@ class Solver(object):
         for step, batch in enumerate(self.train_loader):
             iterId = step + (epochId * data_len) - 1
             with torch.no_grad():
-                frame = batch["frame"].cuda(non_blocking=True)
-
-                gt_mask = batch["gt_frame"].cuda(non_blocking=True)
+                frame = batch["anchor"].cuda(non_blocking=True)
+                
+                frame_mask = batch["anchor_mask"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
                 
-                sub_phrases = batch["sub_phrases"].cuda(non_blocking=True)
-                attention_mask = batch["attention_mask"].cuda(non_blocking=True)
-                tree_embd = batch["tree_embedding"].cuda(non_blocking=True)
-                sim_gts = batch["similarity_gts"].cuda(non_blocking=True)
+                positive_anchor = batch["positive_anchor"].cuda(non_blocking=True)
+                negative_anchor = batch["negative_anchor"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
                 frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
@@ -348,7 +346,7 @@ class Solver(object):
 
             # import pdb; pdb.set_trace()
             mask, traj_mask = self.network(
-                frame, frame_mask, tree_embd, attention_mask
+                frame, positive_anchor, negative_anchor
             )
 
             if self.loss_func == "bce":
