@@ -509,18 +509,22 @@ class CarlaFullDataset(Dataset):
         positive_anchor = tree_embedding[similarity_gts.argmax()]
         positive_anchor = torch.stack([positive_anchor]*self.sequence_len, dim=0)
         positive_anchor_mask = attention_mask[similarity_gts.argmax()]
+        positive_anchor_mask = torch.stack([positive_anchor_mask]*self.sequence_len, dim=0)
         
         # negative_indices = torch.where(similarity_gts == -1)
         # negative_index = random.choice(negative_indices)
         # negative_anchor = tree_embedding[negative_index]
+
+        # import pdb; pdb.set_trace()
         
         negative_anchor = []
         negative_anchor_mask = []
         for similarity_gt in similarity_gts:
             negative_indices = torch.where(similarity_gt == -1)[0]
-            negative_index = random.choice(negative_indices)
-            negative_anchor.append(tree_embedding[negative_index])
-            negative_anchor_mask.append(attention_mask[negative_index])
+            # negative_index = random.choice(negative_indices)
+            # negative_anchor.append(tree_embedding[negative_index])
+            negative_anchor.append(torch.cat([tree_embedding[idx] for idx in negative_indices], dim=0))
+            negative_anchor_mask.append(torch.stack([attention_mask[idx] for idx in negative_indices], dim=0))
         negative_anchor = torch.stack(negative_anchor, dim=0)
         negative_anchor_mask = torch.stack(negative_anchor_mask, dim=0)
         
@@ -534,8 +538,8 @@ class CarlaFullDataset(Dataset):
         output["anchor_mask"] = frame_mask
         output["gt_traj_mask"] = traj_mask
 
-        for key in output:
-            if torch.is_tensor(output[key]):
-                print(output[key].shape)
+        # for key in output:
+        #     if torch.is_tensor(output[key]):
+        #         print(output[key].shape)
         
         return output

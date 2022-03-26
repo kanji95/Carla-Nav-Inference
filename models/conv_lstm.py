@@ -1,10 +1,10 @@
 import torch.nn as nn
 import torch
 
-from attentions import *
+from .attentions import *
 
-from mask_decoder import *
-from position_encoding import *
+from .mask_decoder import *
+from .position_encoding import *
 from einops import rearrange, repeat
 
 
@@ -45,11 +45,9 @@ class ConvLSTMCell(nn.Module):
     def forward(self, input_tensor, cur_state):
         h_cur, c_cur = cur_state
 
-        combined = torch.cat(
-            [input_tensor, h_cur], dim=1
-        )  # concatenate along channel axis
-
+        combined = torch.cat([input_tensor, h_cur], dim=1)
         combined_conv = self.conv(combined)
+
         cc_i, cc_f, cc_o, cc_g = torch.split(combined_conv, self.hidden_dim, dim=1)
         i = torch.sigmoid(cc_i)
         f = torch.sigmoid(cc_f)
@@ -188,7 +186,7 @@ class ConvLSTM(nn.Module):
             ),
             ConvUpsample(
                 in_channels=256,
-                out_channels=2,
+                out_channels=1,
                 channels=[256, 256, 128],
                 upsample=[True, True, True],
                 drop=0.2,
@@ -201,8 +199,8 @@ class ConvLSTM(nn.Module):
         self, anchors, positive_anchors, negative_anchors, frame_masks, positive_anchor_masks, negative_anchor_masks, hidden_state=None
     ):
         
-        if not self.batch_first: 
-            anchors = rearrange(anchors, "t b c h w -> b t c h w")
+        # if not self.batch_first: 
+        anchors = rearrange(anchors, "b c t h w -> b t c h w")
 
         b, _, c, h, w = anchors.shape
         l = positive_anchors.shape[2]
@@ -222,6 +220,8 @@ class ConvLSTM(nn.Module):
         vis_pos_embd = positionalencoding2d(b, c, height=7, width=7)
         vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
 
+        txt_pos_embd = positionalencoding1d(b, c, max_len=l)
+
         for layer_idx in range(self.num_layers):
 
             hidden, cell = hidden_state[layer_idx]
@@ -229,7 +229,7 @@ class ConvLSTM(nn.Module):
 
             attn = None
             
-            # import pdb; pdb.set_trace()
+            import pdb; pdb.set_trace()
 
             for t in range(seq_len):
 
@@ -248,20 +248,31 @@ class ConvLSTM(nn.Module):
                 
                 anchor_feat = anchor.mean(dim=1)
                 
-                pos_anchor_feat = positive_anchor.mean(dim=1)
-                neg_anchor_feat = negative_anchor.mean(dim=1)
+                pos_anchor_feat = positive_anchor.mean(dim=2).squeeze(1)
+                neg_anchor_feat = negative_anchor.mean(dim=2).squeeze(1)[0]
                 
-                score_ap = F.cosine_similarity(anchor_feat, dim=1)
-                score_np = F.cosine_similarity9(anchor_feat, dim=1)
+                score_ap = F.cosine_similarity(anchor_feat, pos_anchor_feat, dim=1)
+                score_an = F.cosine_similarity(anchor_feat, neg_anchor_feat, dim=1)
+
+                scores = torch.cat([score_ap, score_an])
+                attn = F.softmax(scores, dim=0) 
+
+                lang_tensor = torch.cat([positive_anchor, negative_anchor], dim=1) 
+                wt_lang_tensor = (attn[None, :, None, None]*lang_tensor).sum(dim=1)
                 
                 if self.attn_type == "dot_product":
-                    mm_tensor, attn = self.attention(anchor, positive_anchor)
+                    mm_tensor, attn = self.attention(anchor, wt_lang_tensor)
                 elif self.attn_type == "scaled_dot_product":
-                    mm_tensor, attn = self.attention(anchor, positive_anchor, positive_anchor)
+                    mm_tensor, attn = self.attention(anchor, wt_lang_tensor, wt_lang_tensor)
                 elif self.attn_type == "multi_head":
-                    mm_tensor, attn = self.attention(anchor, positive_anchor, positive_anchor)
+                    mm_tensor, attn = self.attention(anchor, wt_lang_tensor, wt_lang_tensor)
+                elif self.attn_type == "rel_multi_head":
+                    combined_tensor = torch.concat([visual_tensor, lang_tensor], dim=1)
+                    combined_pos_embd = torch.concat([vis_pos_embd, txt_pos_embd], dim=1)
+
+                    mm_tensor, attn = self.attention(combined_tensor, combined_tensor, combined_tensor, combined_pos_embd)
                 elif self.attn_type == "custom_attn":
-                    mm_tensor, attn = self.attention(anchor, positive_anchor, attn,)
+                    mm_tensor, attn = self.attention(anchor, wt_lang_tensor, attn,)
                 else:
                     raise NotImplementedError(f'{self.attn_type} not implemented!')
                 
@@ -279,13 +290,13 @@ class ConvLSTM(nn.Module):
             layer_output_list.append(layer_output)
             last_state_list.append([hidden, cell])
 
-        final_mask = torch.stack(mask_list, dim=2)
+        final_mask = torch.stack(mask_list, dim=1)
 
         if not self.return_all_layers:
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
 
-        return last_state_list, final_mask
+        return hidden, final_mask
 
     def _init_hidden(self, batch_size, image_size):
         init_states = []

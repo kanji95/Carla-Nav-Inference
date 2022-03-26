@@ -124,8 +124,6 @@ class MetricSpaceBaseline(nn.Module):
 
     def forward(self, frames, positive_anchors, negative_anchors, frame_masks, positive_anchor_masks, negative_anchor_masks):
         
-        import pdb; pdb.set_trace()
-        
         bs = frames.shape[0]
         nf = self.num_frames
         
