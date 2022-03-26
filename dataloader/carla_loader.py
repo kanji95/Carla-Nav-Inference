@@ -515,7 +515,7 @@ class CarlaFullDataset(Dataset):
         
         negative_anchor = []
         for similarity_gt in similarity_gts:
-            negative_indices = torch.where(similarity_gt == -1)
+            negative_indices = torch.where(similarity_gt == -1)[0]
             negative_index = random.choice(negative_indices)
             negative_anchor.append(tree_embedding[negative_index])
         negative_anchor = torch.stack(negative_anchor, dim=0)
