@@ -353,32 +353,34 @@ class Solver(object):
 
             start_time = time()
 
-            mask, traj_mask = self.network(
+            mask, traj_mask, anchor, positive, negative = self.network(
                 frame, positive_anchor, negative_anchor, frame_mask, positive_anchor_mask, negative_anchor_mask
             )
+            
+            import pdb; pdb.set_trace()
 
             if self.loss_func == "bce":
-                loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
+                loss = self.bce_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             elif self.loss_func == "combo":
-                loss = self.combo_loss(re_mask, new_gt_mask) + self.combo_loss(
+                loss = self.combo_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             elif "class_level" in self.loss_func:
-                loss = self.class_level_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.class_level_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.focal_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.tversky_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.lovasz_loss(mask, gt_frame_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             else:

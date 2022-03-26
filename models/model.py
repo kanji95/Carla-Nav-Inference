@@ -130,11 +130,11 @@ class MetricSpaceBaseline(nn.Module):
         anchors = self.vision_encoder(frames)
         anchors = F.relu(self.conv3d(anchors))
         
-        hidden_feat, segm_mask = self.mm_decoder(anchors, positive_anchors, negative_anchors, frame_masks, positive_anchor_masks, negative_anchor_masks)
+        hidden_feat, segm_mask, anchor, positive, negative = self.mm_decoder(anchors, positive_anchors, negative_anchors, frame_masks, positive_anchor_masks, negative_anchor_masks)
         
         traj_mask = self.traj_decoder(hidden_feat)
 
-        return segm_mask, traj_mask
+        return segm_mask, traj_mask, anchor, positive, negative
 
 
 class TextEncoder(nn.Module):
