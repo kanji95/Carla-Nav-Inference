@@ -171,20 +171,6 @@ class ConvLSTM(nn.Module):
         else:
             raise NotImplementedError(f"{self.attn_type} not implemented!")
         
-        
-        # self.command_classifier = nn.Sequential(
-        #     nn.Conv2d(3*self.hidden_feat, self.hidden_feat, kernel_size=3, stride=1, padding=1),
-        #     nn.ReLU(),
-        #     nn.MaxPool2d(2),
-        #     nn.Conv2d(self.hidden_feat, self.hidden_feat, kernel_size=3, stride=1, padding=1),
-        #     nn.ReLU(),
-        #     nn.MaxPool2d(2),
-        #     nn.Conv2d(self.hidden_feat, 1, kernel_size=1, stride=1, padding=0),
-        #     # nn.Flatten(dim=1),
-        #     # nn.Softmax(dim=1)
-        #     nn.Sigmoid()
-        # )
-        
         self.lang_project = nn.Linear(768, self.hidden_dim)
 
         cell_list = []
@@ -264,8 +250,17 @@ class ConvLSTM(nn.Module):
                 
                 positive_anchor = self.lang_project(positive_anchors[:, t])
                 positive_anchor_mask = positive_anchor_masks[:, t]
-                
+                        
                 negative_anchor = self.lang_project(negative_anchors[:, t])
+                negative_anchor_mask = negative_anchor_masks[:, t]
+                
+                anchor_feat = anchor.mean(dim=1)
+                
+                pos_anchor_feat = positive_anchor.mean(dim=1)
+                neg_anchor_feat = negative_anchor.mean(dim=1)
+                
+                score_ap = F.cosine_similarity(anchor_feat, dim=1)
+                score_np = F.cosine_similarity9(anchor_feat, dim=1)
                 
                 if self.attn_type == "dot_product":
                     mm_tensor, attn = self.attention(anchor, positive_anchor)
@@ -274,7 +269,7 @@ class ConvLSTM(nn.Module):
                 elif self.attn_type == "multi_head":
                     mm_tensor, attn = self.attention(anchor, positive_anchor, positive_anchor)
                 elif self.attn_type == "custom_attn":
-                    mm_tensor, attn = self.attention(anchor, positive_anchor, attn, padding)
+                    mm_tensor, attn = self.attention(anchor, positive_anchor, attn,)
                 else:
                     raise NotImplementedError(f'{self.attn_type} not implemented!')
                 
@@ -283,7 +278,7 @@ class ConvLSTM(nn.Module):
                     mask = self.mask_decoder(hidden)
                     mask_list.append(mask)
                 
-                hidden = rearrange(hidden, "b (h w) c -> b c h w", h=h, w=w)
+                hidden = rearrange(mm_tensor, "b (h w) c -> b c h w", h=h, w=w)
                 output_inner.append(hidden)
 
             layer_output = torch.stack(output_inner, dim=1)
