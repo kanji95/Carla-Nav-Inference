@@ -1,18 +1,10 @@
-import imp
-from matplotlib.cm import ScalarMappable
 import torch.nn as nn
 import torch
 
-from models.attentions import (
-    CustomizingAttention,
-    DotProductAttention,
-    MultiHeadAttention,
-    RelativeMultiHeadAttention,
-    ScaledDotProductAttention,
-)
+from attentions import *
 
-from .mask_decoder import *
-from .position_encoding import *
+from mask_decoder import *
+from position_encoding import *
 from einops import rearrange, repeat
 
 
@@ -171,7 +163,7 @@ class ConvLSTM(nn.Module):
         else:
             raise NotImplementedError(f"{self.attn_type} not implemented!")
         
-        self.lang_project = nn.Linear(768, self.hidden_dim)
+        self.lang_project = nn.Linear(768, self.hidden_dim[0])
 
         cell_list = []
         for i in range(0, self.num_layers):
@@ -321,16 +313,23 @@ class ConvLSTM(nn.Module):
 
 if __name__ == "__main__":
     convlstm = ConvLSTM(
-        32,
+        192,
         56,
-        32,
+        192,
         (3, 3),
         num_layers=1,
         batch_first=True,
         bias=True,
         return_all_layers=False,
     )
-    video = torch.rand(2, 5, 32, 14, 14)
-    language = torch.rand(2, 10, 32)
-    layer_out, last_state, frame_masks = convlstm(video, language)
+    convlstm.eval()
+    
+    anchors = torch.rand(1, 20, 192, 7, 7)
+    positive_anchors = torch.rand(1, 20, 1, 15, 768)
+    negative_anchors = torch.rand(1, 20, 1, 15, 768)
+    frame_masks = torch.ones(1, 49)
+    positive_anchor_masks = torch.randint(0, 2, (1, 15))
+    negative_anchor_masks = torch.randint(0, 2, (1, 20, 15))
+    
+    last_state_list, final_mask = convlstm(anchors, positive_anchors, negative_anchors, frame_masks, positive_anchor_masks, negative_anchor_masks)
     print(frame_masks.shape)
