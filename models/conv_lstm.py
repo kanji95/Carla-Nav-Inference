@@ -229,7 +229,7 @@ class ConvLSTM(nn.Module):
 
             attn = None
             
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
             
             anchor_tensors = []
             positive_anchor_tensors = []
@@ -261,9 +261,12 @@ class ConvLSTM(nn.Module):
                 pos_anchor_feat = positive_anchor.mean(dim=2).squeeze(1)
                 positive_anchor_tensors.append(pos_anchor_feat)
                     
-                neg_anchor_feat = negative_anchor.mean(dim=2).squeeze(1)[0]
+                neg_anchor_feat = negative_anchor.mean(dim=2).squeeze(0)
+                # print(negative_anchor.mean(dim=2).shape)
                 negative_anchor_tensors.append(neg_anchor_feat)
                 
+                # import pdb; pdb.set_trace()
+                # print(anchor_feat.shape, pos_anchor_feat.shape, neg_anchor_feat.shape)
                 score_ap = F.cosine_similarity(anchor_feat, pos_anchor_feat, dim=1)
                 score_an = F.cosine_similarity(anchor_feat, neg_anchor_feat, dim=1)
 

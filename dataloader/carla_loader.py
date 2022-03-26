@@ -164,7 +164,7 @@ class CarlaFullDataset(Dataset):
         self.tree_embedding = torch.load(f"./dataloader/{self.split}_tree_embeddings.pt")
 
     def __len__(self):
-        return self.dataset_len
+        return len(self.episodes)
 
     # TODO - Include Vehicle Position
     def get_video_data(
@@ -420,7 +420,8 @@ class CarlaFullDataset(Dataset):
     def __getitem__(self, idx):
         output = {}
 
-        episode = np.random.choice(self.episodes)
+        # episode = np.random.choice(self.episodes)
+        episode = self.episodes[idx]
         episode_dir = os.path.join(self.data_dir, episode)
 
         # import pdb; pdb.set_trace()
@@ -517,8 +518,6 @@ class CarlaFullDataset(Dataset):
         # negative_index = random.choice(negative_indices)
         # negative_anchor = tree_embedding[negative_index]
 
-        # import pdb; pdb.set_trace()
-        
         negative_anchor = []
         negative_anchor_mask = []
         for similarity_gt in similarity_gts:
