@@ -90,8 +90,7 @@ class MetricSpaceBaseline(nn.Module):
         self.attn_type = attn_type
 
         self.vision_encoder = vision_encoder
-        self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
-        self.sub_text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
+        self.text_encoder = nn.Linear(768, hidden_dim)
 
         self.conv3d = nn.Conv3d(192, hidden_dim, kernel_size=3, stride=1, padding=1)
         
@@ -123,19 +122,21 @@ class MetricSpaceBaseline(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, frames, pos_anchors, neg_anchors):
+    def forward(self, frames, positive_anchors, negative_anchors, frame_masks, positive_anchor_masks, negative_anchor_masks):
         
         import pdb; pdb.set_trace()
         
         bs = frames.shape[0]
         nf = self.num_frames
         
-        vision_feat = self.vision_encoder(frames)
-        vision_feat = F.relu(self.conv3d(vision_feat))
+        anchors = self.vision_encoder(frames)
+        anchors = F.relu(self.conv3d(anchors))
         
+        hidden_feat, segm_mask = self.mm_decoder(anchors, positive_anchors, negative_anchors, frame_masks, positive_anchor_masks, negative_anchor_masks)
         
-        
-        pass
+        traj_mask = self.traj_decoder(hidden_feat)
+
+        return segm_mask, traj_mask
 
 
 class TextEncoder(nn.Module):

@@ -184,6 +184,8 @@ class ConvLSTM(nn.Module):
         #     # nn.Softmax(dim=1)
         #     nn.Sigmoid()
         # )
+        
+        self.lang_project = nn.Linear(768, self.hidden_dim)
 
         cell_list = []
         for i in range(0, self.num_layers):
@@ -218,106 +220,72 @@ class ConvLSTM(nn.Module):
         )
 
     def forward(
-        self, input_tensor, context_tensor, input_mask, context_mask, hidden_state=None
+        self, anchors, positive_anchors, negative_anchors, frame_masks, positive_anchor_masks, negative_anchor_masks, hidden_state=None
     ):
-        """
+        
+        if not self.batch_first: 
+            anchors = rearrange(anchors, "t b c h w -> b t c h w")
 
-        Parameters
-        ----------
-        input_tensor: todo
-            5-D Tensor either of shape (t, b, c, h, w) or (b, t, c, h, w)
-        hidden_state: todo
-            None. todo implement stateful
+        b, _, c, h, w = anchors.shape
+        l = positive_anchors.shape[2]
 
-        Returns
-        -------
-        last_state_list, layer_output
-        """
-
-        # import pdb; pdb.set_trace()
-
-        if not self.batch_first:
-            # (t, b, c, h, w) -> (b, t, c, h, w)
-            input_tensor = rearrange(input_tensor, "t b c h w -> b t c h w")
-
-        b, _, c, h, w = input_tensor.shape
-        l = context_tensor.shape[2]
-
-        # Implement stateful ConvLSTM
         if hidden_state is not None:
             raise NotImplementedError()
         else:
-            # Since the init is done in forward. Can send image size here
             hidden_state = self._init_hidden(batch_size=b, image_size=(h, w))
 
         layer_output_list = []
         last_state_list = []
         mask_list = []
-        
-        # sub_cmd_wts = []
 
-        seq_len = input_tensor.size(1)
-        cur_layer_input = input_tensor
-
-        # # attention masks
-        # padding = 1 - torch.einsum('bi,bj->bij', (frame_mask, lang_mask))
-        # combined_padding = torch.concat([frame_mask, lang_mask], dim=-1)
+        seq_len = anchors.size(1)
+        cur_layer_input = anchors
 
         vis_pos_embd = positionalencoding2d(b, c, height=7, width=7)
         vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
-
-        txt_pos_embd = positionalencoding1d(b, c, max_len=l)
 
         for layer_idx in range(self.num_layers):
 
             hidden, cell = hidden_state[layer_idx]
             output_inner = []
 
-            # import pdb; pdb.set_trace()
             attn = None
+            
+            import pdb; pdb.set_trace()
 
             for t in range(seq_len):
 
-                # attention masks
-                padding = ~torch.einsum(
-                    "bi,bj->bij", (input_mask, context_mask[:, t])
-                ).bool()
-                combined_padding = ~torch.cat(
-                    [input_mask, context_mask[:, t]], dim=-1
-                ).bool()[:, None]
-
-                import pdb; pdb.set_trace()
-
-                visual_tensor = cur_layer_input[:, t, :, :, :]
-                visual_tensor = rearrange(visual_tensor, "b c h w -> b (h w) c")
-
-                lang_tensor = context_tensor[:, t]
-
-                if self.attn_type == "dot_product":
-                    multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor)
-                elif self.attn_type == "scaled_dot_product":
-                    multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor, lang_tensor, padding)
-                elif self.attn_type == "multi_head":
-                    multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor, lang_tensor, padding)
-                elif self.attn_type == "rel_multi_head":
-                    combined_tensor = torch.concat([visual_tensor, lang_tensor], dim=1)
-                    combined_pos_embd = torch.concat([vis_pos_embd, txt_pos_embd], dim=1)
-
-                    multi_modal_tensor, attn = self.attention(combined_tensor, combined_tensor, combined_tensor, combined_pos_embd, combined_padding)
-                    multi_modal_tensor = multi_modal_tensor[:, :h*w]
-                elif self.attn_type == "custom_attn":
-                    # import pdb; pdb.set_trace()
-                    padding = repeat(padding, "b n l -> (rep b) n l", rep=8)
-                    multi_modal_tensor, attn = self.attention(visual_tensor, lang_tensor, attn, padding)
-                else:
-                    raise NotImplementedError(f'{self.attn_type} not implemented!')
-
-                multi_modal_tensor = rearrange(multi_modal_tensor, "b (h w) c -> b c h w", h=h, w=w)
-
                 hidden, cell = self.cell_list[layer_idx](
-                    input_tensor=multi_modal_tensor,
+                    input_tensor=anchors[:, t],
                     cur_state=[hidden, cell],
                 )
+                
+                anchor = rearrange(hidden, "b c h w -> b (h w) c")
+                
+                positive_anchor = self.lang_project(positive_anchors[:, t])
+                positive_anchor_mask = positive_anchor_masks[:, t]
+                
+                negative_anchor = self.lang_project(negative_anchors[:, t])
+                
+                if self.attn_type == "dot_product":
+                    multi_modal_tensor, attn = self.attention(anchor, positive_anchor)
+                elif self.attn_type == "scaled_dot_product":
+                    multi_modal_tensor, attn = self.attention(anchor, positive_anchor, positive_anchor, padding)
+                elif self.attn_type == "multi_head":
+                    multi_modal_tensor, attn = self.attention(anchor, positive_anchor, positive_anchor, padding)
+                # elif self.attn_type == "rel_multi_head":
+                #     combined_tensor = torch.concat([hidden, positive_anchor], dim=1)
+                #     # combined_pos_embd = torch.concat([vis_pos_embd, txt_pos_embd], dim=1)
+
+                #     # multi_modal_tensor, attn = self.attention(combined_tensor, combined_tensor, combined_tensor, combined_pos_embd, combined_padding)
+                #     multi_modal_tensor = multi_modal_tensor[:, :h*w]
+                elif self.attn_type == "custom_attn":
+                    # import pdb; pdb.set_trace()
+                    # padding = repeat(padding, "b n l -> (rep b) n l", rep=8)
+                    multi_modal_tensor, attn = self.attention(hidden, pos_anchor, attn, padding)
+                else:
+                    raise NotImplementedError(f'{self.attn_type} not implemented!')
+                
                 
                 if layer_idx == self.num_layers - 1:
                     mask = self.mask_decoder(hidden)

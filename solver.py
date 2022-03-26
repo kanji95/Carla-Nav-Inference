@@ -330,11 +330,14 @@ class Solver(object):
             with torch.no_grad():
                 frame = batch["anchor"].cuda(non_blocking=True)
                 
-                frame_mask = batch["anchor_mask"].cuda(non_blocking=True)
+                gt_frame_mask = batch["anchor_mask"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
                 
                 positive_anchor = batch["positive_anchor"].cuda(non_blocking=True)
+                positive_anchor_mask = batch["positive_anchor_mask"].cuda(non_blocking=True)
+                
                 negative_anchor = batch["negative_anchor"].cuda(non_blocking=True)
+                negative_anchor_mask = batch["negative_anchor_mask"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
                 frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
@@ -344,9 +347,8 @@ class Solver(object):
 
             start_time = time()
 
-            # import pdb; pdb.set_trace()
             mask, traj_mask = self.network(
-                frame, positive_anchor, negative_anchor
+                frame, positive_anchor, negative_anchor, frame_mask, positive_anchor_mask, negative_anchor_mask
             )
 
             if self.loss_func == "bce":

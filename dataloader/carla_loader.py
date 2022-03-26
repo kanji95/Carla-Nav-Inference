@@ -501,27 +501,35 @@ class CarlaFullDataset(Dataset):
         # tokens, phrase_mask = self.corpus.tokenize(command)
 
         # import pdb; pdb.set_trace()
-        output["sub_phrases"] = sub_phrases
-        output["tree_embedding"] = tree_embedding
-        output["attention_mask"] = attention_mask
-        output["similarity_gts"] = similarity_gts
+        # output["sub_phrases"] = sub_phrases
+        # output["tree_embedding"] = tree_embedding
+        # output["attention_mask"] = attention_mask
+        # output["similarity_gts"] = similarity_gts
 
         positive_anchor = tree_embedding[similarity_gts.argmax()]
         positive_anchor = torch.stack([positive_anchor]*self.sequence_len, dim=0)
+        positive_anchor_mask = attention_mask[similarity_gts.argmax()]
         
         # negative_indices = torch.where(similarity_gts == -1)
         # negative_index = random.choice(negative_indices)
         # negative_anchor = tree_embedding[negative_index]
         
         negative_anchor = []
+        negative_anchor_mask = []
         for similarity_gt in similarity_gts:
             negative_indices = torch.where(similarity_gt == -1)[0]
             negative_index = random.choice(negative_indices)
             negative_anchor.append(tree_embedding[negative_index])
+            negative_anchor_mask.append(attention_mask[negative_index])
         negative_anchor = torch.stack(negative_anchor, dim=0)
+        negative_anchor_mask = torch.stack(negative_anchor, dim=0)
         
         output["positive_anchor"] = positive_anchor
+        output["positive_anchor_mask"] = positive_anchor_mask
+        
         output["negative_anchor"] = negative_anchor
+        output["negative_anchor_mask"] = negative_anchor_mask
+        
         output["anchor"] = frames
         output["anchor_mask"] = frame_mask
         output["gt_traj_mask"] = traj_mask
