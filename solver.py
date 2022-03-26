@@ -249,7 +249,7 @@ class Solver(object):
         
         self.miner = miners.MultiSimilarityMiner()
         
-        self.triplet_loss = losses.TripletMarginLoss()
+        self.triplet_loss = nn.TripletMarginLoss(margin=10.0, p=2)
 
         self.bce_loss = nn.BCELoss(reduction="mean")
         self.ce_loss = nn.CrossEntropyLoss(reduction='sum')
@@ -357,7 +357,7 @@ class Solver(object):
                 frame, positive_anchor, negative_anchor, frame_mask, positive_anchor_mask, negative_anchor_mask
             )
             
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_frame_mask) + self.combo_loss(
@@ -386,6 +386,7 @@ class Solver(object):
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
+            loss += self.triplet_loss(anchor, positive, negative)
             loss.backward()
 
             if iterId % 1000 == 0 and self.grad_check:
@@ -399,7 +400,7 @@ class Solver(object):
             elapsed_time = end_time - start_time
 
             with torch.no_grad():
-                inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
+                inter_mask, union_mask = compute_mask_IOU(mask, gt_frame_mask, self.threshold)
                 inter_traj, union_traj = compute_mask_IOU(
                     traj_mask, gt_traj_mask, self.threshold
                 )
@@ -410,7 +411,7 @@ class Solver(object):
             total_inter_traj += inter_traj.item()
             total_union_traj += union_traj.item()
 
-            total_pg_mask += pointing_game(mask, gt_mask)
+            total_pg_mask += pointing_game(mask, gt_frame_mask)
             total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
 
             # total_it_mask += intersection_at_t(mask, gt_mask)
@@ -431,7 +432,7 @@ class Solver(object):
                         batch["orig_text"],
                         mask.detach().cpu(),
                         traj_mask.detach().cpu(),
-                        gt_mask.detach().cpu(),
+                        gt_frame_mask.detach().cpu(),
                         gt_traj_mask.detach().cpu(),
                         batch["episode"],
                         batch["sample_idx"],
@@ -443,7 +444,7 @@ class Solver(object):
                         batch["orig_text"],
                         mask.detach().cpu(),
                         traj_mask.detach().cpu(),
-                        gt_mask.detach().cpu(),
+                        gt_frame_mask.detach().cpu(),
                         gt_traj_mask.detach().cpu(),
                         batch["episode"],
                         batch["sample_idx"],

@@ -152,7 +152,7 @@ def log_frame_predicitons(front_cam_image, lang_command, pred_mask, traj_mask, g
 @torch.no_grad()
 def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, gt_mask, gt_traj_mask, episode_num, sample_idx, title="train", k=4
 ):
-    indices = np.random.choice(range(pred_mask.shape[0]), size=k, replace=False)
+    indices = np.random.choice(range(pred_mask.shape[0]), size=k, replace=True)
 
     b, c, t, h, w = pred_mask.shape
     # b, c, h, w = pred_mask.shape

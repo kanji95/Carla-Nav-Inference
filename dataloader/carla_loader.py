@@ -254,7 +254,7 @@ class CarlaFullDataset(Dataset):
 
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
-        frame_masks = torch.stack(frame_masks, dim=1)
+        frame_masks = torch.stack(frame_masks, dim=0)
 
         rgb_matrix = np.load(matrix_files[sample_idx])
 
@@ -498,6 +498,8 @@ class CarlaFullDataset(Dataset):
         command = open(command_path, "r").read()
         command = self.sub_command_data.loc[episode_num]["command"]
         command = re.sub(r"[^\w\s]", "", command)
+        output["orig_text"] = command
+
         # tokens, phrase_mask = self.corpus.tokenize(command)
 
         # import pdb; pdb.set_trace()
