@@ -132,7 +132,7 @@ class Solver(object):
             )
             visual_encoder = nn.Sequential(*list(video_encoder.blocks.children())[:-1])
 
-            self.network = ConvLSTMBaseline(
+            self.network = MetricSpaceBaseline(
                 visual_encoder,
                 hidden_dim=self.hidden_dim,
                 # image_dim=self.image_dim,

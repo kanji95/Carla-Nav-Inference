@@ -500,7 +500,7 @@ class CarlaFullDataset(Dataset):
         command = re.sub(r"[^\w\s]", "", command)
         # tokens, phrase_mask = self.corpus.tokenize(command)
 
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         output["sub_phrases"] = sub_phrases
         output["tree_embedding"] = tree_embedding
         output["attention_mask"] = attention_mask
@@ -525,5 +525,9 @@ class CarlaFullDataset(Dataset):
         output["anchor"] = frames
         output["anchor_mask"] = frame_mask
         output["gt_traj_mask"] = traj_mask
+
+        for key in output:
+            if torch.is_tensor(output[key]):
+                print(output[key].shape)
         
         return output
