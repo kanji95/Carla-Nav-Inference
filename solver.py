@@ -235,6 +235,7 @@ class Solver(object):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
+            shuffle=True,
             drop_last=False,
         )
         self.val_loader = DataLoader(
@@ -242,6 +243,7 @@ class Solver(object):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
+            shuffle=True,
             drop_last=False,
         )
 
