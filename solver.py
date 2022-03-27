@@ -350,12 +350,12 @@ class Solver(object):
                 num_samples += batch_size
 
                 # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
-                re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
-                bs, _, h, w = re_gt_mask.shape
+                # re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
+                # bs, _, h, w = re_gt_mask.shape
 
-                new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
-                new_gt_mask[re_gt_mask[:, 0] == 1] = 1
-                new_gt_mask[re_gt_mask[:, 1] == 1] = 2
+                # new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
+                # new_gt_mask[re_gt_mask[:, 0] == 1] = 1
+                # new_gt_mask[re_gt_mask[:, 1] == 1] = 2
 
             start_time = time()
 
@@ -363,30 +363,31 @@ class Solver(object):
             mask, traj_mask = self.network(
                 frame, sub_text, frame_mask, sub_text_mask
             )
-            re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
+            # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
 
+            print(mask.shape, gt_mask.shape)
             if self.loss_func == "bce":
-                loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
+                loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             elif self.loss_func == "combo":
-                loss = self.combo_loss(re_mask, new_gt_mask) + self.combo_loss(
+                loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             elif "class_level" in self.loss_func:
-                loss = self.class_level_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.class_level_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.focal_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.tversky_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.lovasz_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             else:
