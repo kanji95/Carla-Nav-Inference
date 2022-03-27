@@ -444,7 +444,7 @@ class Solver(object):
                         batch["orig_text"],
                         mask.detach().cpu(),
                         traj_mask.detach().cpu(),
-                        gt_frame_mask.detach().cpu(),
+                        batch["anchor_mask"].detach(),
                         gt_traj_mask.detach().cpu(),
                         batch["episode"],
                         batch["sample_idx"],

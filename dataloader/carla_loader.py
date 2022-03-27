@@ -160,9 +160,14 @@ class CarlaFullDataset(Dataset):
         self.sub_command_data = pd.read_csv(
             f"./dataloader/sub_commands_{self.split}.csv", index_col=0
         )
+        
+        # self.sub_command_data = pd.read_csv(
+        #     f"./sub_commands_{self.split}.csv", index_col=0
+        # )
 
         self.tree_embedding = torch.load(f"./dataloader/{self.split}_tree_embeddings.pt")
-
+        # self.tree_embedding = torch.load(f"./{self.split}_tree_embeddings.pt")
+        
     def __len__(self):
         return len(self.episodes)
 
