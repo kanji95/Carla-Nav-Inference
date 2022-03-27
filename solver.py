@@ -318,15 +318,10 @@ class Solver(object):
         total_inter_mask, total_union_mask = 0, 0
         total_inter_traj, total_union_traj = 0, 0
         total_pg_mask, total_pg_traj = 0, 0
-        # total_it_mask, total_it_traj = 0, 0
-        # total_rk_mask, total_rk_traj = 0, 0
-        # total_ds_mask, total_ds_traj = 0, 0
 
         data_len = len(self.train_loader)
 
         num_samples = 0
-
-        # import pdb; pdb.set_trace()
 
         epoch_start = time()
         for step, batch in enumerate(self.train_loader):
@@ -339,8 +334,6 @@ class Solver(object):
 
                 text_mask = batch["text_mask"].cuda(non_blocking=True)
                 sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
-                
-                # sub_text_labels = batch["sub_text_labels"].cuda(non_blocking=True)
 
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
@@ -351,23 +344,13 @@ class Solver(object):
                 )
                 num_samples += batch_size
 
-                # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
-                # re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
-                # bs, _, h, w = re_gt_mask.shape
-
-                # new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
-                # new_gt_mask[re_gt_mask[:, 0] == 1] = 1
-                # new_gt_mask[re_gt_mask[:, 1] == 1] = 2
-
             start_time = time()
 
             # import pdb; pdb.set_trace()
             mask, traj_mask = self.network(
                 frame, sub_text, frame_mask, sub_text_mask
             )
-            # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
-
-            # print(mask.shape, gt_mask.shape)
+            
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
@@ -421,15 +404,6 @@ class Solver(object):
 
             total_pg_mask += pointing_game(mask, gt_mask)
             total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
-
-            # total_it_mask += intersection_at_t(mask, gt_mask)
-            # total_it_traj += intersection_at_t(traj_mask, gt_traj_mask)
-
-            # total_rk_mask += recall_at_k(mask, gt_mask)
-            # total_rk_traj += recall_at_k(traj_mask, gt_traj_mask)
-
-            # total_ds_mask += dice_score(mask, gt_mask)
-            # total_ds_traj += dice_score(traj_mask, gt_traj_mask)
 
             total_loss += float(loss.item())
 

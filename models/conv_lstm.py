@@ -321,16 +321,10 @@ class ConvLSTM(nn.Module):
 
                 multi_modal_tensor = rearrange(multi_modal_tensor, "b (h w) c -> b c h w", h=h, w=w)
 
-                # hidden, cell = self.cell_list[layer_idx](
-                #     input_tensor=multi_modal_tensor,
-                #     cur_state=[hidden, cell],
-                # )
-                
                 if layer_idx == self.num_layers - 1:
                     mask = self.mask_decoder(multi_modal_tensor)
                     mask_list.append(mask)
                 
-                # hidden = rearrange(hidden, "b (h w) c -> b c h w", h=h, w=w)
                 output_inner.append(hidden)
 
             layer_output = torch.stack(output_inner, dim=1)
