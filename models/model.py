@@ -120,7 +120,7 @@ class JointSegmentationBaseline(nn.Module):
             ASPP(in_channels=hidden_dim, atrous_rates=[
                  6, 12, 24], out_channels=256),
             ConvUpsample(in_channels=256,
-                         out_channels=2,
+                         out_channels=1,
                          channels=[256, 256, 128],
                          upsample=[True, True, True],
                          drop=0.2,
@@ -568,11 +568,11 @@ class ConvLSTMBaseline(nn.Module):
             sub_text_feat, "(b n) l c -> b n l c", b=bs, n=nf)
 
         # import pdb; pdb.set_trace()
-        hidden_feat, segm_mask = self.mm_decoder(
+        last_state_feat, segm_mask = self.mm_decoder(
             vision_feat, sub_text_feat, frame_mask, sub_text_mask)  # .squeeze(1)
 
         # use last hidden state
-        traj_mask = self.traj_decoder(hidden_feat[-1][0])
+        traj_mask = self.traj_decoder(last_state_feat)
 
         return segm_mask, traj_mask
 

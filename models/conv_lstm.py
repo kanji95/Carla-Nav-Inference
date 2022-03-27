@@ -208,7 +208,7 @@ class ConvLSTM(nn.Module):
             ),
             ConvUpsample(
                 in_channels=256,
-                out_channels=2,
+                out_channels=1,
                 channels=[256, 256, 128],
                 upsample=[True, True, True],
                 drop=0.2,
@@ -345,7 +345,7 @@ class ConvLSTM(nn.Module):
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
 
-        return last_state_list, final_mask
+        return multi_modal_tensor, final_mask
 
     def _init_hidden(self, batch_size, image_size):
         init_states = []
