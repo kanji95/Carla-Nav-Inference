@@ -302,7 +302,7 @@ class JointVideoSegmentationBaseline(nn.Module):
             ),
             nn.Sigmoid(),
         )
-        
+
         # self.mm_decoder = ConvLSTM(
         #     input_dim=hidden_dim,
         #     mask_dim=mask_dim,
@@ -508,17 +508,20 @@ class ConvLSTMBaseline(nn.Module):
 
         self.spatial_dim = spatial_dim
         self.num_frames = num_frames
-        
+
         self.attn_type = attn_type
 
         self.vision_encoder = vision_encoder
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
-        self.sub_text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
+        self.sub_text_encoder = TextEncoder(
+            num_layers=1, hidden_size=hidden_dim)
 
-        self.conv3d = nn.Conv3d(192, hidden_dim, kernel_size=3, stride=1, padding=1)
-        
-        self.bilinear = nn.Bilinear(self.num_frames * 49, 20, self.num_frames * 49)
-        
+        self.conv3d = nn.Conv3d(
+            192, hidden_dim, kernel_size=3, stride=1, padding=1)
+
+        self.bilinear = nn.Bilinear(
+            self.num_frames * 49, 20, self.num_frames * 49)
+
         self.mm_decoder = ConvLSTM(
             input_dim=hidden_dim,
             mask_dim=mask_dim,
@@ -549,23 +552,25 @@ class ConvLSTMBaseline(nn.Module):
 
         bs = frames.shape[0]
         nf = self.num_frames
-        
+
         vision_feat = self.vision_encoder(frames)
         vision_feat = F.relu(self.conv3d(vision_feat))
         # vision_feat = rearrange(vision_feat, "b c t h w -> b c (t h w)")
 
         # text_feat = self.text_encoder(text)
         # text_feat = rearrange(text_feat, "b l c -> b c l")
-        
+
         # mm_feat = self.smm_feat, "b c (t h w) -> b t c h w", t=nf, h=7, w=7)
-        
+
         sub_text = rearrange(sub_text, "b n l c -> (b n) l c")
         sub_text_feat = self.sub_text_encoder(sub_text)
-        sub_text_feat = rearrange(sub_text_feat, "(b n) l c -> b n l c", b=bs, n=nf)
+        sub_text_feat = rearrange(
+            sub_text_feat, "(b n) l c -> b n l c", b=bs, n=nf)
 
         # import pdb; pdb.set_trace()
-        hidden_feat, segm_mask = self.mm_decoder(vision_feat, sub_text_feat, frame_mask, sub_text_mask)  # .squeeze(1)
-        
+        hidden_feat, segm_mask = self.mm_decoder(
+            vision_feat,  frame_mask, sub_text_feat, sub_text_mask)  # .squeeze(1)
+
         # use last hidden state
         traj_mask = self.traj_decoder(hidden_feat[-1][0])
 
