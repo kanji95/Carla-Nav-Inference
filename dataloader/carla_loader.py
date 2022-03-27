@@ -386,24 +386,24 @@ class CarlaFullDataset(Dataset):
                 mask = self.mask_transform(mask)
             mask[mask > 0] = 1
 
-            mask_ = torch.zeros_like(mask)
-            mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
+            # mask_ = torch.zeros_like(mask)
+            # mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
 
             if curr_click_idx == final_click_idx:
-                mask_[1] = mask[0]
+                # mask_[1] = mask[0]
                 sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
                 # sub_cmd_label = 1
                 if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
                     sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
                     # sub_cmd_label = 0
             else:
-                mask_[0] = mask[0]
+                # mask_[0] = mask[0]
                 sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
                 # sub_cmd_label = 0
                 
             # sub_command_labels.append(sub_cmd_label)
 
-            mask = mask_ + 1e-4
+            # mask = mask_ + 1e-4
 
             frames.append(img)
             frame_masks.append(mask)
