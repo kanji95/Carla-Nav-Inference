@@ -516,8 +516,11 @@ class CarlaFullDataset(Dataset):
         negative_anchor_mask = []
         for similarity_gt in similarity_gts:
             negative_indices = torch.where(similarity_gt == -1)[0]
-            negative_anchor.append(torch.cat([tree_embedding[idx] for idx in negative_indices], dim=0))
-            negative_anchor_mask.append(torch.stack([attention_mask[idx] for idx in negative_indices], dim=0))
+            negative_index = np.random.choice(negative_indices)
+            negative_anchor.append(tree_embedding[negative_index])
+            negative_anchor_mask.append(attention_mask[negative_index])
+            # negative_anchor.append(torch.cat([tree_embedding[idx] for idx in negative_indices], dim=0))
+            # negative_anchor_mask.append(torch.stack([attention_mask[idx] for idx in negative_indices], dim=0))
         negative_anchor = torch.stack(negative_anchor, dim=0)
         negative_anchor_mask = torch.stack(negative_anchor_mask, dim=0)
         
