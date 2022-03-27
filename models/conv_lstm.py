@@ -293,7 +293,7 @@ class ConvLSTM(nn.Module):
                 
                 
                 if layer_idx == self.num_layers - 1:
-                    mask = self.mask_decoder(hidden)
+                    mask = self.mask_decoder(mm_tensor)
                     mask_list.append(mask)
                 
                 # hidden = rearrange(hidden, "b (h w) c -> b c h w", h=h, w=w)
