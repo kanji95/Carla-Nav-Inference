@@ -33,7 +33,7 @@ class VideoUpsample(nn.Module):
                         padding=1,
                         bias=False,
                     ),
-                    nn.BatchNorm3d(channels[i]),
+                    # nn.BatchNorm3d(channels[i]),
                     nn.ReLU(),
                     nn.Dropout3d(drop),
                 )
@@ -94,7 +94,7 @@ class ConvUpsample(nn.Module):
                         padding=1,
                         bias=False,
                     ),
-                    nn.BatchNorm2d(channels[i]),
+                    # nn.BatchNorm2d(channels[i]),
                     nn.ReLU(),
                     nn.Dropout2d(drop),
                 )
@@ -135,7 +135,7 @@ class ASPPConv(nn.Sequential):
                 dilation=dilation,
                 bias=False,
             ),
-            nn.BatchNorm2d(out_channels),
+            # nn.BatchNorm2d(out_channels),
             nn.ReLU(),
         ]
         super(ASPPConv, self).__init__(*modules)
@@ -146,7 +146,7 @@ class ASPPPooling(nn.Sequential):
         super(ASPPPooling, self).__init__(
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(in_channels, out_channels, 1, bias=False),
-            nn.BatchNorm2d(out_channels),
+            # nn.BatchNorm2d(out_channels),
             nn.ReLU(),
         )
 
@@ -164,7 +164,7 @@ class ASPP(nn.Module):
         modules.append(
             nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, 1, bias=False),
-                nn.BatchNorm2d(out_channels),
+                # nn.BatchNorm2d(out_channels),
                 nn.ReLU(),
             )
         )
@@ -179,7 +179,7 @@ class ASPP(nn.Module):
 
         self.project = nn.Sequential(
             nn.Conv2d(len(self.convs) * out_channels, out_channels, 1, bias=False),
-            nn.BatchNorm2d(out_channels),
+            # nn.BatchNorm2d(out_channels),
             nn.ReLU(),
             nn.Dropout2d(0.25),
         )

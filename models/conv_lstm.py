@@ -275,10 +275,11 @@ class ConvLSTM(nn.Module):
             hidden, cell = hidden_state[layer_idx]
             output_inner = []
 
-            # import pdb; pdb.set_trace()
             attn = None
 
             for t in range(seq_len):
+
+                # import pdb; pdb.set_trace()
 
                 # attention masks
                 padding = ~torch.einsum(
@@ -289,23 +290,30 @@ class ConvLSTM(nn.Module):
                 ).bool()[:, None]
 
                 visual_tensor = cur_layer_input[:, t, :, :, :]
-                visual_tensor = rearrange(
-                    visual_tensor, "b c h w -> b (h w) c")
+                # visual_tensor = rearrange(
+                #     visual_tensor, "b c h w -> b (h w) c")
 
                 lang_tensor = context_tensor[:, t]
 
+                hidden, cell = self.cell_list[layer_idx](
+                    input_tensor=visual_tensor,
+                    cur_state=[hidden, cell],
+                )
+
+                frame_tensor = rearrange(hidden, "b c h w -> b (h w) c")
+
                 if self.attn_type == "dot_product":
                     multi_modal_tensor, attn = self.attention(
-                        visual_tensor, lang_tensor)
+                        frame_tensor, lang_tensor)
                 elif self.attn_type == "scaled_dot_product":
                     multi_modal_tensor, attn = self.attention(
-                        visual_tensor, lang_tensor, lang_tensor, padding)
+                        frame_tensor, lang_tensor, lang_tensor, padding)
                 elif self.attn_type == "multi_head":
                     multi_modal_tensor, attn = self.attention(
-                        visual_tensor, lang_tensor, lang_tensor, padding)
+                        frame_tensor, lang_tensor, lang_tensor, padding)
                 elif self.attn_type == "rel_multi_head":
                     combined_tensor = torch.concat(
-                        [visual_tensor, lang_tensor], dim=1)
+                        [frame_tensor, lang_tensor], dim=1)
                     combined_pos_embd = torch.concat(
                         [vis_pos_embd, txt_pos_embd], dim=1)
 
@@ -316,7 +324,7 @@ class ConvLSTM(nn.Module):
                     # import pdb; pdb.set_trace()
                     padding = repeat(padding, "b n l -> (rep b) n l", rep=8)
                     multi_modal_tensor, attn = self.attention(
-                        visual_tensor, lang_tensor, attn, padding)
+                        frame_tensor, lang_tensor, attn, padding)
                 else:
                     raise NotImplementedError(
                         f'{self.attn_type} not implemented!')
@@ -324,13 +332,13 @@ class ConvLSTM(nn.Module):
                 multi_modal_tensor = rearrange(
                     multi_modal_tensor, "b (h w) c -> b c h w", h=h, w=w)
 
-                hidden, cell = self.cell_list[layer_idx](
-                    input_tensor=multi_modal_tensor,
-                    cur_state=[hidden, cell],
-                )
+                # hidden, cell = self.cell_list[layer_idx](
+                #     input_tensor=multi_modal_tensor,
+                #     cur_state=[hidden, cell],
+                # )
 
                 if layer_idx == self.num_layers - 1:
-                    mask = self.mask_decoder(hidden)
+                    mask = self.mask_decoder(multi_modal_tensor)
                     mask_list.append(mask)
 
                 # hidden = rearrange(hidden, "b (h w) c -> b c h w", h=h, w=w)
