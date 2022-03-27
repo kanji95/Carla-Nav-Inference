@@ -96,11 +96,14 @@ class ClassLevelLoss(nn.Module):
     def forward(self, inputs, targets):
         # print(inputs.shape, targets.shape)
         if "bce" in self.loss_func:
-            return self.beta * self.bce_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.bce_loss(inputs[:, 1], targets[:, 1])
+            # return self.beta * self.bce_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.bce_loss(inputs[:, 1], targets[:, 1])
+            return self.bce_loss(inputs, targets)
         elif "kldiv" in self.loss_func:
-            return self.beta * self.kld_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.kld_loss(inputs[:, 1], targets[:, 1])
+            # return self.beta * self.kld_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.kld_loss(inputs[:, 1], targets[:, 1])
+            return self.kld_loss(inputs, targets)
         elif "combo" in self.loss_func:
-            return self.beta * self.combo_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.combo_loss(inputs[:, 1], targets[:, 1])
+            # return self.beta * self.combo_loss(inputs[:, 0], targets[:, 0]) + (1 - self.beta) * self.combo_loss(inputs[:, 1], targets[:, 1])
+            return self.combo_loss(inputs, targets)
         elif "single" in self.loss_func:
             # import pdb; pdb.set_trace()
             return - (self.beta * targets[:, 0] * torch.log(inputs[:, 0]) + (1 - self.beta) * targets[:, 1] * torch.log(inputs[:, 1])).flatten(1).sum(dim=-1).mean()

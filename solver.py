@@ -365,7 +365,7 @@ class Solver(object):
             )
             # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
 
-            print(mask.shape, gt_mask.shape)
+            # print(mask.shape, gt_mask.shape)
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
