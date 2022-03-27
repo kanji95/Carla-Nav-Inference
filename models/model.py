@@ -555,6 +555,9 @@ class ConvLSTMBaseline(nn.Module):
 
         vision_feat = self.vision_encoder(frames)
         vision_feat = F.relu(self.conv3d(vision_feat))
+        # according to x3d_s architecture
+        vision_feat = rearrange(vision_feat, 'b c t h w -> b t c h w')
+
         # vision_feat = rearrange(vision_feat, "b c t h w -> b c (t h w)")
 
         # text_feat = self.text_encoder(text)
@@ -569,7 +572,7 @@ class ConvLSTMBaseline(nn.Module):
 
         # import pdb; pdb.set_trace()
         hidden_feat, segm_mask = self.mm_decoder(
-            vision_feat,  frame_mask, sub_text_feat, sub_text_mask)  # .squeeze(1)
+            vision_feat,  sub_text_feat, frame_mask, sub_text_mask)  # .squeeze(1)
 
         # use last hidden state
         traj_mask = self.traj_decoder(hidden_feat[-1][0])

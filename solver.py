@@ -28,7 +28,8 @@ class Solver(object):
     def __init__(self, args):
         self.args = args
 
-        self.experiment = wandb.init(project="Language Navigation", config=self.args)
+        self.experiment = wandb.init(
+            project="Language Navigation", config=self.args)
         self.experiment.name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{self.experiment.id}"
 
         self.epochs = self.args.epochs
@@ -61,15 +62,18 @@ class Solver(object):
 
         self.threshold = self.args.threshold
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
         self.num_gpu = torch.cuda.device_count()
         print(f"Using {self.device} with {self.num_gpu} GPUS!")
 
-        return_layers = {"layer2": "layer2", "layer3": "layer3", "layer4": "layer4"}
+        return_layers = {"layer2": "layer2",
+                         "layer3": "layer3", "layer4": "layer4"}
 
         self.mode = "image"
         if "vit_" in self.img_backbone:
-            img_backbone = timm.create_model(self.img_backbone, pretrained=True)
+            img_backbone = timm.create_model(
+                self.img_backbone, pretrained=True)
             visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
             self.network = JointSegmentationBaseline(
                 visual_encoder,
@@ -80,8 +84,10 @@ class Solver(object):
                 backbone=self.img_backbone,
             )
         elif "dino_resnet50" in self.img_backbone:
-            img_backbone = torch.hub.load("facebookresearch/dino:main", "dino_resnet50")
-            visual_encoder = IntermediateLayerGetter(img_backbone, return_layers)
+            img_backbone = torch.hub.load(
+                "facebookresearch/dino:main", "dino_resnet50")
+            visual_encoder = IntermediateLayerGetter(
+                img_backbone, return_layers)
             self.network = IROSBaseline(
                 visual_encoder,
                 hidden_dim=self.hidden_dim,
@@ -130,7 +136,8 @@ class Solver(object):
             video_encoder = torch.hub.load(
                 "facebookresearch/pytorchvideo", "x3d_s", pretrained=True
             )
-            visual_encoder = nn.Sequential(*list(video_encoder.blocks.children())[:-1])
+            visual_encoder = nn.Sequential(
+                *list(video_encoder.blocks.children())[:-1])
 
             self.network = ConvLSTMBaseline(
                 visual_encoder,
@@ -257,13 +264,16 @@ class Solver(object):
         self.lovasz_loss = LovaszLoss(mode="binary", ignore_index=0)
 
     def initialize_optimizer(self):
-        params = list([p for p in self.network.parameters() if p.requires_grad])
+        params = list(
+            [p for p in self.network.parameters() if p.requires_grad])
 
         print(f"Using {self.args.optimizer} optimizer!!")
         if self.args.optimizer == "AdamW":
-            optimizer = AdamW(params, lr=self.lr, weight_decay=self.weight_decay)
+            optimizer = AdamW(params, lr=self.lr,
+                              weight_decay=self.weight_decay)
         elif self.args.optimizer == "Adam":
-            optimizer = Adam(params, lr=self.lr, weight_decay=self.weight_decay)
+            optimizer = Adam(params, lr=self.lr,
+                             weight_decay=self.weight_decay)
         elif self.args.optimizer == "SGD":
             optimizer = SGD(
                 params, lr=self.lr, momentum=0.8, weight_decay=self.weight_decay
@@ -291,13 +301,15 @@ class Solver(object):
         #         weight_decay=self.weight_decay,
         #     )
         elif self.args.optimizer == "ASGD":
-            optimizer = ASGD(params, lr=self.lr, weight_decay=self.weight_decay)
+            optimizer = ASGD(params, lr=self.lr,
+                             weight_decay=self.weight_decay)
         return optimizer
 
     def log_parameter_info(self):
         total_parameters = 0
         for name, child in self.network.named_children():
-            num_params = sum([p.numel() for p in child.parameters() if p.requires_grad])
+            num_params = sum([p.numel()
+                             for p in child.parameters() if p.requires_grad])
             if num_params > 0:
                 print(f"No. of params in {name}: {num_params}")
                 total_parameters += num_params
@@ -324,7 +336,7 @@ class Solver(object):
 
         num_samples = 0
 
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
 
         epoch_start = time()
         for step, batch in enumerate(self.train_loader):
@@ -337,7 +349,7 @@ class Solver(object):
 
                 text_mask = batch["text_mask"].cuda(non_blocking=True)
                 sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
-                
+
                 # sub_text_labels = batch["sub_text_labels"].cuda(non_blocking=True)
 
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
@@ -405,7 +417,8 @@ class Solver(object):
             elapsed_time = end_time - start_time
 
             with torch.no_grad():
-                inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
+                inter_mask, union_mask = compute_mask_IOU(
+                    mask, gt_mask, self.threshold)
                 inter_traj, union_traj = compute_mask_IOU(
                     traj_mask, gt_traj_mask, self.threshold
                 )
@@ -484,7 +497,7 @@ class Solver(object):
                 # print(
                 #     f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} |Mask IOU {curr_IOU_mask:.4f}|Traj IOU {curr_IOU_traj:.4f}|Mask PG {curr_pg_mask:.4f}|Traj PG {curr_pg_traj:.4f}|Mask IT {curr_it_mask:.4f}|Traj IT {curr_it_traj:.4f}|Mask RK {curr_rk_mask:.4f}|Traj RK {curr_rk_traj:.4f}|Mask DS {curr_ds_mask:.4f}|Traj DS {curr_ds_traj:.4f}| mem_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 # )
-                
+
                 print(
                     f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} |Mask IOU {curr_IOU_mask:.4f}|Traj IOU {curr_IOU_traj:.4f}|Mask PG {curr_pg_mask:.4f}|Traj PG {curr_pg_traj:.4f}|　mem_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 )
@@ -534,7 +547,7 @@ class Solver(object):
         # print(
         #     f"{timestamp} FINISHED Epoch:{epochId:2d} loss {train_loss:.4f} Mask IOU {train_IOU_mask:.4f} Traj IOU {train_IOU_traj:.4f} Mask PG {train_pg_mask:.4f} Traj PG {train_pg_traj:.4f} Mask IT {train_it_mask:.4f} Traj IT {train_it_traj:.4f} Mask RK {train_rk_mask:.4f} Traj RK {train_rk_traj:.4f} Mask DS {train_ds_mask:.4f} Traj DS {train_ds_traj:.4f} elapsed {epoch_time:.2f}"
         # )
-        
+
         print(
             f"{timestamp} FINISHED Epoch:{epochId:2d} loss {train_loss:.4f} Mask IOU {train_IOU_mask:.4f} Traj IOU {train_IOU_traj:.4f} Mask PG {train_pg_mask:.4f} Traj PG {train_pg_traj:.4f} elapsed {epoch_time:.2f}"
         )
@@ -569,9 +582,9 @@ class Solver(object):
 
             text_mask = batch["text_mask"].cuda(non_blocking=True)
             text_mask = torch.stack([text_mask]*self.num_frames, dim=1)
-            
+
             sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
-            
+
             # sub_text_labels = batch["sub_text_labels"].cuda(non_blocking=True)
 
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
@@ -601,23 +614,23 @@ class Solver(object):
             if self.loss_func == "bce":
                 loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif self.loss_func == "combo":
                 loss = self.combo_loss(re_mask, new_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "tversky" in self.loss_func:
                 loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "lovasz" in self.loss_func:
                 loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
@@ -628,7 +641,8 @@ class Solver(object):
             end_time = time()
             elapsed_time = end_time - start_time
 
-            inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
+            inter_mask, union_mask = compute_mask_IOU(
+                mask, gt_mask, self.threshold)
             inter_traj, union_traj = compute_mask_IOU(
                 traj_mask, gt_traj_mask, self.threshold
             )
@@ -702,7 +716,7 @@ class Solver(object):
 
                 # curr_ds_mask = total_ds_mask / num_samples
                 # curr_ds_traj = total_ds_traj / num_samples
-                
+
                 # print(
                 #     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} |Mask IOU {curr_IOU_mask:.4f}|Traj IOU {curr_IOU_traj:.4f}|Mask PG {curr_pg_mask:.4f}|Traj PG {curr_pg_traj:.4f}|Mask IT {curr_it_mask:.4f}|Traj IT {curr_it_traj:.4f}|Mask RK {curr_rk_mask:.4f}|Traj RK {curr_rk_traj:.4f}|Mask DS {curr_ds_mask:.4f}|Traj DS {curr_ds_traj:.4f}| mem_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 # )
@@ -710,7 +724,7 @@ class Solver(object):
                 print(
                     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} |Mask IOU {curr_IOU_mask:.4f}|Traj IOU {curr_IOU_traj:.4f}|Mask PG {curr_pg_mask:.4f}|Traj PG {curr_pg_traj:.4f}| mem_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 )
-                    
+
                 # print(
                 #     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 # )
@@ -755,7 +769,7 @@ class Solver(object):
         # print(
         #     f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} Mask_IOU {val_IOU_mask:.4f} Traj_IOU {val_IOU_traj:.4f} Mask_PG {val_pg_mask:.4f} Traj_PG {val_pg_traj:.4f} Mask IT {val_it_mask:.4f} Traj IT {val_it_traj:.4f} Mask RK {val_rk_mask:.4f} Traj RK {val_rk_traj:.4f} Mask DS {val_ds_mask:.4f} Traj DS {val_ds_traj:.4f}"
         # )
-        
+
         print(
             f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} Mask_IOU {val_IOU_mask:.4f} Traj_IOU {val_IOU_traj:.4f} Mask_PG {val_pg_mask:.4f} Traj_PG {val_pg_traj:.4f}"
         )
