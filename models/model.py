@@ -90,6 +90,9 @@ class MetricSpaceBaseline(nn.Module):
         self.attn_type = attn_type
 
         self.vision_encoder = vision_encoder
+        for param in self.vision_encoder.parameters():
+            param.requires_grad_(False)
+        
         self.text_encoder = nn.Linear(768, hidden_dim)
 
         self.conv3d = nn.Conv3d(192, hidden_dim, kernel_size=3, stride=1, padding=1)
