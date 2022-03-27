@@ -291,6 +291,7 @@ class ConvLSTM(nn.Module):
                 else:
                     raise NotImplementedError(f'{self.attn_type} not implemented!')
                 
+                mm_tensor = rearrange(mm_tensor, "b (h w) c -> b c h w", h=h, w=w)
                 
                 if layer_idx == self.num_layers - 1:
                     mask = self.mask_decoder(mm_tensor)
