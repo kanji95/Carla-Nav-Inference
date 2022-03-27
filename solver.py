@@ -435,7 +435,7 @@ class Solver(object):
 
             if iterId % 50 == 0 and step != 0:
                 # import pdb; pdb.set_trace()
-                # print(mask.min(), mask.max())
+                print(mask.min(), mask.max())
                 gc.collect()
                 memoryUse = py.memory_info()[0] / 2.0 ** 20
                 timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
@@ -656,7 +656,7 @@ class Solver(object):
                         title="validation",
                     )
             if step % 10 == 0:
-                # print(mask.min(), mask.max())
+                print(mask.min(), mask.max())
 
                 gc.collect()
                 memoryUse = py.memory_info()[0] / 2.0 ** 20
