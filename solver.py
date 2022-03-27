@@ -249,7 +249,7 @@ class Solver(object):
         
         self.miner = miners.MultiSimilarityMiner()
         
-        self.triplet_loss = nn.TripletMarginLoss(margin=10.0, p=2)
+        self.triplet_loss = nn.TripletMarginLoss(margin=2.0, p=2)
 
         self.bce_loss = nn.BCELoss(reduction="mean")
         self.ce_loss = nn.CrossEntropyLoss(reduction='sum')

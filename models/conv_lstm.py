@@ -227,7 +227,7 @@ class ConvLSTM(nn.Module):
             hidden, cell = hidden_state[layer_idx]
             output_inner = []
 
-            attn = None
+            attn_ = None
             
             # import pdb; pdb.set_trace()
             
@@ -271,7 +271,11 @@ class ConvLSTM(nn.Module):
                 score_an = F.cosine_similarity(anchor_feat, neg_anchor_feat, dim=1)
 
                 scores = torch.cat([score_ap, score_an])
-                attn = F.softmax(scores, dim=0) 
+                attn = F.softmax(scores/scores.mean(), dim=0) 
+
+                # import pdb; pdb.set_trace()
+
+                # print(f'attn value: {attn}')
 
                 lang_tensor = torch.cat([positive_anchor, negative_anchor], dim=1) 
                 wt_lang_tensor = (attn[None, :, None, None]*lang_tensor).sum(dim=1)
