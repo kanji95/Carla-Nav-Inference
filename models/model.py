@@ -569,7 +569,7 @@ class ConvLSTMBaseline(nn.Module):
 
         # import pdb; pdb.set_trace()
         hidden_feat, segm_mask = self.mm_decoder(
-            vision_feat,  frame_mask, sub_text_feat, sub_text_mask)  # .squeeze(1)
+            vision_feat, sub_text_feat, frame_mask, sub_text_mask)  # .squeeze(1)
 
         # use last hidden state
         traj_mask = self.traj_decoder(hidden_feat[-1][0])

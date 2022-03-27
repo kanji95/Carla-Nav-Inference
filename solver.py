@@ -324,7 +324,7 @@ class Solver(object):
 
         num_samples = 0
 
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
 
         epoch_start = time()
         for step, batch in enumerate(self.train_loader):
