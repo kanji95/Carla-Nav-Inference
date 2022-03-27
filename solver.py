@@ -430,7 +430,7 @@ class Solver(object):
 
             total_loss += float(loss.item())
 
-            if step % 1000 == 0:
+            if step % 100 == 0:
                 if self.mode == "image":
                     log_frame_predicitons(
                         batch["orig_frame"],
@@ -456,7 +456,7 @@ class Solver(object):
                         title="training",
                     )
 
-            if iterId % 250 == 0 and step != 0:
+            if iterId % 50 == 0 and step != 0:
                 # import pdb; pdb.set_trace()
                 # print(mask.min(), mask.max())
                 gc.collect()
@@ -587,39 +587,39 @@ class Solver(object):
             re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
             bs, _, h, w = re_gt_mask.shape
 
-            new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
-            new_gt_mask[re_gt_mask[:, 0] == 1] = 1
-            new_gt_mask[re_gt_mask[:, 1] == 1] = 2
+            # new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
+            # new_gt_mask[re_gt_mask[:, 0] == 1] = 1
+            # new_gt_mask[re_gt_mask[:, 1] == 1] = 2
 
             start_time = time()
 
             mask, traj_mask = self.network(
                 frame, text, frame_mask, text_mask
             )
-            re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
+            # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
 
             if self.loss_func == "bce":
-                loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
+                loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 ) 
             elif self.loss_func == "combo":
-                loss = self.combo_loss(re_mask, new_gt_mask) + self.combo_loss(
+                loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 ) 
             elif "class_level" in self.loss_func:
-                loss = self.class_level_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.class_level_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 ) 
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.focal_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 ) 
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.tversky_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 ) 
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(re_mask, re_gt_mask) + self.combo_loss(
+                loss = self.lovasz_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
                 )
             else:
@@ -653,7 +653,7 @@ class Solver(object):
 
             total_loss += float(loss.item())
 
-            if step % 500 == 0:
+            if step % 10 == 0:
                 if self.mode == "image":
                     log_frame_predicitons(
                         batch["orig_frame"],
@@ -678,7 +678,7 @@ class Solver(object):
                         batch["sample_idx"],
                         title="validation",
                     )
-            if step % 250 == 0:
+            if step % 10 == 0:
                 # print(mask.min(), mask.max())
 
                 gc.collect()

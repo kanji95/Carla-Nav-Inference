@@ -152,7 +152,7 @@ class CarlaDataset(Dataset):
         self.corpus = Corpus(glove_path)
 
     def __len__(self):
-        return self.dataset_len
+        return len(self.episodes)
 
     def get_video_data(self, image_files, mask_files, num_files):
         sample_idx = np.random.choice(range(num_files - self.sequence_len))
