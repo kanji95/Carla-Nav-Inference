@@ -161,8 +161,8 @@ def main(args):
         sub_commands = [re.sub(r"[^\w\s]", "", sub_command) for sub_command in sub_commands]
 
         phrase, phrase_mask = corpus.tokenize(command)
-        phrase = phrase.unsqueeze(0)
-        phrase_mask = phrase_mask.unsqueeze(0)
+        phrase = phrase.cuda(non_blocking=True).unsqueeze(0)
+        phrase_mask = phrase_mask.cuda(non_blocking=True).unsqueeze(0)
 
         sub_phrase = torch.stack([phrase]*args.num_frames, dim=1)
         sub_phrase_mask = torch.stack([phrase_mask]*args.num_frames, dim=1)
@@ -230,9 +230,10 @@ def main(args):
         # import pdb; pdb.set_trace()
         mask_video_overlay = np.copy(frame_video)
         # print(mask_video_overlay.shape, mask_video.shape)
+        # mask_video_overlay += mask_video / mask_video.max() # red - intermediate point
         mask_video_overlay[:, 0] += mask_video[:, 0] / mask_video[:, 0].max() # red - intermediate point
         # mask_video_overlay[:, 0] += mask_video[:, 0] / mask_video[:, 0].max() # red - intermediate point
-        mask_video_overlay[:, 2] += mask_video[:, 1] / mask_video[:, 1].max() # blue - final point
+        # mask_video_overlay[:, 2] += mask_video[:, 1] / mask_video[:, 1].max() # blue - final point
         mask_video_overlay = np.clip(mask_video_overlay, a_min=0.0, a_max=1.0)
 
         traj_video_overlay = np.copy(frame_video)
