@@ -516,15 +516,15 @@ class ConvLSTMBaseline(nn.Module):
         for param in self.vision_encoder.parameters():
             param.requires_grad_(False)
 
-        self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
+        # self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
         self.sub_text_encoder = TextEncoder(
             num_layers=1, hidden_size=hidden_dim)
 
-        self.conv3d = nn.Conv3d(
-            192, hidden_dim, kernel_size=3, stride=1, padding=1)
+        # self.conv3d = nn.Conv3d(
+        #     192, hidden_dim, kernel_size=3, stride=1, padding=1)
 
-        self.bilinear = nn.Bilinear(
-            self.num_frames * 49, 20, self.num_frames * 49)
+        # self.bilinear = nn.Bilinear(
+        #     self.num_frames * 49, 20, self.num_frames * 49)
 
         self.mm_decoder = ConvLSTM(
             input_dim=hidden_dim,
@@ -558,7 +558,7 @@ class ConvLSTMBaseline(nn.Module):
         nf = self.num_frames
 
         vision_feat = self.vision_encoder(frames)
-        vision_feat = F.relu(self.conv3d(vision_feat))
+        # vision_feat = F.relu(self.conv3d(vision_feat))
         # vision_feat = rearrange(vision_feat, "b c t h w -> b c (t h w)")
 
         # text_feat = self.text_encoder(text)
