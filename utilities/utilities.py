@@ -231,24 +231,25 @@ def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, g
 
     # import pdb; pdb.set_trace()
     # print(gt_mask.shape, pred_mask.shape)
+    index = np.random.choice(pred_mask.shape[0])
 
     b, t, c, h, w = pred_mask.shape
 
-    orig_video = rearrange(front_cam_video[0], "t h w c -> t c h w")
+    orig_video = rearrange(front_cam_video[index], "t h w c -> t c h w")
 
     mask_pred = np.zeros((t, 3, h, w))
-    mask_pred[:, 0] = pred_mask[:, :, 0]
+    mask_pred[:, 0] = pred_mask[index, :, 0]
     mask_pred = np.uint8(mask_pred * 255)
     
     mask_gt = np.zeros((t, 3, h, w))
-    mask_gt[:, 1] = gt_mask[:, :, 0]
+    mask_gt[:, 1] = gt_mask[index, :, 0]
     mask_gt = np.uint8(mask_gt * 255)
 
     # mask_pred = np.uint8(rearrange(gt_mask, "b t c h w -> t (b c) h w")*255.)    
     # mask_gt = np.uint8(rearrange(gt_mask[0], "t c w h -> t  c w h")*255.)
 
-    traj_pred = np.uint8(rearrange(traj_mask[0], "c h w -> h w c")*255.)
-    traj_mask_gt = np.uint8(rearrange(gt_traj_mask[0], "c h w -> h w c")*255.)
+    traj_pred = np.uint8(rearrange(traj_mask[index], "c h w -> h w c")*255.)
+    traj_mask_gt = np.uint8(rearrange(gt_traj_mask[index], "c h w -> h w c")*255.)
     command = lang_command[0]
 
     wandb.log(
