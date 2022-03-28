@@ -291,7 +291,7 @@ def run_image_model(
         frame = img_transform(image).cuda(non_blocking=True).unsqueeze(0)
         gt_mask = mask_transform(gt_mask).unsqueeze(0) #.cuda(non_blocking=True).unsqueeze(0)
 
-        mask, traj_mask = network(frame, phrase, sub_phrase, frame_mask, phrase_mask, sub_phrase_mask)
+        mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
 
         frame_video.append(frame.detach().cpu().numpy())
         mask_video.append(mask.detach().cpu().numpy())
@@ -333,7 +333,7 @@ def run_video_model(
         
         video_frames = torch.stack(video_queue, dim=1).cuda(non_blocking=True).unsqueeze(0)
 
-        mask, traj_mask = network(video_frames, phrase, sub_phrase, frame_mask, phrase_mask, sub_phrase_mask)
+        mask, traj_mask = network(video_frames, sub_phrase, frame_mask, sub_phrase_mask)
 
         frame_video.append(frame[None].detach().cpu().numpy())
         mask_video.append(mask[:, :, -1].detach().cpu().numpy())
