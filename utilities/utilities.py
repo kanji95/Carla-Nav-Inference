@@ -237,11 +237,11 @@ def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, g
     orig_video = rearrange(front_cam_video[0], "t h w c -> t c h w")
 
     mask_pred = np.zeros((t, 3, h, w))
-    mask_pred[:, 0] = pred_mask[0, :, 0]
+    mask_pred[:, 0] = pred_mask[:, :, 0]
     mask_pred = np.uint8(mask_pred * 255)
     
     mask_gt = np.zeros((t, 3, h, w))
-    mask_gt[:, 1] = gt_mask[0, :, 0]
+    mask_gt[:, 1] = gt_mask[:, :, 0]
     mask_gt = np.uint8(mask_gt * 255)
 
     # mask_pred = np.uint8(rearrange(gt_mask, "b t c h w -> t (b c) h w")*255.)    

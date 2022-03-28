@@ -333,7 +333,7 @@ class ConvLSTM(nn.Module):
             layer_output_list.append(layer_output)
             last_state_list.append([hidden, cell])
 
-        final_mask = torch.stack(mask_list, dim=2)
+        final_mask = torch.stack(mask_list, dim=1)
 
         if not self.return_all_layers:
             layer_output_list = layer_output_list[-1:]
