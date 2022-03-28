@@ -321,7 +321,7 @@ class ConvLSTM(nn.Module):
 
                 multi_modal_tensor = rearrange(multi_modal_tensor, "b (h w) c -> b c h w", h=h, w=w)
                 
-                hidden = hidden + torch.sigmoid(multi_modal_tensor)
+                hidden = multi_modal_tensor
 
                 if layer_idx == self.num_layers - 1:
                     mask = self.mask_decoder(hidden)
