@@ -3,13 +3,15 @@ from matplotlib.cm import ScalarMappable
 import torch.nn as nn
 import torch
 
-from models.attentions import (
-    CustomizingAttention,
-    DotProductAttention,
-    MultiHeadAttention,
-    RelativeMultiHeadAttention,
-    ScaledDotProductAttention,
-)
+# from models.attentions import (
+#     CustomizingAttention,
+#     DotProductAttention,
+#     MultiHeadAttention,
+#     RelativeMultiHeadAttention,
+#     ScaledDotProductAttention,
+# )
+
+from .transformer import *
 
 from .mask_decoder import *
 from .position_encoding import *
@@ -128,6 +130,8 @@ class ConvLSTM(nn.Module):
         bias=True,
         return_all_layers=False,
         attn_type="dot_product",
+        num_encoder_layers=2,
+        normalize_before=True,
     ):
         super(ConvLSTM, self).__init__()
 
@@ -141,49 +145,14 @@ class ConvLSTM(nn.Module):
         if not len(kernel_size) == len(hidden_dim) == num_layers:
             raise ValueError("Inconsistent list length.")
 
-        self.input_dim = input_dim
-        self.mask_dim = mask_dim
-        self.hidden_dim = hidden_dim
-        self.kernel_size = kernel_size
-        self.num_layers = num_layers
-        self.batch_first = batch_first
-        self.bias = bias
-        self.return_all_layers = return_all_layers
-
-        self.attn_type = attn_type
-
-        if self.attn_type == "dot_product":
-            self.attention = DotProductAttention(self.hidden_feat)
-        elif self.attn_type == "scaled_dot_product":
-            self.attention = ScaledDotProductAttention(self.hidden_feat)
-        elif self.attn_type == "multi_head":
-            self.attention = MultiHeadAttention(d_model=self.hidden_feat, num_heads=8)
-        elif self.attn_type == "rel_multi_head":
-            self.attention = RelativeMultiHeadAttention(
-                d_model=self.hidden_feat, num_heads=8
-            )
-        elif self.attn_type == "custom_attn":
-            self.attention = CustomizingAttention(
-                hidden_dim=self.hidden_feat,
-                num_heads=8,
-                conv_out_channel=self.hidden_feat,
-            )
-        else:
-            raise NotImplementedError(f"{self.attn_type} not implemented!")
-        
-        
-        # self.command_classifier = nn.Sequential(
-        #     nn.Conv2d(3*self.hidden_feat, self.hidden_feat, kernel_size=3, stride=1, padding=1),
-        #     nn.ReLU(),
-        #     nn.MaxPool2d(2),
-        #     nn.Conv2d(self.hidden_feat, self.hidden_feat, kernel_size=3, stride=1, padding=1),
-        #     nn.ReLU(),
-        #     nn.MaxPool2d(2),
-        #     nn.Conv2d(self.hidden_feat, 1, kernel_size=1, stride=1, padding=0),
-        #     # nn.Flatten(dim=1),
-        #     # nn.Softmax(dim=1)
-        #     nn.Sigmoid()
-        # )
+        # self.input_dim = input_dim
+        # self.mask_dim = mask_dim
+        # self.hidden_dim = hidden_dim
+        # self.kernel_size = kernel_size
+        # self.num_layers = num_layers
+        # self.batch_first = batch_first
+        # self.bias = bias
+        # self.return_all_layers = return_all_layers
 
         cell_list = []
         for i in range(0, self.num_layers):
@@ -197,6 +166,29 @@ class ConvLSTM(nn.Module):
                     bias=self.bias,
                 )
             )
+
+        encoder_layer = TransformerEncoderLayer(
+            hidden_dim,
+            nhead=8,
+            dim_feedforward=512,
+            dropout=0.2,
+            normalize_before=normalize_before,
+        )
+        encoder_norm = nn.LayerNorm(hidden_dim) if normalize_before else None
+        self.transformer_encoder = TransformerEncoder(
+            encoder_layer, num_encoder_layers, encoder_norm
+        )
+
+        self.conv_fuse = nn.Sequential(
+            nn.Conv2d(
+                self.hidden_feat * 2,
+                self.hidden_feat,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+            ),
+            nn.BatchNorm2d(self.hidden_feat),
+        )
 
         self.cell_list = nn.ModuleList(cell_list)
 
@@ -253,80 +245,71 @@ class ConvLSTM(nn.Module):
         layer_output_list = []
         last_state_list = []
         mask_list = []
-        
-        # sub_cmd_wts = []
 
         seq_len = input_tensor.size(2)
         cur_layer_input = input_tensor
-
-        # # attention masks
-        # padding = 1 - torch.einsum('bi,bj->bij', (frame_mask, lang_mask))
-        # combined_padding = torch.concat([frame_mask, lang_mask], dim=-1)
 
         vis_pos_embd = positionalencoding2d(b, c, height=7, width=7)
         vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
 
         txt_pos_embd = positionalencoding1d(b, c, max_len=l)
 
+        combined_pos_embd = torch.concat([vis_pos_embd, txt_pos_embd], dim=1)
+
         for layer_idx in range(self.num_layers):
 
             hidden, cell = hidden_state[layer_idx]
             output_inner = []
 
-            # import pdb; pdb.set_trace()
+            import pdb; pdb.set_trace()
             attn = None
 
             for t in range(seq_len):
 
-                # attention masks
-                padding = ~torch.einsum(
-                    "bi,bj->bij", (input_mask, context_mask[:, t])
-                ).bool()
-                combined_padding = ~torch.cat(
-                    [input_mask, context_mask[:, t]], dim=-1
-                ).bool()[:, None]
-
-                # import pdb; pdb.set_trace()
-
                 visual_tensor = cur_layer_input[:, :, t, :, :]
-                # visual_tensor = rearrange(visual_tensor, "b c h w -> b (h w) c")
-
-                lang_tensor = context_tensor[:, t]
 
                 hidden, cell = self.cell_list[layer_idx](
                     input_tensor=visual_tensor,
                     cur_state=[hidden, cell],
                 )
 
-                frame_tensor = rearrange(hidden, "b c h w -> b (h w) c")
+                frame_tensor = rearrange(hidden, "b c h w -> (h w) b c")
 
-                if self.attn_type == "dot_product":
-                    multi_modal_tensor, attn = self.attention(frame_tensor, lang_tensor)
-                elif self.attn_type == "scaled_dot_product":
-                    multi_modal_tensor, attn = self.attention(frame_tensor, lang_tensor, lang_tensor, padding)
-                elif self.attn_type == "multi_head":
-                    multi_modal_tensor, attn = self.attention(frame_tensor, lang_tensor, lang_tensor, padding)
-                elif self.attn_type == "rel_multi_head":
-                    combined_tensor = torch.concat([frame_tensor, lang_tensor], dim=1)
-                    combined_pos_embd = torch.concat([vis_pos_embd, txt_pos_embd], dim=1)
+                lang_tensor = context_tensor[:, t]
+                lang_tensor = rearrange(lang_tensor, "b l c -> l b c")
 
-                    multi_modal_tensor, attn = self.attention(combined_tensor, combined_tensor, combined_tensor, combined_pos_embd, combined_padding)
-                    multi_modal_tensor = multi_modal_tensor[:, :h*w]
-                elif self.attn_type == "custom_attn":
-                    # import pdb; pdb.set_trace()
-                    padding = repeat(padding, "b n l -> (rep b) n l", rep=8)
-                    multi_modal_tensor, attn = self.attention(frame_tensor, lang_tensor, attn, padding)
-                else:
-                    raise NotImplementedError(f'{self.attn_type} not implemented!')
+                combined_padding = ~torch.cat(
+                    [input_mask, context_mask[:, t]], dim=-1
+                ).bool()[:, None]
 
-                multi_modal_tensor = rearrange(multi_modal_tensor, "b (h w) c -> b c h w", h=h, w=w)
-                
-                hidden = multi_modal_tensor
+                combined_tensor = torch.concat([frame_tensor, lang_tensor], dim=0)
+                enc_out = self.transformer_encoder(
+                    combined_tensor,
+                    pos=combined_pos_embd,
+                    src_key_padding_mask=combined_padding,
+                )
+                enc_out = enc_out.permute(1, 2, 0)
+
+                f_img_out = enc_out[:, :, : h * w].view(b, c, h, w)
+
+                f_txt_out = enc_out[:, :, h * w :].transpose(1, 2)  # B, L, E
+
+                # masked_sum = f_txt_out * text_mask[:, :, None]
+                # f_txt_out = masked_sum.sum(
+                #     dim=1) / text_mask.sum(dim=-1, keepdim=True)
+
+                f_out = torch.cat(
+                    [f_img_out, f_txt_out[:, :, None, None].expand(b, -1, h, w)], dim=1
+                )
+
+                enc_out = F.relu(self.conv_fuse(f_out))
+
+                hidden = enc_out
 
                 if layer_idx == self.num_layers - 1:
-                    mask = self.mask_decoder(hidden)
+                    mask = self.mask_decoder(enc_out)
                     mask_list.append(mask)
-                
+
                 output_inner.append(hidden)
 
             layer_output = torch.stack(output_inner, dim=1)
