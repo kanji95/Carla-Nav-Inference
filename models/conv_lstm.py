@@ -320,9 +320,11 @@ class ConvLSTM(nn.Module):
                     raise NotImplementedError(f'{self.attn_type} not implemented!')
 
                 multi_modal_tensor = rearrange(multi_modal_tensor, "b (h w) c -> b c h w", h=h, w=w)
+                
+                hidden = hidden + torch.sigmoid(multi_modal_tensor)
 
                 if layer_idx == self.num_layers - 1:
-                    mask = self.mask_decoder(multi_modal_tensor)
+                    mask = self.mask_decoder(hidden)
                     mask_list.append(mask)
                 
                 output_inner.append(hidden)
@@ -339,7 +341,7 @@ class ConvLSTM(nn.Module):
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
 
-        return multi_modal_tensor, final_mask
+        return hidden, final_mask
 
     def _init_hidden(self, batch_size, image_size):
         init_states = []
