@@ -512,6 +512,10 @@ class ConvLSTMBaseline(nn.Module):
         self.attn_type = attn_type
 
         self.vision_encoder = vision_encoder
+
+        for param in self.vision_encoder.parameters():
+            param.requires_grad_(False)
+
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
         self.sub_text_encoder = TextEncoder(
             num_layers=1, hidden_size=hidden_dim)
