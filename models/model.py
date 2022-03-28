@@ -542,8 +542,8 @@ class ConvLSTMBaseline(nn.Module):
                  4, 6, 8], out_channels=256),
             ConvUpsample(in_channels=256,
                          out_channels=1,
-                         channels=[256, 256, 128],
-                         upsample=[True, True, True],
+                         channels=[256, 256],
+                         upsample=[True, True],
                          drop=0.2,
                          ),
             nn.Upsample(
