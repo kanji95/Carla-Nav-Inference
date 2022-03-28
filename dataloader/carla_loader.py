@@ -391,7 +391,7 @@ class CarlaFullDataset(Dataset):
 
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
-        frame_masks = torch.stack(frame_masks, dim=1)
+        frame_masks = torch.stack(frame_masks, dim=0)
         # sub_command_labels = torch.tensor(sub_command_labels)
         # frame_masks = frame_masks[-1]
 
