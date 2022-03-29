@@ -175,6 +175,8 @@ class JointSegmentationBaseline(nn.Module):
 
         # vision_feat = rearrange(vision_feat, "b (h w) c -> b c h w", h=14, w=14)
 
+        # import pdb; pdb.set_trace()
+
         text_feat = self.text_encoder(text)  # B x L x C
         text_feat = F.normalize(text_feat, p=2, dim=1)  # B x L x C
         text_feat = text_feat * text_mask[:, :, None]

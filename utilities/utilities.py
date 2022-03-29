@@ -97,6 +97,8 @@ def log_frame_predicitons(front_cam_image, lang_command, pred_mask, traj_mask, g
 
     _, c, h, w = pred_mask.shape
 
+    # import pdb; pdb.set_trace()
+
     figure, axes = plt.subplots(nrows=k, ncols=5)
     for i, index in enumerate(indices):
         index = indices[i]
@@ -108,10 +110,10 @@ def log_frame_predicitons(front_cam_image, lang_command, pred_mask, traj_mask, g
 
         mask_pred = rearrange(pred_mask[index], "c h w -> h w c")
 
-        mask_pred_ = np.zeros((h, w, 3))
-        mask_pred_[:, :, 0] = mask_pred[:, :, 0] * 255  # red
-        mask_pred_[:, :, 2] = mask_pred[:, :, 1] * 255  # blue
-        mask_pred = np.uint8(mask_pred_)
+        # mask_pred_ = np.zeros((h, w, 3))
+        # mask_pred_[:, :, 0] = mask_pred[:, :, 0] * 255  # red
+        # mask_pred_[:, :, 2] = mask_pred[:, :, 1] * 255  # blue
+        mask_pred = np.uint8(mask_pred * 255)
 
         axes[i, 1].imshow(mask_pred)
         axes[i, 1].set_title(f"episode_{episode_num[index]}_idx_{sample_idx[index]}", fontsize=5)
@@ -119,15 +121,15 @@ def log_frame_predicitons(front_cam_image, lang_command, pred_mask, traj_mask, g
         
         mask_gt = rearrange(gt_mask[index], "c h w -> h w c")
 
-        mask_gt_ = np.zeros((h, w, 3))
-        if mask_gt[:, :, 0].max() > mask_gt[:, :, 1].max():
-            mask_gt_[:, :, 1] = mask_gt[:, :, 0] * 255  # lime
-        else:
-            mask_gt_[:, :, 1] = mask_gt[:, :, 1] * 100  # dark green
+        # mask_gt_ = np.zeros((h, w, 3))
+        # if mask_gt[:, :, 0].max() > mask_gt[:, :, 1].max():
+        #     mask_gt_[:, :, 1] = mask_gt[:, :, 0] * 255  # lime
+        # else:
+        #     mask_gt_[:, :, 1] = mask_gt[:, :, 1] * 100  # dark green
 
         # mask_gt_[:, :, 0] = mask_gt[:, :, 0] * 100  # dark red
         # mask_gt_[:, :, 1] = mask_gt[:, :, 1] * 100  # dark green
-        mask_gt = np.uint8(mask_gt_)
+        mask_gt = np.uint8(mask_gt * 255)
 
         axes[i, 2].imshow(mask_gt)
         axes[i, 2].set_title("GT Mask", fontsize=5)
