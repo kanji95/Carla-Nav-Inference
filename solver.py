@@ -25,23 +25,28 @@ from utilities.utilities import *
 
 
 class Solver(object):
-    def __init__(self, args):
+    def __init__(self, args, inference=False):
         self.args = args
 
-        self.experiment = wandb.init(project="Language Navigation", config=self.args)
+        self.inference = inference
+
+        self.experiment = wandb.init(
+            project="Language Navigation", config=self.args)
         self.experiment.name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{self.experiment.id}"
 
-        self.epochs = self.args.epochs
-        self.batch_size = self.args.batch_size
-        self.lr = self.args.lr
-        self.weight_decay = self.args.weight_decay
-        self.gamma = self.args.gamma
-        self.num_workers = self.args.num_workers
+        if not self.inference:
+            self.epochs = self.args.epochs
+            self.batch_size = self.args.batch_size
+            self.lr = self.args.lr
+            self.weight_decay = self.args.weight_decay
+            self.gamma = self.args.gamma
+            self.num_workers = self.args.num_workers
 
-        self.data_root = self.args.data_root
+            self.data_root = self.args.data_root
+
+            self.loss_func = self.args.loss_func
+
         self.glove_path = self.args.glove_path
-
-        self.loss_func = self.args.loss_func
 
         self.img_backbone = self.args.img_backbone
         self.imtext_matching = self.args.imtext_matching
@@ -61,15 +66,18 @@ class Solver(object):
 
         self.threshold = self.args.threshold
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
         self.num_gpu = torch.cuda.device_count()
         print(f"Using {self.device} with {self.num_gpu} GPUS!")
 
-        return_layers = {"layer2": "layer2", "layer3": "layer3", "layer4": "layer4"}
+        return_layers = {"layer2": "layer2",
+                         "layer3": "layer3", "layer4": "layer4"}
 
         self.mode = "image"
         if "vit_" in self.img_backbone:
-            img_backbone = timm.create_model(self.img_backbone, pretrained=True)
+            img_backbone = timm.create_model(
+                self.img_backbone, pretrained=True)
             visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
             self.network = JointSegmentationBaseline(
                 visual_encoder,
@@ -80,8 +88,10 @@ class Solver(object):
                 backbone=self.img_backbone,
             )
         elif "dino_resnet50" in self.img_backbone:
-            img_backbone = torch.hub.load("facebookresearch/dino:main", "dino_resnet50")
-            visual_encoder = IntermediateLayerGetter(img_backbone, return_layers)
+            img_backbone = torch.hub.load(
+                "facebookresearch/dino:main", "dino_resnet50")
+            visual_encoder = IntermediateLayerGetter(
+                img_backbone, return_layers)
             self.network = IROSBaseline(
                 visual_encoder,
                 hidden_dim=self.hidden_dim,
@@ -130,7 +140,8 @@ class Solver(object):
             video_encoder = torch.hub.load(
                 "facebookresearch/pytorchvideo", "x3d_s", pretrained=True
             )
-            visual_encoder = nn.Sequential(*list(video_encoder.blocks.children())[:-1])
+            visual_encoder = nn.Sequential(
+                *list(video_encoder.blocks.children())[:-1])
 
             self.network = ConvLSTMBaseline(
                 visual_encoder,
@@ -147,20 +158,21 @@ class Solver(object):
 
         self.log_parameter_info()
 
-        if self.num_gpu > 1:
+        if self.num_gpu > 1 or self.inference:
             self.network = nn.DataParallel(self.network)
             print("Using DataParallel mode!")
         self.network.to(self.device)
 
-        self.optimizer = self.initialize_optimizer()
-        self.lr_scheduler = lr_scheduler.ReduceLROnPlateau(
-            self.optimizer,
-            factor=self.gamma,
-            patience=2,
-            threshold=1e-3,
-            min_lr=1e-6,
-            verbose=True,
-        )
+        if not self.inference:
+            self.optimizer = self.initialize_optimizer()
+            self.lr_scheduler = lr_scheduler.ReduceLROnPlateau(
+                self.optimizer,
+                factor=self.gamma,
+                patience=2,
+                threshold=1e-3,
+                min_lr=1e-6,
+                verbose=True,
+            )
 
         train_transform = transforms.Compose(
             [
@@ -195,77 +207,82 @@ class Solver(object):
             ]
         )
 
-        self.train_dataset = CarlaFullDataset(
-            data_root=self.data_root,
-            glove_path=self.glove_path,
-            split="train",
-            dataset_len=100000,
-            img_transform=train_transform,
-            mask_transform=mask_transform,
-            traj_transform=traj_transform,
-            sequence_len=self.num_frames,
-            mode=self.mode,
-            image_dim=self.image_dim,
-            mask_dim=self.mask_dim,
-            traj_dim=self.traj_dim,
-            traj_frames=self.traj_frames,
-            traj_size=self.traj_size,
-            one_in_n=self.one_in_n,
-        )
-        self.val_dataset = CarlaFullDataset(
-            data_root=self.data_root,
-            glove_path=self.glove_path,
-            split="val",
-            dataset_len=20000,
-            img_transform=val_transform,
-            mask_transform=mask_transform,
-            traj_transform=traj_transform,
-            sequence_len=self.num_frames,
-            mode=self.mode,
-            image_dim=self.image_dim,
-            mask_dim=self.mask_dim,
-            traj_dim=self.traj_dim,
-            traj_frames=self.traj_frames,
-            traj_size=self.traj_size,
-            one_in_n=self.one_in_n,
-        )
+        if not self.inference:
+            self.train_dataset = CarlaFullDataset(
+                data_root=self.data_root,
+                glove_path=self.glove_path,
+                split="train",
+                dataset_len=100000,
+                img_transform=train_transform,
+                mask_transform=mask_transform,
+                traj_transform=traj_transform,
+                sequence_len=self.num_frames,
+                mode=self.mode,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
+                traj_dim=self.traj_dim,
+                traj_frames=self.traj_frames,
+                traj_size=self.traj_size,
+                one_in_n=self.one_in_n,
+            )
+            self.val_dataset = CarlaFullDataset(
+                data_root=self.data_root,
+                glove_path=self.glove_path,
+                split="val",
+                dataset_len=20000,
+                img_transform=val_transform,
+                mask_transform=mask_transform,
+                traj_transform=traj_transform,
+                sequence_len=self.num_frames,
+                mode=self.mode,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
+                traj_dim=self.traj_dim,
+                traj_frames=self.traj_frames,
+                traj_size=self.traj_size,
+                one_in_n=self.one_in_n,
+            )
 
-        self.train_loader = DataLoader(
-            self.train_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            shuffle=True,
-            drop_last=False,
-        )
-        self.val_loader = DataLoader(
-            self.val_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            shuffle=True,
-            drop_last=False,
-        )
+            self.train_loader = DataLoader(
+                self.train_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                pin_memory=True,
+                shuffle=True,
+                drop_last=False,
+            )
+            self.val_loader = DataLoader(
+                self.val_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                pin_memory=True,
+                shuffle=True,
+                drop_last=False,
+            )
 
-        self.bce_loss = nn.BCELoss(reduction="mean")
-        self.ce_loss = nn.CrossEntropyLoss(reduction='sum')
-        self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
-        self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
+            self.bce_loss = nn.BCELoss(reduction="mean")
+            self.ce_loss = nn.CrossEntropyLoss(reduction='sum')
+            self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
+            self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
 
-        self.focal_loss = FocalLoss(mode="binary", alpha=0.5, ignore_index=0)
-        self.tversky_loss = TverskyLoss(
-            mode="binary", alpha=0.5, beta=0.5, ignore_index=0
-        )
-        self.lovasz_loss = LovaszLoss(mode="binary", ignore_index=0)
+            self.focal_loss = FocalLoss(
+                mode="binary", alpha=0.5, ignore_index=0)
+            self.tversky_loss = TverskyLoss(
+                mode="binary", alpha=0.5, beta=0.5, ignore_index=0
+            )
+            self.lovasz_loss = LovaszLoss(mode="binary", ignore_index=0)
 
     def initialize_optimizer(self):
-        params = list([p for p in self.network.parameters() if p.requires_grad])
+        params = list(
+            [p for p in self.network.parameters() if p.requires_grad])
 
         print(f"Using {self.args.optimizer} optimizer!!")
         if self.args.optimizer == "AdamW":
-            optimizer = AdamW(params, lr=self.lr, weight_decay=self.weight_decay)
+            optimizer = AdamW(params, lr=self.lr,
+                              weight_decay=self.weight_decay)
         elif self.args.optimizer == "Adam":
-            optimizer = Adam(params, lr=self.lr, weight_decay=self.weight_decay)
+            optimizer = Adam(params, lr=self.lr,
+                             weight_decay=self.weight_decay)
         elif self.args.optimizer == "SGD":
             optimizer = SGD(
                 params, lr=self.lr, momentum=0.8, weight_decay=self.weight_decay
@@ -293,13 +310,15 @@ class Solver(object):
         #         weight_decay=self.weight_decay,
         #     )
         elif self.args.optimizer == "ASGD":
-            optimizer = ASGD(params, lr=self.lr, weight_decay=self.weight_decay)
+            optimizer = ASGD(params, lr=self.lr,
+                             weight_decay=self.weight_decay)
         return optimizer
 
     def log_parameter_info(self):
         total_parameters = 0
         for name, child in self.network.named_children():
-            num_params = sum([p.numel() for p in child.parameters() if p.requires_grad])
+            num_params = sum([p.numel()
+                             for p in child.parameters() if p.requires_grad])
             if num_params > 0:
                 print(f"No. of params in {name}: {num_params}")
                 total_parameters += num_params
@@ -350,7 +369,7 @@ class Solver(object):
             mask, traj_mask = self.network(
                 frame, text, frame_mask, text_mask
             )
-            
+
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
@@ -391,7 +410,8 @@ class Solver(object):
             elapsed_time = end_time - start_time
 
             with torch.no_grad():
-                inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
+                inter_mask, union_mask = compute_mask_IOU(
+                    mask, gt_mask, self.threshold)
                 inter_traj, union_traj = compute_mask_IOU(
                     traj_mask, gt_traj_mask, self.threshold
                 )
@@ -414,7 +434,7 @@ class Solver(object):
                         batch["orig_text"],
                         mask.detach().cpu(),
                         traj_mask.detach().cpu(),
-                        # None, 
+                        # None,
                         gt_mask.detach().cpu(),
                         gt_traj_mask.detach().cpu(),
                         batch["episode"],
@@ -464,7 +484,7 @@ class Solver(object):
                 # print(
                 #     f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} |Mask IOU {curr_IOU_mask:.4f}|Traj IOU {curr_IOU_traj:.4f}|Mask PG {curr_pg_mask:.4f}|Traj PG {curr_pg_traj:.4f}|Mask IT {curr_it_mask:.4f}|Traj IT {curr_it_traj:.4f}|Mask RK {curr_rk_mask:.4f}|Traj RK {curr_rk_traj:.4f}|Mask DS {curr_ds_mask:.4f}|Traj DS {curr_ds_traj:.4f}| mem_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 # )
-                
+
                 print(
                     f"{timestamp} Epoch:[{epochId:2d}/{self.epochs:2d}] iter {iterId:6d} loss {curr_loss:.4f} |Mask IOU {curr_IOU_mask:.4f}|Traj IOU {curr_IOU_traj:.4f}|Mask PG {curr_pg_mask:.4f}|Traj PG {curr_pg_traj:.4f}|　mem_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 )
@@ -515,7 +535,7 @@ class Solver(object):
         # print(
         #     f"{timestamp} FINISHED Epoch:{epochId:2d} loss {train_loss:.4f} Mask IOU {train_IOU_mask:.4f} Traj IOU {train_IOU_traj:.4f} Mask PG {train_pg_mask:.4f} Traj PG {train_pg_traj:.4f} Mask IT {train_it_mask:.4f} Traj IT {train_it_traj:.4f} Mask RK {train_rk_mask:.4f} Traj RK {train_rk_traj:.4f} Mask DS {train_ds_mask:.4f} Traj DS {train_ds_traj:.4f} elapsed {epoch_time:.2f}"
         # )
-        
+
         print(
             f"{timestamp} FINISHED Epoch:{epochId:2d} loss {train_loss:.4f} Mask IOU {train_IOU_mask:.4f} Traj IOU {train_IOU_traj:.4f} Mask PG {train_pg_mask:.4f} Traj PG {train_pg_traj:.4f} elapsed {epoch_time:.2f}"
         )
@@ -550,9 +570,9 @@ class Solver(object):
 
             text_mask = batch["text_mask"].cuda(non_blocking=True)
             # text_mask = torch.stack([text_mask]*self.num_frames, dim=1)
-            
+
             sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
-            
+
             # sub_text_labels = batch["sub_text_labels"].cuda(non_blocking=True)
 
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
@@ -583,23 +603,23 @@ class Solver(object):
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif self.loss_func == "combo":
                 loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "class_level" in self.loss_func:
-                loss = self.class_level_loss(mask, gt_mask)+ self.combo_loss(
+                loss = self.class_level_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "tversky" in self.loss_func:
                 loss = self.tversky_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "lovasz" in self.loss_func:
                 loss = self.lovasz_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
@@ -610,7 +630,8 @@ class Solver(object):
             end_time = time()
             elapsed_time = end_time - start_time
 
-            inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
+            inter_mask, union_mask = compute_mask_IOU(
+                mask, gt_mask, self.threshold)
             inter_traj, union_traj = compute_mask_IOU(
                 traj_mask, gt_traj_mask, self.threshold
             )
@@ -687,7 +708,7 @@ class Solver(object):
 
                 # curr_ds_mask = total_ds_mask / num_samples
                 # curr_ds_traj = total_ds_traj / num_samples
-                
+
                 # print(
                 #     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} |Mask IOU {curr_IOU_mask:.4f}|Traj IOU {curr_IOU_traj:.4f}|Mask PG {curr_pg_mask:.4f}|Traj PG {curr_pg_traj:.4f}|Mask IT {curr_it_mask:.4f}|Traj IT {curr_it_traj:.4f}|Mask RK {curr_rk_mask:.4f}|Traj RK {curr_rk_traj:.4f}|Mask DS {curr_ds_mask:.4f}|Traj DS {curr_ds_traj:.4f}| mem_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 # )
@@ -695,7 +716,7 @@ class Solver(object):
                 print(
                     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} |Mask IOU {curr_IOU_mask:.4f}|Traj IOU {curr_IOU_traj:.4f}|Mask PG {curr_pg_mask:.4f}|Traj PG {curr_pg_traj:.4f}| mem_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 )
-                    
+
                 # print(
                 #     f"{timestamp} Validation: iter [{step:3d}/{data_len}] loss {curr_loss:.4f} Mask IOU {curr_IOU_mask:.4f} Traj IOU {curr_IOU_traj:.4f} Mask PG {curr_pg_mask:.4f} Traj PG {curr_pg_traj:.4f} memory_use {memoryUse:.3f}MB elapsed {elapsed_time:.2f}"
                 # )
@@ -741,7 +762,7 @@ class Solver(object):
         # print(
         #     f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} Mask_IOU {val_IOU_mask:.4f} Traj_IOU {val_IOU_traj:.4f} Mask_PG {val_pg_mask:.4f} Traj_PG {val_pg_traj:.4f} Mask IT {val_it_mask:.4f} Traj IT {val_it_traj:.4f} Mask RK {val_rk_mask:.4f} Traj RK {val_rk_traj:.4f} Mask DS {val_ds_mask:.4f} Traj DS {val_ds_traj:.4f}"
         # )
-        
+
         print(
             f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} Mask_IOU {val_IOU_mask:.4f} Traj_IOU {val_IOU_traj:.4f} Mask_PG {val_pg_mask:.4f} Traj_PG {val_pg_traj:.4f}"
         )

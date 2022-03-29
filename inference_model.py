@@ -49,6 +49,8 @@ from torchvision.models._utils import IntermediateLayerGetter
 from models.model import *
 from dataloader.word_utils import Corpus
 
+from solver import Solver
+
 
 import cv2
 from skimage import measure
@@ -1770,9 +1772,8 @@ def game_loop(args):
         num_gpu = torch.cuda.device_count()
         print(f"Using {device} with {num_gpu} GPUS!")
 
-        experiment = wandb.init(project="Language Navigation", dir="/tmp")
+        solver = Solver(args, inference=True)
 
-        # val_path = os.path.join(args.data_root, 'val/')
         glove_path = args.glove_path
         checkpoint_path = args.checkpoint
 
@@ -1783,96 +1784,19 @@ def game_loop(args):
         threshold = args.threshold
         confidence = args.confidence
 
-        return_layers = {"layer2": "layer2",
-                         "layer3": "layer3", "layer4": "layer4"}
-
-        mode = "image"
-        if "vit_" in args.img_backbone:
-            img_backbone = timm.create_model(
-                args.img_backbone, pretrained=True)
-            visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
-            network = JointSegmentationBaseline(
-                visual_encoder,
-                hidden_dim=args.hidden_dim,
-                mask_dim=args.mask_dim,
-                traj_dim=args.traj_dim,
-                backbone=args.img_backbone,
-            )
-        elif "dino_resnet50" in args.img_backbone:
-            img_backbone = torch.hub.load(
-                "facebookresearch/dino:main", "dino_resnet50")
-            visual_encoder = IntermediateLayerGetter(
-                img_backbone, return_layers)
-            network = IROSBaseline(
-                visual_encoder, hidden_dim=args.hidden_dim, mask_dim=args.mask_dim
-            )
-        elif "timesformer" in args.img_backbone:
-            mode = "video"
-            spatial_dim = args.image_dim // args.patch_size
-            visual_encoder = VisionTransformer(
-                img_size=args.image_dim,
-                patch_size=args.patch_size,
-                embed_dim=args.hidden_dim,
-                depth=2,
-                num_heads=8,
-                num_frames=args.num_frames,
-            )
-            network = JointVideoSegmentationBaseline(
-                visual_encoder,
-                hidden_dim=args.hidden_dim,
-                mask_dim=args.mask_dim,
-                traj_dim=args.traj_dim,
-                spatial_dim=spatial_dim,
-                num_frames=args.num_frames,
-            )
-        elif "deeplabv3_" in args.img_backbone:
-            img_backbone = torch.hub.load(
-                "pytorch/vision:v0.10.0", args.img_backbone, pretrained=True
-            )
-            visual_encoder = nn.Sequential(
-                *list(img_backbone._modules["backbone"].children())
-            )
-            network = JointSegmentationBaseline(
-                visual_encoder,
-                hidden_dim=args.hidden_dim,
-                mask_dim=args.mask_dim,
-                traj_dim=args.traj_dim,
-                backbone=args.img_backbone,
-            )
-        wandb.watch(network, log="all")
-
-        network = nn.DataParallel(network)
-        if num_gpu > 1:
-            print("Using DataParallel mode!")
-        network.to(device)
+        mode = solver.mode
+        network = solver.network
 
         checkpoint = torch.load(checkpoint_path)
         network.load_state_dict(checkpoint["state_dict"])
 
         network.eval()
 
-        img_transform = transforms.Compose(
-            [
-                transforms.Resize((args.image_dim, args.image_dim)),
-                transforms.ToTensor(),
-                # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
-                #                      0.229, 0.224, 0.225]),
-            ]
-        )
+        img_transform = solver.val_transform
 
-        mask_transform = transforms.Compose(
-            [
-                transforms.Resize((args.mask_dim, args.mask_dim)),
-                transforms.ToTensor(),
-            ]
-        )
+        mask_transform = solver.mask_transform
 
-        traj_transform = transforms.Compose(
-            [
-                transforms.Resize((args.traj_dim, args.traj_dim)),
-                transforms.ToTensor(),
-            ]
-        )
+        traj_transform = solver.traj_transform
 
         frame_mask = torch.ones(
             1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
@@ -2273,6 +2197,19 @@ def main():
     argparser.add_argument(
         "--command",
         action="store_true"
+    )
+
+    argparser.add_argument(
+        "--attn_type",
+        default='dot_product',
+        choices=[
+            'dot_product',
+            'scaled_dot_product',
+            'multi_head',
+            'rel_multi_head',
+            'custom_attn'
+        ],
+        type=str,
     )
 
     argparser.add_argument(
