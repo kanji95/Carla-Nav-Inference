@@ -494,14 +494,15 @@ class CarlaFullDataset(Dataset):
             mask = self.mask_transform(mask)
             mask[mask > 0] = 1
 
-        mask_ = torch.zeros_like(mask)
-        mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
+        # mask_ = torch.zeros_like(mask)
+        # mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
 
         if curr_click_idx == final_click_idx:
-            mask_[1] = mask[0]
+                sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
+                if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
+                    sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
         else:
-            mask_[0] = mask[0]
-        mask = mask_ + 1e-4
+            sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
 
         rgb_matrix = np.load(matrix_files[sample_idx])
 
@@ -546,7 +547,7 @@ class CarlaFullDataset(Dataset):
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
 
-        return img, orig_image, mask, traj_mask, sample_idx
+        return img, orig_image, mask, traj_mask, sub_command, sample_idx
 
     def __getitem__(self, idx):
         output = {}
@@ -627,6 +628,11 @@ class CarlaFullDataset(Dataset):
         command = open(command_path, "r").read()
         command = self.sub_command_data.loc[episode_num]['command']
         command = re.sub(r"[^\w\s]", "", command)
+        
+        if self.split == "train":
+            command = sub_commands
+        if self.mode == "image":
+            sub_commands = [sub_commands]
 
         tokens, phrase_mask = self.corpus.tokenize(command)
         
