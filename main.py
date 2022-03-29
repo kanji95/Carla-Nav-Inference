@@ -44,22 +44,22 @@ def main(args):
     print("Initializing Solver!")
     solver = Solver(args)
 
-    best_loss = 10e9
+    best_pg_mask = 0
     epochs_without_improvement = 0
     print(
         f"Training Iterations: {len(solver.train_loader)}, Validation Iterations: {len(solver.val_loader)}")
 
     for epoch in range(args.epochs):
         solver.train(epoch)
-        _, val_loss = solver.evaluate(epoch)
+        val_pg_mask, val_loss = solver.evaluate(epoch)
 
         solver.lr_scheduler.step(val_loss)
 
-        if val_loss <= best_loss:
-            best_loss = val_loss
+        if val_pg_mask >= best_pg_mask:
+            best_pg_mask = val_pg_mask
 
             print(
-                f"Saving Checkpoint at epoch {epoch}, best validation loss is {best_loss}!"
+                f"Saving Checkpoint at epoch {epoch}, best validation PG mask is {best_pg_mask}!"
             )
             if args.save:
                 torch.save(
@@ -71,11 +71,11 @@ def main(args):
                     model_filename,
                 )
             epochs_without_improvement = 0
-        elif val_loss > best_loss and epoch != args.epochs - 1:
+        elif val_pg_mask < best_pg_mask and epoch != args.epochs - 1:
             epochs_without_improvement += 1
             print(f"Epochs without Improvement: {epochs_without_improvement}")
 
-            if epochs_without_improvement == 10:
+            if epochs_without_improvement == 20:
                 print(
                     f"{epochs_without_improvement} epochs without improvement, Stopping Training!"
                 )
@@ -84,7 +84,7 @@ def main(args):
     if args.save:
         print(f"Current Model Name {model_filename}")
         new_filename = os.path.join(
-            save_path, f'{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{best_loss:.5f}.pth')
+            save_path, f'{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{best_pg_mask:.5f}.pth')
         os.rename(model_filename, new_filename)
         print(f"Renamed to {new_filename}!")
 
