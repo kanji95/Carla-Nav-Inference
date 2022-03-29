@@ -248,7 +248,7 @@ def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, g
     # mask_pred = np.uint8(rearrange(gt_mask, "b t c h w -> t (b c) h w")*255.)    
     # mask_gt = np.uint8(rearrange(gt_mask[0], "t c w h -> t  c w h")*255.)
 
-    traj_pred = np.uint8(rearrange(traj_mask[index], "c h w -> h w c")*255.)
+    # traj_pred = np.uint8(rearrange(traj_mask[index], "c h w -> h w c")*255.)
     traj_mask_gt = np.uint8(rearrange(gt_traj_mask[index], "c h w -> h w c")*255.)
     command = lang_command[0]
 
@@ -261,9 +261,9 @@ def log_video_predicitons(front_cam_video, lang_command, pred_mask, traj_mask, g
             f"{title}_gt_mask": wandb.Video(
                 mask_gt, fps=4, caption=command, format="mp4"
             ),
-            f"{title}_traj_mask": wandb.Image(
-                traj_pred, caption=command
-            ),
+            # f"{title}_traj_mask": wandb.Image(
+            #     traj_pred, caption=command
+            # ),
             f"{title}_traj_mask_gt": wandb.Image(
                 traj_mask_gt, caption=command
             ),

@@ -347,34 +347,40 @@ class Solver(object):
             start_time = time()
 
             # import pdb; pdb.set_trace()
-            mask, traj_mask = self.network(
+            mask, _ = self.network(
                 frame, sub_text, frame_mask, sub_text_mask
             )
             
             if self.loss_func == "bce":
-                loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                )
+                loss = self.bce_loss(mask, gt_mask) 
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # )
             elif self.loss_func == "combo":
-                loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                )
+                loss = self.combo_loss(mask, gt_mask) 
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # )
             elif "class_level" in self.loss_func:
-                loss = self.class_level_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                )
+                loss = self.class_level_loss(mask, gt_mask) 
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # )
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                )
+                loss = self.focal_loss(mask, gt_mask) 
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # )
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                )
+                loss = self.tversky_loss(mask, gt_mask) 
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # )
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                )
+                loss = self.lovasz_loss(mask, gt_mask) 
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # )
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
@@ -392,18 +398,18 @@ class Solver(object):
 
             with torch.no_grad():
                 inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
-                inter_traj, union_traj = compute_mask_IOU(
-                    traj_mask, gt_traj_mask, self.threshold
-                )
+                # inter_traj, union_traj = compute_mask_IOU(
+                #     traj_mask, gt_traj_mask, self.threshold
+                # )
 
             total_inter_mask += inter_mask.item()
             total_union_mask += union_mask.item()
 
-            total_inter_traj += inter_traj.item()
-            total_union_traj += union_traj.item()
+            # total_inter_traj += inter_traj.item()
+            # total_union_traj += union_traj.item()
 
             total_pg_mask += pointing_game(mask, gt_mask)
-            total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
+            # total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
 
             total_loss += float(loss.item())
 
@@ -413,7 +419,8 @@ class Solver(object):
                         batch["orig_frame"],
                         batch["orig_text"],
                         mask.detach().cpu(),
-                        traj_mask.detach().cpu(),
+                        # traj_mask.detach().cpu(),
+                        None, 
                         gt_mask.detach().cpu(),
                         gt_traj_mask.detach().cpu(),
                         batch["episode"],
@@ -425,7 +432,8 @@ class Solver(object):
                         batch["orig_frame"],
                         batch["orig_text"],
                         mask.detach().cpu(),
-                        traj_mask.detach().cpu(),
+                        # traj_mask.detach().cpu(),
+                        None,
                         gt_mask.detach().cpu(),
                         gt_traj_mask.detach().cpu(),
                         batch["episode"],
@@ -442,7 +450,8 @@ class Solver(object):
                 curr_loss = total_loss / (step + 1)
 
                 curr_IOU_mask = total_inter_mask / total_union_mask
-                curr_IOU_traj = total_inter_traj / total_union_traj
+                # curr_IOU_traj = total_inter_traj / total_union_traj
+                curr_IOU_traj = total_inter_traj / 1
 
                 curr_pg_mask = total_pg_mask / num_samples
                 curr_pg_traj = total_pg_traj / num_samples
@@ -478,7 +487,8 @@ class Solver(object):
         train_loss = total_loss / data_len
 
         train_IOU_mask = total_inter_mask / total_union_mask
-        train_IOU_traj = total_inter_traj / total_union_traj
+        # train_IOU_traj = total_inter_traj / total_union_traj
+        train_IOU_traj = total_inter_traj / 1
 
         train_pg_mask = total_pg_mask / num_samples
         train_pg_traj = total_pg_traj / num_samples
@@ -570,35 +580,41 @@ class Solver(object):
 
             start_time = time()
 
-            mask, traj_mask = self.network(
+            mask, _ = self.network(
                 frame, text, frame_mask, text_mask
             )
             # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
 
             if self.loss_func == "bce":
-                loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                ) 
+                loss = self.bce_loss(mask, gt_mask) 
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # ) 
             elif self.loss_func == "combo":
-                loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                ) 
+                loss = self.combo_loss(mask, gt_mask) 
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # ) 
             elif "class_level" in self.loss_func:
-                loss = self.class_level_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                ) 
+                loss = self.class_level_loss(mask, gt_mask)
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # ) 
             elif "focal" in self.loss_func:
-                loss = self.focal_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                ) 
+                loss = self.focal_loss(mask, gt_mask)
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # ) 
             elif "tversky" in self.loss_func:
-                loss = self.tversky_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                ) 
+                loss = self.tversky_loss(mask, gt_mask) 
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # ) 
             elif "lovasz" in self.loss_func:
-                loss = self.lovasz_loss(mask, gt_mask) + self.combo_loss(
-                    traj_mask, gt_traj_mask
-                )
+                loss = self.lovasz_loss(mask, gt_mask) 
+                # + self.combo_loss(
+                #     traj_mask, gt_traj_mask
+                # )
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
@@ -606,18 +622,18 @@ class Solver(object):
             elapsed_time = end_time - start_time
 
             inter_mask, union_mask = compute_mask_IOU(mask, gt_mask, self.threshold)
-            inter_traj, union_traj = compute_mask_IOU(
-                traj_mask, gt_traj_mask, self.threshold
-            )
+            # inter_traj, union_traj = compute_mask_IOU(
+            #     traj_mask, gt_traj_mask, self.threshold
+            # )
 
             total_inter_mask += inter_mask.item()
             total_union_mask += union_mask.item()
 
-            total_inter_traj += inter_traj.item()
-            total_union_traj += union_traj.item()
+            # total_inter_traj += inter_traj.item()
+            # total_union_traj += union_traj.item()
 
             total_pg_mask += pointing_game(mask, gt_mask)
-            total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
+            # total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
 
             # total_it_mask += intersection_at_t(mask, gt_mask)
             # total_it_traj += intersection_at_t(traj_mask, gt_traj_mask)
@@ -636,7 +652,8 @@ class Solver(object):
                         batch["orig_frame"],
                         batch["orig_text"],
                         mask.detach().cpu(),
-                        traj_mask.detach().cpu(),
+                        # traj_mask.detach().cpu(),
+                        None,
                         gt_mask.detach().cpu(),
                         gt_traj_mask.detach().cpu(),
                         batch["episode"],
@@ -648,7 +665,8 @@ class Solver(object):
                         batch["orig_frame"],
                         batch["orig_text"],
                         mask.detach().cpu(),
-                        traj_mask.detach().cpu(),
+                        # traj_mask.detach().cpu(),
+                        None,
                         gt_mask.detach().cpu(),
                         gt_traj_mask.detach().cpu(),
                         batch["episode"],
@@ -666,7 +684,8 @@ class Solver(object):
                 curr_loss = total_loss / (step + 1)
 
                 curr_IOU_mask = total_inter_mask / total_union_mask
-                curr_IOU_traj = total_inter_traj / total_union_traj
+                # curr_IOU_traj = total_inter_traj / total_union_traj
+                curr_IOU_traj = total_inter_traj / 1
 
                 curr_pg_mask = total_pg_mask / num_samples
                 curr_pg_traj = total_pg_traj / num_samples
@@ -697,7 +716,8 @@ class Solver(object):
         val_loss = total_loss / data_len
 
         val_IOU_mask = total_inter_mask / total_union_mask
-        val_IOU_traj = total_inter_traj / total_union_traj
+        # val_IOU_traj = total_inter_traj / total_union_traj
+        val_IOU_traj = total_inter_traj / 1
 
         val_pg_mask = total_pg_mask / num_samples
         val_pg_traj = total_pg_traj / num_samples

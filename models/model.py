@@ -615,18 +615,18 @@ class ConvLSTMBaseline(nn.Module):
             attn_type=self.attn_type,
         )
 
-        self.traj_decoder = nn.Sequential(
-            ASPP(in_channels=hidden_dim, atrous_rates=[4, 6, 8], out_channels=256),
-            ConvUpsample(
-                in_channels=256,
-                out_channels=1,
-                channels=[256, 256],
-                upsample=[True, True],
-                drop=0.2,
-            ),
-            nn.Upsample(size=(traj_dim, traj_dim), mode="bilinear", align_corners=True),
-            nn.Sigmoid(),
-        )
+        # self.traj_decoder = nn.Sequential(
+        #     ASPP(in_channels=hidden_dim, atrous_rates=[4, 6, 8], out_channels=256),
+        #     ConvUpsample(
+        #         in_channels=256,
+        #         out_channels=1,
+        #         channels=[256, 256],
+        #         upsample=[True, True],
+        #         drop=0.2,
+        #     ),
+        #     nn.Upsample(size=(traj_dim, traj_dim), mode="bilinear", align_corners=True),
+        #     nn.Sigmoid(),
+        # )
 
     def forward(self, frames, sub_text, frame_mask, sub_text_mask):
 
@@ -652,10 +652,10 @@ class ConvLSTMBaseline(nn.Module):
             vision_feat, sub_text_feat, frame_mask, sub_text_mask
         )  # .squeeze(1)
 
-        # use last hidden state
-        traj_mask = self.traj_decoder(last_state_feat)
+        ## use last hidden state
+        # traj_mask = self.traj_decoder(last_state_feat)
 
-        return segm_mask, traj_mask
+        return segm_mask, None
 
 
 class TextEncoder(nn.Module):
