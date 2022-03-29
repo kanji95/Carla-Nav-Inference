@@ -145,14 +145,14 @@ class ConvLSTM(nn.Module):
         if not len(kernel_size) == len(hidden_dim) == num_layers:
             raise ValueError("Inconsistent list length.")
 
-        # self.input_dim = input_dim
-        # self.mask_dim = mask_dim
-        # self.hidden_dim = hidden_dim
-        # self.kernel_size = kernel_size
-        # self.num_layers = num_layers
-        # self.batch_first = batch_first
-        # self.bias = bias
-        # self.return_all_layers = return_all_layers
+        self.input_dim = input_dim
+        self.mask_dim = mask_dim
+        self.hidden_dim = hidden_dim
+        self.kernel_size = kernel_size
+        self.num_layers = num_layers
+        self.batch_first = batch_first
+        self.bias = bias
+        self.return_all_layers = return_all_layers
 
         cell_list = []
         for i in range(0, self.num_layers):
@@ -168,13 +168,13 @@ class ConvLSTM(nn.Module):
             )
 
         encoder_layer = TransformerEncoderLayer(
-            hidden_dim,
+            self.hidden_feat,
             nhead=8,
             dim_feedforward=512,
             dropout=0.2,
             normalize_before=normalize_before,
         )
-        encoder_norm = nn.LayerNorm(hidden_dim) if normalize_before else None
+        encoder_norm = nn.LayerNorm(self.hidden_feat) if normalize_before else None
         self.transformer_encoder = TransformerEncoder(
             encoder_layer, num_encoder_layers, encoder_norm
         )
@@ -254,14 +254,16 @@ class ConvLSTM(nn.Module):
 
         txt_pos_embd = positionalencoding1d(b, c, max_len=l)
 
-        combined_pos_embd = torch.concat([vis_pos_embd, txt_pos_embd], dim=1)
+        combined_pos_embd = torch.cat([vis_pos_embd, txt_pos_embd], dim=1)
+        combined_pos_embd = rearrange(combined_pos_embd, "b l c -> l b c")
 
         for layer_idx in range(self.num_layers):
 
             hidden, cell = hidden_state[layer_idx]
             output_inner = []
 
-            import pdb; pdb.set_trace()
+            
+            # import pdb; pdb.set_trace()
             attn = None
 
             for t in range(seq_len):
@@ -280,9 +282,9 @@ class ConvLSTM(nn.Module):
 
                 combined_padding = ~torch.cat(
                     [input_mask, context_mask[:, t]], dim=-1
-                ).bool()[:, None]
+                ).bool()
 
-                combined_tensor = torch.concat([frame_tensor, lang_tensor], dim=0)
+                combined_tensor = torch.cat([frame_tensor, lang_tensor], dim=0)
                 enc_out = self.transformer_encoder(
                     combined_tensor,
                     pos=combined_pos_embd,
@@ -290,9 +292,12 @@ class ConvLSTM(nn.Module):
                 )
                 enc_out = enc_out.permute(1, 2, 0)
 
+                # import pdb; pdb.set_trace()
+
                 f_img_out = enc_out[:, :, : h * w].view(b, c, h, w)
 
                 f_txt_out = enc_out[:, :, h * w :].transpose(1, 2)  # B, L, E
+                f_txt_out = f_txt_out.mean(dim=1)
 
                 # masked_sum = f_txt_out * text_mask[:, :, None]
                 # f_txt_out = masked_sum.sum(

@@ -596,8 +596,8 @@ class ConvLSTMBaseline(nn.Module):
             param.requires_grad_(False)
 
         # self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
-        # self.sub_text_encoder = TextEncoder(
-        #     num_layers=1, hidden_size=hidden_dim)
+        self.sub_text_encoder = TextEncoder(
+            num_layers=1, hidden_size=hidden_dim)
 
         self.conv3d = nn.Conv3d(192, hidden_dim, kernel_size=3, stride=1, padding=1)
 
@@ -642,14 +642,14 @@ class ConvLSTMBaseline(nn.Module):
 
         # mm_feat = self.smm_feat, "b c (t h w) -> b t c h w", t=nf, h=7, w=7)
 
-        # sub_text = rearrange(sub_text, "b n l c -> (b n) l c")
-        # sub_text_feat = self.sub_text_encoder(sub_text)
-        # sub_text_feat = rearrange(
-        #     sub_text_feat, "(b n) l c -> b n l c", b=bs, n=nf)
+        sub_text = rearrange(sub_text, "b n l c -> (b n) l c")
+        sub_text_feat = self.sub_text_encoder(sub_text)
+        sub_text_feat = rearrange(
+            sub_text_feat, "(b n) l c -> b n l c", b=bs, n=nf)
 
         # import pdb; pdb.set_trace()
         last_state_feat, segm_mask = self.mm_decoder(
-            vision_feat, sub_text, frame_mask, sub_text_mask
+            vision_feat, sub_text_feat, frame_mask, sub_text_mask
         )  # .squeeze(1)
 
         # use last hidden state
