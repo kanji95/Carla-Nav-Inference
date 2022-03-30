@@ -187,7 +187,7 @@ class World(object):
                 sys.exit(1)
             spawn_points = self.map.get_spawn_points()
             corresponding_maps = ['Town03', 'Town03', 'Town03', 'Town03', 'Town01', 'Town05', 'Town03', 'Town10HD', 'Town05', 'Town05', 'Town10HD', 'Town03',
-                                  'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town01', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
+                                  'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town02', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
             other_spawns = [[197.0673370361328, -2.0025179386138916, 0.3, -179.1441686105662],
                             [-73.89038848876953,
                              97.12801361083984,
@@ -421,8 +421,9 @@ class KeyboardControl(object):
             mask_video_overlay = np.copy(frame_video)
             mask_video_overlay[:,
                                0] += (mask_video[:, 0]/mask_video.max())
-            mask_video_overlay[:,
-                               1] += (mask_video[:, 1]/mask_video.max())
+            if mask_video.shape[1] == 2:
+                mask_video_overlay[:,
+                                   1] += (mask_video[:, 1]/mask_video.max())
             mask_video_overlay = np.clip(
                 mask_video_overlay, a_min=0., a_max=1.)
 
@@ -1000,8 +1001,10 @@ class CameraManager(object):
                     img, (image.height, image.width, 4))  # RGBA format
                 img = img[:, :, :]  # BGR
                 # im.save(f'_out/{episode_number}/images/{image.frame:08d}.png')
-                cv2.imwrite(
-                    f'_out/{episode_number}/images/{image.frame:08d}.png', img)
+
+                # cv2.imwrite(
+                #     f'_out/{episode_number}/images/{image.frame:08d}.png', img)
+
                 # image.save_to_disk(
                 #     f'_out/{episode_number}/images/{image.frame:08d}')
                 with open(f'_out/{episode_number}/vehicle_positions.txt', 'a+') as f:
@@ -1108,8 +1111,13 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
         intermediate_mask_np = mask_np[:, :, 0].reshape(
             mask_np.shape[0], mask_np.shape[1])
-        final_mask_np = mask_np[:, :, 1].reshape(
-            mask_np.shape[0], mask_np.shape[1])
+        if mask_np.shape[2] == 1:
+            final_mask_np = mask_np[:, :, 0].reshape(
+                mask_np.shape[0], mask_np.shape[1])
+        else:
+            final_mask_np = mask_np[:, :, 1].reshape(
+                mask_np.shape[0], mask_np.shape[1])
+
         print(intermediate_mask_np.shape,
               intermediate_mask_np.max(), intermediate_mask_np.min())
         print(final_mask_np.shape, final_mask_np.max(), final_mask_np.min())
@@ -1177,6 +1185,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
             ########### STOPPING CRITERIA START ################
             if args.stop_criteria == 'confidence' and args.target != 'network':
+                print(f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
                 if probs >= confidence:
                     color = (0, 0, 255)
                     pred_found = 1
@@ -1772,7 +1781,7 @@ def game_loop(args):
         num_gpu = torch.cuda.device_count()
         print(f"Using {device} with {num_gpu} GPUS!")
 
-        solver = Solver(args, inference=True)
+        solver = Solver(args, inference=True, force_parallel=False)
 
         glove_path = args.glove_path
         checkpoint_path = args.checkpoint
@@ -1808,8 +1817,11 @@ def game_loop(args):
             episode_number = -1
         else:
             episode_number = max([int(x) for x in os.listdir(temp_dir)])
+        if args.command:
+            episode_number = args.spawn-1
         target_number = 0
         frame_count = 0
+        stationary_frames = 0
         frame_pending = 0
         pred_found = 0
         frames_from_done = 0
@@ -1875,6 +1887,7 @@ def game_loop(args):
                         target_number = 0
                         pred_found = 0
                         frame_count = 0
+                        stationary_frames = 0
                         frames_from_done = 0
                         num_preds = 0
                         full_video = []
@@ -1892,11 +1905,14 @@ def game_loop(args):
                         command = re.sub(r"[^\w\s]", "", command)
 
                         phrase, phrase_mask = corpus.tokenize(command)
-                        phrase = phrase.unsqueeze(0)
-                        phrase_mask = phrase_mask.unsqueeze(0)
+                        phrase = phrase.unsqueeze(0).cuda()
+                        phrase_mask = phrase_mask.unsqueeze(0).cuda()
 
                         command_given = True
                         new_start = False
+
+                        prev_loc = None
+                        prev_prev_loc = None
 
                         # print('Processing FIRST frame')
                         # measurements, sensor_data = client.read_data()
@@ -1919,8 +1935,6 @@ def game_loop(args):
                 #     print('In route')
 
             handled = pygame.mouse.get_pressed()[0]
-            prev_loc = None
-            prev_prev_loc = None
 
             if not depth_cam_queue.empty() and not rgb_cam_queue.empty():
                 depth_cam_data = depth_cam_queue.get()
@@ -1936,12 +1950,14 @@ def game_loop(args):
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
                                     vehicle_location, args.sampling*(num_preds+1))
                     end = time.time()
-                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-1 and abs(prev_loc.x - vehicle_location.x) < 1e-1:
+                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-3 and abs(prev_loc.x - vehicle_location.x) < 1e-3:
                         pred_found = 0
-                        print(f'Stationary')
+                        stationary_frames += 1
                     if frame_count % args.sampling == 0 and print_network_stats:
                         print(
                             f'Network took {end-start}, pred_found = {pred_found}')
+                        print(
+                            f'++++++++++++++++++++++++++++++++frame_count:{frame_count} out of {1500+stationary_frames}++++++++++++++++++++++++++++++++')
                         num_preds += pred_found
                     if pred_found:
                         print(
@@ -1960,8 +1976,10 @@ def game_loop(args):
             #     target_number = 0
             #     frame_count = 0
 
-            if agent.done() and prev_loc == prev_prev_loc and command_given:
+            if (agent.done() and prev_loc == prev_prev_loc and command_given) or frame_count > 1500+stationary_frames or frame_count > 3000:
                 pred_found = 0
+                if frame_count > 1500+stationary_frames or frame_count > 3000:
+                    num_preds = args.num_preds
                 if num_preds >= args.num_preds:
                     command_given = False
                     saving = [True, True, False]
@@ -1982,8 +2000,9 @@ def game_loop(args):
                     mask_video_overlay = np.copy(frame_video)
                     mask_video_overlay[:,
                                        0] += (mask_video[:, 0]/mask_video.max())
-                    mask_video_overlay[:,
-                                       1] += (mask_video[:, 1]/mask_video.max())
+                    if mask_video.shape[1] == 2:
+                        mask_video_overlay[:,
+                                           1] += (mask_video[:, 1]/mask_video.max())
                     mask_video_overlay = np.clip(
                         mask_video_overlay, a_min=0., a_max=1.)
 
@@ -2213,6 +2232,17 @@ def main():
     )
 
     argparser.add_argument(
+        "--imtext_matching",
+        default='cross_attention',
+        choices=[
+            'cross_attention',
+            'concat',
+            'avg_concat',
+        ],
+        type=str,
+    )
+
+    argparser.add_argument(
         "--img_backbone",
         default="vit_tiny_patch16_224",
         choices=[
@@ -2266,6 +2296,12 @@ def main():
                            default=256, help="Hidden Dimension")
     argparser.add_argument("--num_frames", type=int,
                            default=16, help="Frames of Video")
+    argparser.add_argument("--traj_frames", type=int,
+                           default=16, help="Next Frames of Trajectory")
+    argparser.add_argument("--traj_size", type=int,
+                           default=25, help="Trajectory Size")
+    argparser.add_argument("--one_in_n", type=int,
+                           default=20, help="Image Dimension")
     argparser.add_argument("--patch_size", type=int,
                            default=16, help="Patch Size of Video Frame for ViT")
 
