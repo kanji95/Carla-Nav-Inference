@@ -143,7 +143,7 @@ if __name__ == "__main__":
         ],
         type=str,
     )
-    
+
     parser.add_argument(
         "--attn_type",
         default='dot_product',
@@ -171,6 +171,7 @@ if __name__ == "__main__":
             "deeplabv3_resnet101",
             "deeplabv3_mobilenet_v3_large",
             "convlstm",
+            "convattn",
         ],
         type=str,
     )
