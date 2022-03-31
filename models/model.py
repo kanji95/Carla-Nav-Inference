@@ -212,9 +212,6 @@ class ConvAttnBaseline(nn.Module):
         self.sub_text_encoder = TextEncoder(
             num_layers=1, hidden_size=hidden_dim)
 
-        self.bilinear = nn.Bilinear(
-            self.num_frames * 49, 20, self.num_frames * 49)
-
         self.mm_decoder = ConvAttn(
             input_dim=image_dim,
             mask_dim=self.mask_dim,
