@@ -254,7 +254,7 @@ class ConvAttnBaseline(nn.Module):
             sub_text_feat, "(b n) l c -> b n l c", b=bs, n=nf)
 
         # import pdb; pdb.set_trace()
-        out_cnn, segm_mask = self.mm_decoder(
+        segm_mask, out_cnn = self.mm_decoder(
             vision_feat,  sub_text_feat)
 
         # use last hidden state

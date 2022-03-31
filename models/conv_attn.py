@@ -180,6 +180,7 @@ class ConvAttn(nn.Module):
         # lang_tensor = repeat(context_tensor, 'b l c -> (b t) l c', t=t)
         lang_tensor = rearrange(context_tensor, 'b t l c -> (b t) l c', t=t)
 
+        # import pdb; pdb.set_trace()
         multi_modal_tensor, attn = self.attention(
             visual_tensor, lang_tensor)
 
