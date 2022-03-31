@@ -49,6 +49,8 @@ from torchvision.models._utils import IntermediateLayerGetter
 from models.model import *
 from dataloader.word_utils import Corpus
 
+from solver import Solver
+
 
 import cv2
 from skimage import measure
@@ -185,7 +187,7 @@ class World(object):
                 sys.exit(1)
             spawn_points = self.map.get_spawn_points()
             corresponding_maps = ['Town03', 'Town03', 'Town03', 'Town03', 'Town01', 'Town05', 'Town03', 'Town10HD', 'Town05', 'Town05', 'Town10HD', 'Town03',
-                                  'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town01', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
+                                  'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town02', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
             other_spawns = [[197.0673370361328, -2.0025179386138916, 0.3, -179.1441686105662],
                             [-73.89038848876953,
                              97.12801361083984,
@@ -419,8 +421,9 @@ class KeyboardControl(object):
             mask_video_overlay = np.copy(frame_video)
             mask_video_overlay[:,
                                0] += (mask_video[:, 0]/mask_video.max())
-            mask_video_overlay[:,
-                               1] += (mask_video[:, 1]/mask_video.max())
+            if mask_video.shape[1] == 2:
+                mask_video_overlay[:,
+                                   1] += (mask_video[:, 1]/mask_video.max())
             mask_video_overlay = np.clip(
                 mask_video_overlay, a_min=0., a_max=1.)
 
@@ -998,8 +1001,10 @@ class CameraManager(object):
                     img, (image.height, image.width, 4))  # RGBA format
                 img = img[:, :, :]  # BGR
                 # im.save(f'_out/{episode_number}/images/{image.frame:08d}.png')
-                cv2.imwrite(
-                    f'_out/{episode_number}/images/{image.frame:08d}.png', img)
+
+                # cv2.imwrite(
+                #     f'_out/{episode_number}/images/{image.frame:08d}.png', img)
+
                 # image.save_to_disk(
                 #     f'_out/{episode_number}/images/{image.frame:08d}')
                 with open(f'_out/{episode_number}/vehicle_positions.txt', 'a+') as f:
@@ -1059,6 +1064,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
     global args
 
+    global mode
+
     img = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
     img = np.reshape(
         img, (image.height, image.width, 4))  # RGBA format
@@ -1070,9 +1077,9 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
     full_video.append(frame.unsqueeze(0))
 
-    if args.img_backbone == 'timesformer':
+    if mode == 'video':
         if frame_count == 0:
-            video_queue = [frame]*args.num_frames
+            video_queue = [frame]*args.num_frames*args.one_in_n
         else:
             video_queue.pop()
             video_queue.append(frame)
@@ -1091,10 +1098,13 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         frame = frame.cuda(
             non_blocking=True).unsqueeze(0)
 
-        if 'timesformer' not in args.img_backbone:
+        if mode != 'video':
             mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
         else:
-            video_frames = torch.stack(video_queue, dim=1).cuda(
+            video_frames = video_queue[::-1][::args.one_in_n][::-1]
+            video_frames = full_video[-args.num_frames *
+                                      args.one_in_n][::-1][::args.one_in_n][::-1]
+            video_frames = torch.stack(video_frames, dim=1).cuda(
                 non_blocking=True).unsqueeze(0)
             mask, traj_mask = network(
                 video_frames, phrase, frame_mask, phrase_mask)
@@ -1106,8 +1116,13 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
         intermediate_mask_np = mask_np[:, :, 0].reshape(
             mask_np.shape[0], mask_np.shape[1])
-        final_mask_np = mask_np[:, :, 1].reshape(
-            mask_np.shape[0], mask_np.shape[1])
+        if mask_np.shape[2] == 1:
+            final_mask_np = mask_np[:, :, 0].reshape(
+                mask_np.shape[0], mask_np.shape[1])
+        else:
+            final_mask_np = mask_np[:, :, 1].reshape(
+                mask_np.shape[0], mask_np.shape[1])
+
         print(intermediate_mask_np.shape,
               intermediate_mask_np.max(), intermediate_mask_np.min())
         print(final_mask_np.shape, final_mask_np.max(), final_mask_np.min())
@@ -1175,6 +1190,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
             ########### STOPPING CRITERIA START ################
             if args.stop_criteria == 'confidence' and args.target != 'network':
+                print(f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
                 if probs >= confidence:
                     color = (0, 0, 255)
                     pred_found = 1
@@ -1505,6 +1521,7 @@ def game_loop(args):
     global frame_mask
     global threshold
     global confidence
+    global mode
 
     global pred_found
     global num_preds
@@ -1770,9 +1787,8 @@ def game_loop(args):
         num_gpu = torch.cuda.device_count()
         print(f"Using {device} with {num_gpu} GPUS!")
 
-        experiment = wandb.init(project="Language Navigation", dir="/tmp")
+        solver = Solver(args, inference=True, force_parallel=False)
 
-        # val_path = os.path.join(args.data_root, 'val/')
         glove_path = args.glove_path
         checkpoint_path = args.checkpoint
 
@@ -1783,96 +1799,19 @@ def game_loop(args):
         threshold = args.threshold
         confidence = args.confidence
 
-        return_layers = {"layer2": "layer2",
-                         "layer3": "layer3", "layer4": "layer4"}
-
-        mode = "image"
-        if "vit_" in args.img_backbone:
-            img_backbone = timm.create_model(
-                args.img_backbone, pretrained=True)
-            visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
-            network = JointSegmentationBaseline(
-                visual_encoder,
-                hidden_dim=args.hidden_dim,
-                mask_dim=args.mask_dim,
-                traj_dim=args.traj_dim,
-                backbone=args.img_backbone,
-            )
-        elif "dino_resnet50" in args.img_backbone:
-            img_backbone = torch.hub.load(
-                "facebookresearch/dino:main", "dino_resnet50")
-            visual_encoder = IntermediateLayerGetter(
-                img_backbone, return_layers)
-            network = IROSBaseline(
-                visual_encoder, hidden_dim=args.hidden_dim, mask_dim=args.mask_dim
-            )
-        elif "timesformer" in args.img_backbone:
-            mode = "video"
-            spatial_dim = args.image_dim // args.patch_size
-            visual_encoder = VisionTransformer(
-                img_size=args.image_dim,
-                patch_size=args.patch_size,
-                embed_dim=args.hidden_dim,
-                depth=2,
-                num_heads=8,
-                num_frames=args.num_frames,
-            )
-            network = JointVideoSegmentationBaseline(
-                visual_encoder,
-                hidden_dim=args.hidden_dim,
-                mask_dim=args.mask_dim,
-                traj_dim=args.traj_dim,
-                spatial_dim=spatial_dim,
-                num_frames=args.num_frames,
-            )
-        elif "deeplabv3_" in args.img_backbone:
-            img_backbone = torch.hub.load(
-                "pytorch/vision:v0.10.0", args.img_backbone, pretrained=True
-            )
-            visual_encoder = nn.Sequential(
-                *list(img_backbone._modules["backbone"].children())
-            )
-            network = JointSegmentationBaseline(
-                visual_encoder,
-                hidden_dim=args.hidden_dim,
-                mask_dim=args.mask_dim,
-                traj_dim=args.traj_dim,
-                backbone=args.img_backbone,
-            )
-        wandb.watch(network, log="all")
-
-        network = nn.DataParallel(network)
-        if num_gpu > 1:
-            print("Using DataParallel mode!")
-        network.to(device)
+        mode = solver.mode
+        network = solver.network
 
         checkpoint = torch.load(checkpoint_path)
         network.load_state_dict(checkpoint["state_dict"])
 
         network.eval()
 
-        img_transform = transforms.Compose(
-            [
-                transforms.Resize((args.image_dim, args.image_dim)),
-                transforms.ToTensor(),
-                # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
-                #                      0.229, 0.224, 0.225]),
-            ]
-        )
+        img_transform = solver.val_transform
 
-        mask_transform = transforms.Compose(
-            [
-                transforms.Resize((args.mask_dim, args.mask_dim)),
-                transforms.ToTensor(),
-            ]
-        )
+        mask_transform = solver.mask_transform
 
-        traj_transform = transforms.Compose(
-            [
-                transforms.Resize((args.traj_dim, args.traj_dim)),
-                transforms.ToTensor(),
-            ]
-        )
+        traj_transform = solver.traj_transform
 
         frame_mask = torch.ones(
             1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
@@ -1884,8 +1823,11 @@ def game_loop(args):
             episode_number = -1
         else:
             episode_number = max([int(x) for x in os.listdir(temp_dir)])
+        if args.command:
+            episode_number = args.spawn-1
         target_number = 0
         frame_count = 0
+        stationary_frames = 0
         frame_pending = 0
         pred_found = 0
         frames_from_done = 0
@@ -1951,6 +1893,7 @@ def game_loop(args):
                         target_number = 0
                         pred_found = 0
                         frame_count = 0
+                        stationary_frames = 0
                         frames_from_done = 0
                         num_preds = 0
                         full_video = []
@@ -1968,11 +1911,14 @@ def game_loop(args):
                         command = re.sub(r"[^\w\s]", "", command)
 
                         phrase, phrase_mask = corpus.tokenize(command)
-                        phrase = phrase.unsqueeze(0)
-                        phrase_mask = phrase_mask.unsqueeze(0)
+                        phrase = phrase.unsqueeze(0).cuda()
+                        phrase_mask = phrase_mask.unsqueeze(0).cuda()
 
                         command_given = True
                         new_start = False
+
+                        prev_loc = None
+                        prev_prev_loc = None
 
                         # print('Processing FIRST frame')
                         # measurements, sensor_data = client.read_data()
@@ -1995,8 +1941,6 @@ def game_loop(args):
                 #     print('In route')
 
             handled = pygame.mouse.get_pressed()[0]
-            prev_loc = None
-            prev_prev_loc = None
 
             if not depth_cam_queue.empty() and not rgb_cam_queue.empty():
                 depth_cam_data = depth_cam_queue.get()
@@ -2012,12 +1956,14 @@ def game_loop(args):
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
                                     vehicle_location, args.sampling*(num_preds+1))
                     end = time.time()
-                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-1 and abs(prev_loc.x - vehicle_location.x) < 1e-1:
+                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-3 and abs(prev_loc.x - vehicle_location.x) < 1e-3:
                         pred_found = 0
-                        print(f'Stationary')
+                        stationary_frames += 1
                     if frame_count % args.sampling == 0 and print_network_stats:
                         print(
                             f'Network took {end-start}, pred_found = {pred_found}')
+                        print(
+                            f'++++++++++++++++++++++++++++++++frame_count:{frame_count} out of {1500+stationary_frames}++++++++++++++++++++++++++++++++')
                         num_preds += pred_found
                     if pred_found:
                         print(
@@ -2036,8 +1982,10 @@ def game_loop(args):
             #     target_number = 0
             #     frame_count = 0
 
-            if agent.done() and prev_loc == prev_prev_loc and command_given:
+            if (agent.done() and prev_loc == prev_prev_loc and command_given) or frame_count > 1500+stationary_frames or frame_count > 3000:
                 pred_found = 0
+                if frame_count > 1500+stationary_frames or frame_count > 3000:
+                    num_preds = args.num_preds
                 if num_preds >= args.num_preds:
                     command_given = False
                     saving = [True, True, False]
@@ -2058,8 +2006,9 @@ def game_loop(args):
                     mask_video_overlay = np.copy(frame_video)
                     mask_video_overlay[:,
                                        0] += (mask_video[:, 0]/mask_video.max())
-                    mask_video_overlay[:,
-                                       1] += (mask_video[:, 1]/mask_video.max())
+                    if mask_video.shape[1] == 2:
+                        mask_video_overlay[:,
+                                           1] += (mask_video[:, 1]/mask_video.max())
                     mask_video_overlay = np.clip(
                         mask_video_overlay, a_min=0., a_max=1.)
 
@@ -2276,6 +2225,30 @@ def main():
     )
 
     argparser.add_argument(
+        "--attn_type",
+        default='dot_product',
+        choices=[
+            'dot_product',
+            'scaled_dot_product',
+            'multi_head',
+            'rel_multi_head',
+            'custom_attn'
+        ],
+        type=str,
+    )
+
+    argparser.add_argument(
+        "--imtext_matching",
+        default='cross_attention',
+        choices=[
+            'cross_attention',
+            'concat',
+            'avg_concat',
+        ],
+        type=str,
+    )
+
+    argparser.add_argument(
         "--img_backbone",
         default="vit_tiny_patch16_224",
         choices=[
@@ -2329,6 +2302,12 @@ def main():
                            default=256, help="Hidden Dimension")
     argparser.add_argument("--num_frames", type=int,
                            default=16, help="Frames of Video")
+    argparser.add_argument("--traj_frames", type=int,
+                           default=16, help="Next Frames of Trajectory")
+    argparser.add_argument("--traj_size", type=int,
+                           default=25, help="Trajectory Size")
+    argparser.add_argument("--one_in_n", type=int,
+                           default=20, help="Image Dimension")
     argparser.add_argument("--patch_size", type=int,
                            default=16, help="Patch Size of Video Frame for ViT")
 
