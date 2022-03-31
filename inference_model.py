@@ -1064,6 +1064,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
     global args
 
+    global mode
+
     img = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
     img = np.reshape(
         img, (image.height, image.width, 4))  # RGBA format
@@ -1075,9 +1077,9 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
     full_video.append(frame.unsqueeze(0))
 
-    if args.img_backbone == 'timesformer':
+    if mode == 'video':
         if frame_count == 0:
-            video_queue = [frame]*args.num_frames
+            video_queue = [frame]*args.num_frames*args.one_in_n
         else:
             video_queue.pop()
             video_queue.append(frame)
@@ -1096,10 +1098,12 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         frame = frame.cuda(
             non_blocking=True).unsqueeze(0)
 
-        if 'timesformer' not in args.img_backbone:
+        if mode != 'video':
             mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
         else:
-            video_frames = torch.stack(video_queue, dim=1).cuda(
+            video_frames = video_queue[::-1][::args.one_in_n][::-1]
+            video_frames = full_video[-args.num_frames*args.one_in_n][::-1][::args.one_in_n][::-1]
+            video_frames = torch.stack(video_frames, dim=1).cuda(
                 non_blocking=True).unsqueeze(0)
             mask, traj_mask = network(
                 video_frames, phrase, frame_mask, phrase_mask)
@@ -1516,6 +1520,7 @@ def game_loop(args):
     global frame_mask
     global threshold
     global confidence
+    global mode
 
     global pred_found
     global num_preds
