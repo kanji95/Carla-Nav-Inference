@@ -204,6 +204,7 @@ class ConvAttnBaseline(nn.Module):
 
         self.mask_dim = mask_dim
         self.traj_dim = traj_dim
+        self.hidden_dim = hidden_dim
 
         self.vision_encoder = vision_encoder
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
@@ -217,6 +218,7 @@ class ConvAttnBaseline(nn.Module):
         self.mm_decoder = ConvAttn(
             input_dim=image_dim,
             mask_dim=self.mask_dim,
+            hidden_dim=self.hidden_dim,
             num_frames=self.num_frames,
             batch_first=True,
             bias=True,
