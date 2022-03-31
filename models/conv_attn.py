@@ -170,6 +170,7 @@ class ConvAttn(nn.Module):
 
         assert b == context_tensor.shape[0]
         assert n == t
+        assert c == context_tensor.shape[3]
 
         #import pdb; pdb.set_trace()
 
@@ -192,6 +193,9 @@ class ConvAttn(nn.Module):
         out_cnn = out_cnn.squeeze(2)
 
         segm_mask = self.mask_decoder(out_cnn)
+
+        segm_mask = repeat(
+            segm_mask, 'b c h w -> b c t h w', t=self.num_frames)
 
         if not self.return_all_layers:
             return segm_mask
