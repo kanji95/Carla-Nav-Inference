@@ -170,7 +170,6 @@ class ConvAttn(nn.Module):
 
         assert b == context_tensor.shape[0]
         assert n == t
-        assert c == context_tensor.shape[3]
 
         #import pdb; pdb.set_trace()
 
