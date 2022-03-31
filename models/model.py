@@ -244,7 +244,7 @@ class ConvAttnBaseline(nn.Module):
         nf = self.num_frames
 
         vision_feat = self.vision_encoder(frames)
-        vision_feat = F.relu(self.conv3d(vision_feat))
+        # vision_feat = F.relu(self.conv3d(vision_feat))
         # according to x3d_s architecture
         vision_feat = rearrange(vision_feat, 'b c t h w -> b t c h w')
 
