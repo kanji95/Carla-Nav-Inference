@@ -265,7 +265,7 @@ class Solver(object):
 
             self.bce_loss = nn.BCELoss(reduction="mean")
             self.ce_loss = nn.CrossEntropyLoss(reduction='sum')
-            self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
+            self.combo_loss = ComboLoss(alpha=0.9, ce_ratio=0.3)
             self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
 
             self.focal_loss = FocalLoss(
@@ -295,7 +295,7 @@ class Solver(object):
                 params,
                 lr=self.lr,
                 alpha=0.99,
-                eps=1e-08,
+                ps=1e-08,
                 weight_decay=self.weight_decay,
                 momentum=0.8,
                 centered=False,
