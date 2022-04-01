@@ -388,6 +388,10 @@ class Solver(object):
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
+                if "convattn" in self.img_backbone:
+                    gt_mask = gt_mask[:, :, -1]
+                    gt_mask = rearrange(gt_mask, 'b c h w -> b c t h w', t=1)
+
                 batch_size = frame.shape[0]
                 frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
                     non_blocking=True
@@ -408,21 +412,7 @@ class Solver(object):
             mask, traj_mask = self.network(
                 frame, sub_text, frame_mask, sub_text_mask
             )
-            if len(mask.shape) == 5:
-                re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
-            else:
-                re_mask = mask
-            # import pdb; pdb.set_trace()
-
-            if len(mask.shape) == 4 and len(gt_mask.shape) == 5:
-                with torch.no_grad():
-                    gt_mask = gt_mask[:, :, -1]
-                    re_gt_mask = gt_mask[:, :, :, :]
-                    bs, _, h, w = re_gt_mask.shape
-
-                    new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
-                    new_gt_mask[re_gt_mask[:, 0] == 1] = 1
-                    new_gt_mask[re_gt_mask[:, 1] == 1] = 2
+            re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
@@ -637,6 +627,10 @@ class Solver(object):
             gt_mask = batch["gt_frame"].cuda(non_blocking=True)
             gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
+            if "convattn" in self.img_backbone:
+                gt_mask = gt_mask[:, :, -1]
+                gt_mask = rearrange(gt_mask, 'b c h w -> b c t h w', t=1)
+
             batch_size = frame.shape[0]
             frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
                 non_blocking=True
@@ -657,10 +651,6 @@ class Solver(object):
                 frame, text, frame_mask, text_mask
             )
             # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
-
-            if len(mask.shape) == 4 and len(gt_mask.shape) == 5:
-                gt_mask = gt_mask[:, :, -1]
-                re_gt_mask = gt_mask[:, :, :, :]
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
