@@ -222,7 +222,7 @@ class JointSegmentationBaseline(nn.Module):
 
         segm_mask = self.mm_decoder(fused_feat)  # .squeeze(1)
         traj_mask = self.traj_decoder(fused_feat)
-        timestep = self.tmstp_discriminator(fused_feat)
+        timestep = self.tmstp_discriminator(fused_feat).squeeze(1)
 
         return segm_mask, traj_mask, timestep
 

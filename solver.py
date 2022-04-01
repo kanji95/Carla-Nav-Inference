@@ -374,6 +374,7 @@ class Solver(object):
             mask, traj_mask, timestep = self.network(
                 frame, text, frame_mask, text_mask
             )
+            # print(type(timestep), type(gt_timestep), timestep.dtype, gt_timestep.dtype)
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
@@ -605,6 +606,7 @@ class Solver(object):
             mask, traj_mask, timestep = self.network(
                 frame, text, frame_mask, text_mask
             )
+            # print(type(timestep), type(gt_timestep))
             # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
 
             if self.loss_func == "bce":
