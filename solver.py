@@ -408,7 +408,7 @@ class Solver(object):
             mask, traj_mask = self.network(
                 frame, sub_text, frame_mask, sub_text_mask
             )
-            if len(mask.shape) == 4:
+            if len(mask.shape) == 5:
                 re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
             # import pdb; pdb.set_trace()
 
