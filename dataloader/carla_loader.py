@@ -494,15 +494,16 @@ class CarlaFullDataset(Dataset):
             mask = self.mask_transform(mask)
             mask[mask > 0] = 1
 
-        # mask_ = torch.zeros_like(mask)
-        # mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
-
-        if curr_click_idx == final_click_idx:
+        curr_timestep = 0
+        if curr_click_idx >= 1 or curr_click_idx == final_click_idx:
                 sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
+                curr_timestep = 1
                 if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
                     sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+                    curr_timestep = 0
         else:
             sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+            curr_timestep = 0
 
         rgb_matrix = np.load(matrix_files[sample_idx])
 
@@ -547,7 +548,7 @@ class CarlaFullDataset(Dataset):
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
 
-        return img, orig_image, mask, traj_mask, sub_command, sample_idx
+        return img, orig_image, mask, traj_mask, sub_command, curr_timestep, sample_idx
 
     def __getitem__(self, idx):
         output = {}
@@ -586,6 +587,7 @@ class CarlaFullDataset(Dataset):
                 frame_masks,
                 traj_mask,
                 sub_commands,
+                curr_timestep,
                 sample_idx,
             ) = self.get_image_data(
                 episode_num,
@@ -624,6 +626,7 @@ class CarlaFullDataset(Dataset):
         output["gt_traj_mask"] = traj_mask
         output["episode"] = episode_dir.split("/")[-1]
         output["sample_idx"] = sample_idx
+        output['gt_timestep'] = curr_timestep
 
         command = open(command_path, "r").read()
         command = self.sub_command_data.loc[episode_num]['command']

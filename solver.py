@@ -359,6 +359,8 @@ class Solver(object):
 
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
+                
+                gt_timestep = batch["gt_timestep"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
                 frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
@@ -369,34 +371,34 @@ class Solver(object):
             start_time = time()
 
             # import pdb; pdb.set_trace()
-            mask, traj_mask = self.network(
+            mask, traj_mask, timestep = self.network(
                 frame, text, frame_mask, text_mask
             )
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             elif self.loss_func == "combo":
                 loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             elif "tversky" in self.loss_func:
                 loss = self.tversky_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             elif "lovasz" in self.loss_func:
                 loss = self.lovasz_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
@@ -575,6 +577,8 @@ class Solver(object):
             # text_mask = torch.stack([text_mask]*self.num_frames, dim=1)
 
             sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
+            
+            gt_timestep = batch["gt_timestep"].cuda(non_blocking=True)
 
             # sub_text_labels = batch["sub_text_labels"].cuda(non_blocking=True)
 
@@ -598,7 +602,7 @@ class Solver(object):
             start_time = time()
 
             # import pdb; pdb.set_trace()
-            mask, traj_mask = self.network(
+            mask, traj_mask, timestep = self.network(
                 frame, text, frame_mask, text_mask
             )
             # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
@@ -606,27 +610,27 @@ class Solver(object):
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             elif self.loss_func == "combo":
                 loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             elif "tversky" in self.loss_func:
                 loss = self.tversky_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             elif "lovasz" in self.loss_func:
                 loss = self.lovasz_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                )
+                ) + self.bce_loss(timestep, gt_timestep)
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 

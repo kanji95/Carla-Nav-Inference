@@ -163,6 +163,15 @@ class JointSegmentationBaseline(nn.Module):
             nn.Upsample(size=(traj_dim, traj_dim), mode="bilinear", align_corners=True),
             nn.Sigmoid(),
         )
+        
+        self.tmstp_discriminator = nn.Sequential(
+            nn.Conv2d(hidden_dim, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(1),
+            nn.Linear(128, 1),
+            nn.Sigmoid()
+        )
 
     def forward(self, frames, text, frame_mask, text_mask):
 
@@ -213,8 +222,9 @@ class JointSegmentationBaseline(nn.Module):
 
         segm_mask = self.mm_decoder(fused_feat)  # .squeeze(1)
         traj_mask = self.traj_decoder(fused_feat)
+        timestep = self.tmstp_discriminator(fused_feat)
 
-        return segm_mask, traj_mask
+        return segm_mask, traj_mask, timestep
 
 
 class VideoSegmentationBaseline(nn.Module):
