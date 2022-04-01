@@ -390,7 +390,8 @@ class Solver(object):
 
                 if "convattn" in self.img_backbone:
                     gt_mask = gt_mask[:, :, -1]
-                    gt_mask = rearrange(gt_mask, 'b c h w -> b c t h w', t=1)
+                    gt_mask = rearrange(
+                        gt_mask, '(b t) c h w -> b c t h w', t=1)
 
                 batch_size = frame.shape[0]
                 frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
@@ -629,7 +630,7 @@ class Solver(object):
 
             if "convattn" in self.img_backbone:
                 gt_mask = gt_mask[:, :, -1]
-                gt_mask = rearrange(gt_mask, 'b c h w -> b c t h w', t=1)
+                gt_mask = rearrange(gt_mask, '(b t) c h w -> b c t h w', t=1)
 
             batch_size = frame.shape[0]
             frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
