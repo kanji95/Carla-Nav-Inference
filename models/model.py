@@ -131,12 +131,10 @@ class JointSegmentationBaseline(nn.Module):
         self.vision_encoder = vision_encoder
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
 
-        # self.mm_fusion = None
-
-        if self.imtext_matching == "concat":
-            self.concat_decoder = nn.Sequential(
-                nn.Linear(image_dim + hidden_dim, image_dim),
-            )
+        # if self.imtext_matching == "concat":
+        #     self.concat_decoder = nn.Sequential(
+        #         nn.Linear(image_dim + hidden_dim, image_dim),
+        #     )
 
         self.mm_decoder = nn.Sequential(
             ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
@@ -165,7 +163,11 @@ class JointSegmentationBaseline(nn.Module):
         )
         
         self.tmstp_discriminator = nn.Sequential(
-            nn.Conv2d(hidden_dim, 128, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(hidden_dim, 256, kernel_size=3, stride=1, padding=0),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(1),
