@@ -1,4 +1,5 @@
 import os
+import random
 from random import sample
 import re
 from glob import glob
@@ -500,7 +501,7 @@ class CarlaFullDataset(Dataset):
                 curr_timestep = 1.
                 if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
                     sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
-                    # curr_timestep = 0.
+                    curr_timestep = 1. * random.randint(0, 1)
         else:
             sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
             curr_timestep = 0.
