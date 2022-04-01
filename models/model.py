@@ -171,7 +171,7 @@ class JointSegmentationBaseline(nn.Module):
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(1),
-            nn.Linear(128, 1),
+            nn.Linear(256, 1),
             nn.Sigmoid()
         )
 
