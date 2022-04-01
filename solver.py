@@ -408,8 +408,12 @@ class Solver(object):
             mask, traj_mask = self.network(
                 frame, sub_text, frame_mask, sub_text_mask
             )
-            re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
+            if len(mask.shape) == 4:
+                re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
             # import pdb; pdb.set_trace()
+
+            if len(mask.shape) == 4 and len(gt_mask.shape) == 5:
+                gt_mask = gt_mask[:, :, -1]
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
