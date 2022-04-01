@@ -11,7 +11,7 @@
 # CarlaUE4.exe -windowed -carla-server -quality-level=Low
 
 from __future__ import print_function
-from einops import rearrange
+from einops import repeat, rearrange, reduce
 import shutil
 
 from agents.navigation.basic_agent import BasicAgent  # pylint: disable=import-error
@@ -1002,8 +1002,8 @@ class CameraManager(object):
                 img = img[:, :, :]  # BGR
                 # im.save(f'_out/{episode_number}/images/{image.frame:08d}.png')
 
-                # cv2.imwrite(
-                #     f'_out/{episode_number}/images/{image.frame:08d}.png', img)
+                cv2.imwrite(
+                    f'_out/{episode_number}/images/{image.frame:08d}.png', img)
 
                 # image.save_to_disk(
                 #     f'_out/{episode_number}/images/{image.frame:08d}')
@@ -1102,16 +1102,22 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
         else:
             video_frames = video_queue[::-1][::args.one_in_n][::-1]
-            video_frames = full_video[-args.num_frames *
-                                      args.one_in_n][::-1][::args.one_in_n][::-1]
+            # video_frames = full_video[-args.num_frames *
+            #                           args.one_in_n][::-1][::args.one_in_n][::-1]
             video_frames = torch.stack(video_frames, dim=1).cuda(
                 non_blocking=True).unsqueeze(0)
+            print(phrase.shape)
+            phrase_in = repeat(
+                phrase, 'b l c -> b n l c', n=args.num_frames)
             mask, traj_mask = network(
-                video_frames, phrase, frame_mask, phrase_mask)
+                video_frames, phrase_in, frame_mask, phrase_mask)
 
         print('Output shapes:')
         print(mask.shape)
         print(traj_mask.shape)
+
+        if len(mask.shape) == 5:
+            mask = mask[:, :, 0]
 
         mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
         intermediate_mask_np = mask_np[:, :, 0].reshape(
@@ -1144,33 +1150,41 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             if pixel_out == -1:
                 pixel_out = best_pixel(
                     intermediate_mask_np, threshold, confidence)
-            if pixel_out[0] >= confidence:
-                pixel_temp = best_pixel(
-                    intermediate_mask_np, threshold, confidence)
-                if pixel_temp[0] >= pixel_out[0]:
-                    pixel_out = pixel_temp
-                else:
-                    pred_found = 1
-            elif pixel_out[0] < confidence:
-                pixel_temp = best_pixel(final_mask_np, threshold, confidence)
-                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                               pixel_temp[1], K, destination, set_destination=False)
-                blue_dest = new_destination
+                if pixel_out != -1:
 
-                pixel_temp = best_pixel_traj(traj_mask_np)
-                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                               pixel_temp[1], K, destination, set_destination=False)
-                yellow_dest = new_destination
+                    if pixel_out[0] >= confidence:
+                        pixel_temp = best_pixel(
+                            intermediate_mask_np, threshold, confidence)
+                        if pixel_temp[0] >= pixel_out[0]:
+                            pixel_out = pixel_temp
+                        else:
+                            pred_found = 1
+                    elif pixel_out[0] < confidence:
+                        pixel_temp = best_pixel(
+                            final_mask_np, threshold, confidence)
+                        if pixel_temp != -1:
+                            pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                           pixel_temp[1], K, destination, set_destination=False)
+                            blue_dest = new_destination
+                        else:
+                            blue_dest = None
 
-                distance_blue_traj = np.linalg.norm(
-                    np.array([blue_dest.x, blue_dest.y])
-                    - np.array([yellow_dest.x, yellow_dest.y]))
-                print(
-                    f'------------------distance_blue_traj {distance_blue_traj}------------------')
-                if distance_blue_traj < args.distance:
-                    pixel_out = best_pixel(
-                        final_mask_np, threshold, confidence)
-                    pred_found = 1
+                        pixel_temp = best_pixel_traj(traj_mask_np)
+                        pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                       pixel_temp[1], K, destination, set_destination=False)
+                        yellow_dest = new_destination
+                        if blue_dest is not None:
+                            distance_blue_traj = np.linalg.norm(
+                                np.array([blue_dest.x, blue_dest.y])
+                                - np.array([yellow_dest.x, yellow_dest.y]))
+                            print(
+                                f'------------------distance_blue_traj {distance_blue_traj}------------------')
+                        if blue_dest is not None and distance_blue_traj < args.distance:
+                            pixel_out = best_pixel(
+                                final_mask_np, threshold, confidence)
+                            pred_found = 1
+                        else:
+                            pixel_out = best_pixel_traj(traj_mask_np)
                 else:
                     pixel_out = best_pixel_traj(traj_mask_np)
 
@@ -1787,7 +1801,7 @@ def game_loop(args):
         num_gpu = torch.cuda.device_count()
         print(f"Using {device} with {num_gpu} GPUS!")
 
-        solver = Solver(args, inference=True, force_parallel=False)
+        solver = Solver(args, inference=True, force_parallel=True)
 
         glove_path = args.glove_path
         checkpoint_path = args.checkpoint
@@ -1898,6 +1912,11 @@ def game_loop(args):
                         num_preds = 0
                         full_video = []
                         episode_number += 1
+                        try:
+                            if os.path.exists(f'_out/{episode_number}'):
+                                shutil.rmtree(f'_out/{episode_number}')
+                        except:
+                            print('Failed to delete pre-existing directory')
                         os.makedirs(f'_out/{episode_number}', exist_ok=True)
                         if not args.command:
                             command = input('Enter Command: ')
@@ -2260,7 +2279,9 @@ def main():
             "timesformer",
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",
-            "deeplabv3_mobilenet_v3_large"
+            "deeplabv3_mobilenet_v3_large",
+            'convlstm',
+            'convattn',
         ],
         type=str,
     )

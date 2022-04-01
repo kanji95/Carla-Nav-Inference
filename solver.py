@@ -25,24 +25,33 @@ from utilities.utilities import *
 
 
 class Solver(object):
-    def __init__(self, args):
+    def __init__(self, args, inference=False, force_parallel=False):
         self.args = args
+
+        self.inference = inference
+        self.force_parallel = force_parallel
 
         self.experiment = wandb.init(
             project="Language Navigation", config=self.args)
-        self.experiment.name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{self.experiment.id}"
+        if not self.inference:
+            self.experiment.name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{self.experiment.id}"
+        # else:
+        #     self.experiment.name = f'inference_{args.checkpoint}'
+        if not self.inference:
+            self.epochs = self.args.epochs
+            self.batch_size = self.args.batch_size
+            self.lr = self.args.lr
+            self.weight_decay = self.args.weight_decay
+            self.gamma = self.args.gamma
+            self.num_workers = self.args.num_workers
 
-        self.epochs = self.args.epochs
-        self.batch_size = self.args.batch_size
-        self.lr = self.args.lr
-        self.weight_decay = self.args.weight_decay
-        self.gamma = self.args.gamma
-        self.num_workers = self.args.num_workers
+            self.data_root = self.args.data_root
 
-        self.data_root = self.args.data_root
+            self.loss_func = self.args.loss_func
+
+            self.grad_check = self.args.grad_check
+
         self.glove_path = self.args.glove_path
-
-        self.loss_func = self.args.loss_func
 
         self.img_backbone = self.args.img_backbone
         self.imtext_matching = self.args.imtext_matching
@@ -57,8 +66,6 @@ class Solver(object):
         self.traj_size = self.args.traj_size
         self.patch_size = self.args.patch_size
         self.one_in_n = self.args.one_in_n
-
-        self.grad_check = self.args.grad_check
 
         self.threshold = self.args.threshold
 
@@ -175,22 +182,23 @@ class Solver(object):
 
         self.log_parameter_info()
 
-        if self.num_gpu > 1:
+        if self.force_parallel or self.num_gpu > 1:
             self.network = nn.DataParallel(self.network)
             print("Using DataParallel mode!")
         self.network.to(self.device)
 
-        self.optimizer = self.initialize_optimizer()
-        self.lr_scheduler = lr_scheduler.ReduceLROnPlateau(
-            self.optimizer,
-            factor=self.gamma,
-            patience=2,
-            threshold=1e-3,
-            min_lr=1e-6,
-            verbose=True,
-        )
+        if not self.inference:
+            self.optimizer = self.initialize_optimizer()
+            self.lr_scheduler = lr_scheduler.ReduceLROnPlateau(
+                self.optimizer,
+                factor=self.gamma,
+                patience=2,
+                threshold=1e-3,
+                min_lr=1e-6,
+                verbose=True,
+            )
 
-        train_transform = transforms.Compose(
+        self.train_transform = transforms.Compose(
             [
                 transforms.Resize((self.image_dim, self.image_dim)),
                 transforms.RandomGrayscale(p=0.3),
@@ -200,7 +208,7 @@ class Solver(object):
             ]
         )
 
-        val_transform = transforms.Compose(
+        self.val_transform = transforms.Compose(
             [
                 transforms.Resize((self.image_dim, self.image_dim)),
                 transforms.ToTensor(),
@@ -209,80 +217,84 @@ class Solver(object):
             ]
         )
 
-        mask_transform = transforms.Compose(
+        self.mask_transform = transforms.Compose(
             [
                 transforms.Resize((self.mask_dim, self.mask_dim)),
                 transforms.ToTensor(),
             ]
         )
 
-        traj_transform = transforms.Compose(
+        self.traj_transform = transforms.Compose(
             [
                 transforms.Resize((self.traj_dim, self.traj_dim)),
                 transforms.ToTensor(),
             ]
         )
 
-        self.train_dataset = CarlaFullDataset(
-            data_root=self.data_root,
-            glove_path=self.glove_path,
-            split="train",
-            dataset_len=100000,
-            img_transform=train_transform,
-            mask_transform=mask_transform,
-            traj_transform=traj_transform,
-            sequence_len=self.num_frames,
-            mode=self.mode,
-            image_dim=self.image_dim,
-            mask_dim=self.mask_dim,
-            traj_dim=self.traj_dim,
-            traj_frames=self.traj_frames,
-            traj_size=self.traj_size,
-            one_in_n=self.one_in_n,
-        )
-        self.val_dataset = CarlaFullDataset(
-            data_root=self.data_root,
-            glove_path=self.glove_path,
-            split="val",
-            dataset_len=20000,
-            img_transform=val_transform,
-            mask_transform=mask_transform,
-            traj_transform=traj_transform,
-            sequence_len=self.num_frames,
-            mode=self.mode,
-            image_dim=self.image_dim,
-            mask_dim=self.mask_dim,
-            traj_dim=self.traj_dim,
-            traj_frames=self.traj_frames,
-            traj_size=self.traj_size,
-            one_in_n=self.one_in_n,
-        )
+        if not self.inference:
+            self.train_dataset = CarlaFullDataset(
+                data_root=self.data_root,
+                glove_path=self.glove_path,
+                split="train",
+                dataset_len=100000,
+                img_transform=self.train_transform,
+                mask_transform=self.mask_transform,
+                traj_transform=self.traj_transform,
+                sequence_len=self.num_frames,
+                mode=self.mode,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
+                traj_dim=self.traj_dim,
+                traj_frames=self.traj_frames,
+                traj_size=self.traj_size,
+                one_in_n=self.one_in_n,
+            )
+            self.val_dataset = CarlaFullDataset(
+                data_root=self.data_root,
+                glove_path=self.glove_path,
+                split="val",
+                dataset_len=20000,
+                img_transform=self.val_transform,
+                mask_transform=self.mask_transform,
+                traj_transform=self.traj_transform,
+                sequence_len=self.num_frames,
+                mode=self.mode,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
+                traj_dim=self.traj_dim,
+                traj_frames=self.traj_frames,
+                traj_size=self.traj_size,
+                one_in_n=self.one_in_n,
+            )
 
-        self.train_loader = DataLoader(
-            self.train_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            drop_last=False,
-        )
-        self.val_loader = DataLoader(
-            self.val_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            drop_last=False,
-        )
+            self.train_loader = DataLoader(
+                self.train_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                pin_memory=True,
+                shuffle=True,
+                drop_last=False,
+            )
+            self.val_loader = DataLoader(
+                self.val_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                pin_memory=True,
+                shuffle=True,
+                drop_last=False,
+            )
 
-        self.bce_loss = nn.BCELoss(reduction="mean")
-        self.ce_loss = nn.CrossEntropyLoss(reduction='sum')
-        self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
-        self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
+            self.bce_loss = nn.BCELoss(reduction="mean")
+            self.ce_loss = nn.CrossEntropyLoss(reduction='sum')
+            self.combo_loss = ComboLoss(alpha=0.8, ce_ratio=0.4)
+            self.class_level_loss = ClassLevelLoss(self.loss_func, beta=0.6)
 
-        self.focal_loss = FocalLoss(mode="binary", alpha=0.5, ignore_index=0)
-        self.tversky_loss = TverskyLoss(
-            mode="binary", alpha=0.5, beta=0.5, ignore_index=0
-        )
-        self.lovasz_loss = LovaszLoss(mode="binary", ignore_index=0)
+            self.focal_loss = FocalLoss(
+                mode="binary", alpha=0.5, ignore_index=0)
+            self.tversky_loss = TverskyLoss(
+                mode="binary", alpha=0.5, beta=0.5, ignore_index=0
+            )
+            self.lovasz_loss = LovaszLoss(mode="binary", ignore_index=0)
 
     def initialize_optimizer(self):
         params = list(
@@ -632,6 +644,9 @@ class Solver(object):
                 frame, text, frame_mask, text_mask
             )
             # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
+
+            if len(mask.shape) == 4 and len(gt_mask.shape) == 5:
+                gt_mask = gt_mask[:, :, -1]
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
