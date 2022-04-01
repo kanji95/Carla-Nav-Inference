@@ -410,10 +410,19 @@ class Solver(object):
             )
             if len(mask.shape) == 5:
                 re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
+            else:
+                re_mask = mask
             # import pdb; pdb.set_trace()
 
             if len(mask.shape) == 4 and len(gt_mask.shape) == 5:
-                gt_mask = gt_mask[:, :, -1]
+                with torch.no_grad():
+                    gt_mask = gt_mask[:, :, -1]
+                    re_gt_mask = gt_mask[:, :, :, :]
+                    bs, _, h, w = re_gt_mask.shape
+
+                    new_gt_mask = torch.zeros(bs, h, w).cuda(non_blocking=True)
+                    new_gt_mask[re_gt_mask[:, 0] == 1] = 1
+                    new_gt_mask[re_gt_mask[:, 1] == 1] = 2
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(re_mask, new_gt_mask) + self.combo_loss(
@@ -651,6 +660,7 @@ class Solver(object):
 
             if len(mask.shape) == 4 and len(gt_mask.shape) == 5:
                 gt_mask = gt_mask[:, :, -1]
+                re_gt_mask = gt_mask[:, :, :, :]
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(

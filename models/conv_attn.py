@@ -195,7 +195,7 @@ class ConvAttn(nn.Module):
         segm_mask = self.mask_decoder(out_cnn)
 
         # segm_mask = repeat(
-        #     segm_mask, 'b c h w -> b c t h w', t=self.num_frames)
+        #     segm_mask, 'b c h w -> b t c h w', t=self.num_frames)
 
         if not self.return_all_layers:
             return segm_mask
