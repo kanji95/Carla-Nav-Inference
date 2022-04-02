@@ -783,4 +783,4 @@ class Solver(object):
             f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} Mask_IOU {val_IOU_mask:.4f} Traj_IOU {val_IOU_traj:.4f} Mask_PG {val_pg_mask:.4f} Traj_PG {val_pg_traj:.4f}"
         )
 
-        return val_pg_mask, val_loss
+        return val_IOU_mask, val_loss
