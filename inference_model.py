@@ -1114,10 +1114,6 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             mask, traj_mask = network(
                 video_frames, phrase, frame_mask, phrase_mask)
 
-        print('Output shapes:')
-        print(mask.shape)
-        print(traj_mask.shape)
-
         mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
         intermediate_mask_np = mask_np[:, :, 0].reshape(
             mask_np.shape[0], mask_np.shape[1])
@@ -1128,9 +1124,9 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             final_mask_np = mask_np[:, :, 1].reshape(
                 mask_np.shape[0], mask_np.shape[1])
 
-        print(intermediate_mask_np.shape,
-              intermediate_mask_np.max(), intermediate_mask_np.min())
-        print(final_mask_np.shape, final_mask_np.max(), final_mask_np.min())
+        # print(intermediate_mask_np.shape,
+        #       intermediate_mask_np.max(), intermediate_mask_np.min())
+        # print(final_mask_np.shape, final_mask_np.max(), final_mask_np.min())
 
         mask_np = np.clip(intermediate_mask_np+final_mask_np, 0.0, 1.0)
 
@@ -1158,7 +1154,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             if pixel_out[0] >= confidence:
                 pixel_temp = best_pixel(
                     intermediate_mask_np, threshold, confidence)
-                if pixel_temp[0] >= pixel_out[0]:
+                if pixel_temp != -1 and pixel_temp[0] >= pixel_out[0]:
                     pixel_out = pixel_temp
                 else:
                     pred_found = 1
@@ -1184,8 +1180,31 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                     pred_found = 1
                 else:
                     pixel_out = best_pixel_traj(traj_mask_np)
-            pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                           region, K, destination)
+        elif args.target == 'network2':
+            pixel_out = best_pixel_traj(traj_mask_np)
+            pixel_temp = best_pixel(mask_np, threshold, confidence)
+            if pixel_temp != -1:
+                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                               pixel_temp[1], K, destination, set_destination=False)
+                blue_dest = new_destination
+
+                pixel_temp = best_pixel_traj(traj_mask_np)
+                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                               pixel_temp[1], K, destination, set_destination=False)
+                yellow_dest = new_destination
+
+                distance_blue_traj = np.linalg.norm(
+                    np.array([blue_dest.x, blue_dest.y])
+                    - np.array([yellow_dest.x, yellow_dest.y]))
+                print(
+                    f'------------------distance_blue_traj {distance_blue_traj}------------------')
+                if distance_blue_traj < args.distance:
+                    pixel_out = best_pixel(
+                        final_mask_np, threshold, confidence)
+                    pred_found = 1
+        probs, region = pixel_out
+        pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                       region, K, destination)
 
         if pixel_out != -1:
 
@@ -1197,7 +1216,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             color = (255, 0, 0)
 
             ########### STOPPING CRITERIA START ################
-            if args.stop_criteria == 'confidence' and args.target != 'network':
+            if args.stop_criteria == 'confidence' and 'network' not in args.target:
                 pixel_temp = best_pixel(
                     mask_np, threshold=args.threshold, confidence=args.confidence)
                 if pixel_temp != -1:
@@ -1269,8 +1288,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
             target_video.append(target_vector)
 
-            print(frame_video[-1].shape,
-                  target_video[-1].shape, full_video[-1].shape)
+            # print(frame_video[-1].shape,
+            #       target_video[-1].shape, full_video[-1].shape)
 
         else:
             frame_video.append(un_frame.unsqueeze(0).detach().cpu().numpy())
@@ -1290,8 +1309,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             target_vector = target_vector[np.newaxis, :, :, :]
             target_video.append(target_vector)
 
-            print(frame_video[-1].shape,
-                  target_video[-1].shape, full_video[-1].shape)
+            # print(frame_video[-1].shape,
+            #       target_video[-1].shape, full_video[-1].shape)
             print(f'================SKIPPING THIS TIME================')
 
         if frame_count > 500:
@@ -1469,30 +1488,30 @@ def pixel_to_world(image, vehicle_matrix, vehicle_location, weak_agent, screen_p
         max(0, screen_pos[1]), im_array.shape[0]))
 
     R, G, B = im_array[screen_pos[1], screen_pos[0]]
-    print(im_array.shape, 'Screen pos max vals, order: 1,0')
+    # print(im_array.shape, 'Screen pos max vals, order: 1,0')
     normalized = (R + G * 256 + B * 256 * 256) / (256 * 256 * 256 - 1)
     depth = 1000 * normalized
 
-    print("Depth: ", depth)
+    # print("Depth: ", depth)
 
     pos_2d = np.array([screen_pos[0], screen_pos[1], 1])
-    print("2D Pixel Coords Homogenous: ", pos_2d)
+    # print("2D Pixel Coords Homogenous: ", pos_2d)
 
-    print("Camera Intrinsic Matrix:\n", K)
+    # print("Camera Intrinsic Matrix:\n", K)
 
     pos_3d__ = np.linalg.inv(K) @ pos_2d[:, None] * depth
     pos_3d__ = pos_3d__.reshape(-1)
-    print("Camera Coordinates: ", pos_3d__)
+    # print("Camera Coordinates: ", pos_3d__)
 
     # Order Change
     pos_3d_ = np.array([pos_3d__[2], pos_3d__[0], pos_3d__[1]])
-    print("After Camera Coordinates: ", pos_3d_)
+    # print("After Camera Coordinates: ", pos_3d_)
 
     pos_3d_ = np.array([pos_3d_[0], pos_3d_[1], pos_3d_[2], 1])
 
     pos_3d_ = depth_cam_matrix @ pos_3d_[:, None]
     pos_3d_ = pos_3d_.reshape(-1)
-    print("After Camera Matrix World Coordinates: ", pos_3d_)
+    # print("After Camera Matrix World Coordinates: ", pos_3d_)
 
     X = (screen_pos[0] - K[0, 2]) * (depth / K[0, 0])
     Y = (screen_pos[1] - K[1, 2]) * (depth / K[1, 1])
@@ -1821,7 +1840,7 @@ def game_loop(args):
         num_gpu = torch.cuda.device_count()
         print(f"Using {device} with {num_gpu} GPUS!")
 
-        solver = Solver(args, inference=True, force_parallel=False)
+        solver = Solver(args, inference=True, force_parallel=True)
 
         glove_path = args.glove_path
         checkpoint_path = args.checkpoint
@@ -2047,15 +2066,16 @@ def game_loop(args):
                                     vehicle_location, args.sampling*(curr_times+1))
                     end = time.time()
                     if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-3 and abs(prev_loc.x - vehicle_location.x) < 1e-3:
+                        pred_found = 0
                         stationary_frames += 1
                     if frame_count % args.sampling == 0 and print_network_stats:
                         print(
                             f'Network took {end-start}, pred_found = {pred_found}, curr_times = {curr_times}')
-                        print(
-                            f'++++++++++++++++++++++++++++++++frame_count:{frame_count} out of {1500+stationary_frames}++++++++++++++++++++++++++++++++')
+                        # print(
+                        #     f'++++++++++++++++++++++++++++++++frame_count:{frame_count} out of {1500+stationary_frames}++++++++++++++++++++++++++++++++')
                         curr_times += pred_found
-                        if curr_times >= times_check:
-                            num_preds += 1
+                        # if curr_times >= times_check:
+                        #     num_preds += 1
                     if pred_found:
                         print(
                             f'-------------Num Preds: {num_preds}-------------')
@@ -2075,9 +2095,10 @@ def game_loop(args):
             #     frame_count = 0
             if (agent.done() and prev_loc == prev_prev_loc and command_given) or frame_count > 1500+stationary_frames or frame_count > 3000:
                 pred_found = 0
-                if args.sub_command:
+                if args.sub_command and command_given:
                     command_given = False
                     curr_times = 0
+                    num_preds += 1
                     print('Reached')
                 if frame_count > 1500+stationary_frames or frame_count > 3000:
                     num_preds = args.num_preds
@@ -2119,7 +2140,7 @@ def game_loop(args):
                     mask_video = np.uint8(mask_video_overlay * 255)
                     traj_mask_video = np.uint8(traj_mask_video_overlay * 255)
 
-                    print(full_video.shape, frame_video.shape)
+                    # print(full_video.shape, frame_video.shape)
 
                     wandb.log(
                         {
@@ -2372,6 +2393,7 @@ def main():
             "mask",
             "trajectory",
             "network",
+            "network2",
         ],
         type=str,
     )
