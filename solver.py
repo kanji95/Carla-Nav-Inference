@@ -196,6 +196,13 @@ class Solver(object):
             ]
         )
 
+        self.unnormalized_transform = transforms.Compose(
+            [
+                transforms.Resize((self.image_dim, self.image_dim)),
+                transforms.ToTensor(),
+            ]
+        )
+
         self.mask_transform = transforms.Compose(
             [
                 transforms.Resize((self.mask_dim, self.mask_dim)),
