@@ -127,6 +127,7 @@ class JointSegmentationBaseline(nn.Module):
 
         self.backbone = backbone
 
+        self.hidden_feat = hidden_dim
         # self.imtext_matching = imtext_matching
 
         self.vision_encoder = vision_encoder
@@ -144,15 +145,12 @@ class JointSegmentationBaseline(nn.Module):
             encoder_layer, num_encoder_layers, encoder_norm
         )
 
-        self.conv_fuse = nn.Sequential(
-            nn.Conv2d(
+        self.conv_fuse = nn.Conv2d(
                 self.hidden_feat * 2,
                 self.hidden_feat,
                 kernel_size=3,
                 stride=1,
                 padding=1,
-            ),
-            nn.BatchNorm2d(self.hidden_feat),
         )
 
         self.mm_decoder = nn.Sequential(
@@ -185,8 +183,9 @@ class JointSegmentationBaseline(nn.Module):
 
         vision_feat = self.vision_encoder(frames)
         
-        b,c,h,w = vision_feat.shape
-
+        b,n,c = vision_feat.shape
+        h = w = 14
+        
         vision_feat = F.normalize(vision_feat, p=2, dim=1) 
 
         text_feat = self.text_encoder(text)
@@ -201,7 +200,7 @@ class JointSegmentationBaseline(nn.Module):
         combined_pos_embd = torch.cat([vis_pos_embd, txt_pos_embd], dim=1)
         combined_pos_embd = rearrange(combined_pos_embd, "b l c -> l b c")
         
-        frame_tensor = rearrange(vision_feat, "b c h w -> (h w) b c")
+        frame_tensor = rearrange(vision_feat, "b l c -> l b c")
 
         lang_tensor = rearrange(text_feat, "b l c -> l b c")
 

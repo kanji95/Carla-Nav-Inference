@@ -588,7 +588,6 @@ class CarlaFullDataset(Dataset):
                 frame_masks,
                 traj_mask,
                 sub_commands,
-                curr_timestep,
                 sample_idx,
             ) = self.get_image_data(
                 episode_num,

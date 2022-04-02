@@ -363,7 +363,7 @@ class Solver(object):
                 # gt_timestep = batch["gt_timestep"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
-                frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
+                frame_mask = torch.ones(batch_size, 14 * 14, dtype=torch.int64).cuda(
                     non_blocking=True
                 )
                 num_samples += batch_size
@@ -587,7 +587,7 @@ class Solver(object):
             gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
             batch_size = frame.shape[0]
-            frame_mask = torch.ones(batch_size, 7 * 7, dtype=torch.int64).cuda(
+            frame_mask = torch.ones(batch_size, 14 * 14, dtype=torch.int64).cuda(
                 non_blocking=True
             )
             num_samples += batch_size
