@@ -120,23 +120,38 @@ class JointSegmentationBaseline(nn.Module):
         mask_dim=112,
         traj_dim=56,
         backbone="vit",
-        imtext_matching="cross_attention",
+        num_encoder_layers=2,
+        normalize_before=True,
     ):
         super(JointSegmentationBaseline, self).__init__()
 
         self.backbone = backbone
 
-        self.imtext_matching = imtext_matching
+        self.hidden_feat = hidden_dim
+        # self.imtext_matching = imtext_matching
 
         self.vision_encoder = vision_encoder
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
 
-        # self.mm_fusion = None
+        encoder_layer = TransformerEncoderLayer(
+            self.hidden_feat,
+            nhead=8,
+            dim_feedforward=512,
+            dropout=0.2,
+            normalize_before=normalize_before,
+        )
+        encoder_norm = nn.LayerNorm(self.hidden_feat) if normalize_before else None
+        self.transformer_encoder = TransformerEncoder(
+            encoder_layer, num_encoder_layers, encoder_norm
+        )
 
-        if self.imtext_matching == "concat":
-            self.concat_decoder = nn.Sequential(
-                nn.Linear(image_dim + hidden_dim, image_dim),
-            )
+        self.conv_fuse = nn.Conv2d(
+                self.hidden_feat * 2,
+                self.hidden_feat,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+        )
 
         self.mm_decoder = nn.Sequential(
             ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
@@ -167,52 +182,53 @@ class JointSegmentationBaseline(nn.Module):
     def forward(self, frames, text, frame_mask, text_mask):
 
         vision_feat = self.vision_encoder(frames)
-        if self.backbone.startswith("deeplabv3_"):
-            vision_feat = rearrange(vision_feat, "b c h w -> b (h w) c")
+        
+        b,n,c = vision_feat.shape
+        h = w = 14
+        
+        vision_feat = F.normalize(vision_feat, p=2, dim=1) 
 
-        vision_feat = F.normalize(vision_feat, p=2, dim=1)  # B x N x C
-        vision_dim = int(vision_feat.shape[1] ** 0.5)
+        text_feat = self.text_encoder(text)
+        # text_feat = F.normalize(text_feat, p=2, dim=1) 
+        l = text_feat.shape[1]
 
-        # vision_feat = rearrange(vision_feat, "b (h w) c -> b c h w", h=14, w=14)
+        vis_pos_embd = positionalencoding2d(b, c, height=h, width=w)
+        vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
 
-        # import pdb; pdb.set_trace()
+        txt_pos_embd = positionalencoding1d(b, c, max_len=l)
+        
+        combined_pos_embd = torch.cat([vis_pos_embd, txt_pos_embd], dim=1)
+        combined_pos_embd = rearrange(combined_pos_embd, "b l c -> l b c")
+        
+        frame_tensor = rearrange(vision_feat, "b l c -> l b c")
 
-        text_feat = self.text_encoder(text)  # B x L x C
-        text_feat = F.normalize(text_feat, p=2, dim=1)  # B x L x C
-        text_feat = text_feat * text_mask[:, :, None]
+        lang_tensor = rearrange(text_feat, "b l c -> l b c")
 
-        # import pdb; pdb.set_trace()
-        # print(vision_feat.shape, text_feat.shape)
+        combined_padding = ~torch.cat(
+            [frame_mask, text_mask], dim=-1
+        ).bool()
 
-        if self.imtext_matching == "cross_attention":
-            cross_attn = torch.bmm(
-                vision_feat, text_feat.transpose(1, 2).contiguous()
-            )  # B x N x L
-            cross_attn = cross_attn.softmax(dim=-1)
-            attn_feat = cross_attn @ text_feat  # B x N x C
+        combined_tensor = torch.cat([frame_tensor, lang_tensor], dim=0)
+        enc_out = self.transformer_encoder(
+            combined_tensor,
+            pos=combined_pos_embd,
+            src_key_padding_mask=combined_padding,
+        )
+        enc_out = enc_out.permute(1, 2, 0)
 
-            fused_feat = vision_feat * attn_feat
+        f_img_out = enc_out[:, :, : h * w].view(b, c, h, w)
 
-        elif self.imtext_matching == "concat":
-            concat = torch.concat([vision_feat, text_feat], axis=1)  # B x L+N x C
-            fused_feat = self.concat_decoder(concat)  # B x N x C
+        f_txt_out = enc_out[:, :, h * w :].transpose(1, 2)  # B, L, E
+        f_txt_out = f_txt_out.mean(dim=1)
 
-        elif self.imtext_matching == "avg_concat":
-            concat = torch.concat(
-                [
-                    vision_feat,
-                    torch.mean(text_feat, dim=1).repeat(1, vision_feat.shape[1], 1),
-                ],
-                axis=2,
-            )  # B x N x 2C
-            fused_feat = self.concat_decoder(concat)  # B x N x C
-
-        fused_feat = rearrange(
-            fused_feat, "b (h w) c -> b c h w", h=vision_dim, w=vision_dim
+        f_out = torch.cat(
+            [f_img_out, f_txt_out[:, :, None, None].expand(b, -1, h, w)], dim=1
         )
 
-        segm_mask = self.mm_decoder(fused_feat)  # .squeeze(1)
-        traj_mask = self.traj_decoder(fused_feat)
+        enc_out = F.relu(self.conv_fuse(f_out))
+
+        segm_mask = self.mm_decoder(enc_out)
+        traj_mask = self.traj_decoder(enc_out)
 
         return segm_mask, traj_mask
 
