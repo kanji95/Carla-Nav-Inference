@@ -495,17 +495,24 @@ class CarlaFullDataset(Dataset):
             mask = self.mask_transform(mask)
             mask[mask > 0] = 1
 
+        mask_ = torch.zeros_like(mask)
+        mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
+            
         # curr_timestep = 0.
         if curr_click_idx >= 1 or curr_click_idx == final_click_idx:
-                sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
-                # curr_timestep = 1.
-                if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
-                    sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+            mask_[1] = mask[0]
+            sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
+            # curr_timestep = 1.
+            if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
+                sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
                     # curr_timestep = 0 1. * random.randint(0, 1)
         else:
+            mask_[0] = mask[0]
             sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
             # curr_timestep = 0.
 
+        mask = mask_ + 1e-4
+        
         rgb_matrix = np.load(matrix_files[sample_idx])
 
         pixel_coordinates = [np.array([0, 0])]

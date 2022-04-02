@@ -157,7 +157,7 @@ class JointSegmentationBaseline(nn.Module):
             ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
             ConvUpsample(
                 in_channels=256,
-                out_channels=1,
+                out_channels=2,
                 channels=[256, 256, 128],
                 upsample=[True, True, True],
                 drop=0.2,
