@@ -657,7 +657,7 @@ class CarlaFullDataset(Dataset):
         
         sub_tokens = []
         sub_phrase_masks = []
-        for sub_command in sub_commands:
+        for sub_command in [sub_commands]:
             sub_command = re.sub(r"[^\w\s]", "", sub_command.lower())
             sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
             sub_tokens.append(sub_token)
