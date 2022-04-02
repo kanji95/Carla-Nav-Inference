@@ -639,10 +639,10 @@ class CarlaFullDataset(Dataset):
         command = self.sub_command_data.loc[episode_num]['command']
         command = re.sub(r"[^\w\s]", "", command)
         
-        if self.split == "train":
-            command = sub_commands
-        if self.mode == "image":
-            sub_commands = [sub_commands]
+        # if self.split == "train":
+        #     command = sub_commands
+        # if self.mode == "image":
+        #     sub_commands = [sub_commands]
 
         tokens, phrase_mask = self.corpus.tokenize(command)
         
