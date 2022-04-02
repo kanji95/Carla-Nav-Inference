@@ -171,8 +171,8 @@ class JointSegmentationBaseline(nn.Module):
             ConvUpsample(
                 in_channels=256,
                 out_channels=1,
-                channels=[256, 256],
-                upsample=[True, True],
+                channels=[256, 256, 128],
+                upsample=[True, True, True],
                 drop=0.2,
             ),
             nn.Upsample(size=(traj_dim, traj_dim), mode="bilinear", align_corners=True),

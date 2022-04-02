@@ -659,7 +659,7 @@ class Solver(object):
             total_union_traj += union_traj.item()
 
             total_pg_mask += pointing_game(mask, gt_mask)
-            # total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
+            total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
 
             # total_it_mask += intersection_at_t(mask, gt_mask)
             # total_it_traj += intersection_at_t(traj_mask, gt_traj_mask)
