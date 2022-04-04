@@ -322,7 +322,7 @@ class CarlaFullDataset(Dataset):
             f"./dataloader/sub_commands_{self.split}.csv", index_col=0)
 
     def __len__(self):
-        return len(self.episodes)
+        return self.dataset_len
 
     # TODO - Include Vehicle Position
     def get_video_data(
@@ -579,8 +579,8 @@ class CarlaFullDataset(Dataset):
     def __getitem__(self, idx):
         output = {}
 
-        # episode = np.random.choice(self.episodes)
-        episode = self.episodes[idx]
+        episode = np.random.choice(self.episodes)
+        # episode = self.episodes[idx]
         episode_dir = os.path.join(self.data_dir, episode)
 
         # import pdb; pdb.set_trace()
