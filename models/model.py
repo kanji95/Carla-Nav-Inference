@@ -730,11 +730,11 @@ class Conv3D_Baseline(nn.Module):
                 padding=1,
         )
 
-        self.temporal_conv = nn.Sequential(
-            nn.Conv3d(hidden_dim, hidden_dim, kernel_size=(4, 3, 3), stride=1, padding=(0, 1, 1)),
-            nn.ReLU(),
-            Rearrange('b c 1 h w -> b c h w'),
-        )
+        # self.temporal_conv = nn.Sequential(
+        #     nn.Conv3d(hidden_dim, hidden_dim, kernel_size=(4, 3, 3), stride=1, padding=(0, 1, 1)),
+        #     nn.ReLU(),
+        #     Rearrange('b c 1 h w -> b c h w'),
+        # )
 
         self.mm_decoder = nn.Sequential(
             ASPP(in_channels=hidden_dim, atrous_rates=[4, 6, 8], out_channels=256),
@@ -815,12 +815,15 @@ class Conv3D_Baseline(nn.Module):
         )
 
         enc_out = F.relu(self.conv_fuse(f_out))
-        enc_out = rearrange(enc_out, "(b t) c h w -> b c t h w", t=t)
-        enc_out = self.temporal_conv(enc_out)
+        # enc_out = rearrange(enc_out, "(b t) c h w -> b c t h w", t=t)
+        # enc_out = self.temporal_conv(enc_out)
 
         # import pdb; pdb.set_trace()
         segm_mask = self.mm_decoder(enc_out)
         traj_mask = self.traj_decoder(enc_out)
+
+        segm_mask = rearrange(segm_mask, "(b t) c h w -> b c t h w", t=t)
+        traj_mask = rearrange(traj_mask, "(b t) c h w -> b c t h w", t=t)
 
         return segm_mask, traj_mask
 

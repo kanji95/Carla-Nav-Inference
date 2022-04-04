@@ -385,10 +385,10 @@ class Solver(object):
                 frame = batch["frame"].cuda(non_blocking=True)
 
                 text = batch["text"].cuda(non_blocking=True)
-                sub_text = batch["sub_text"].cuda(non_blocking=True)
+                # sub_text = batch["sub_text"].cuda(non_blocking=True)
 
                 text_mask = batch["text_mask"].cuda(non_blocking=True)
-                sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
+                # sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
 
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
@@ -612,12 +612,12 @@ class Solver(object):
             text = batch["text"].cuda(non_blocking=True)
             # text = torch.stack([text]*self.num_frames, dim=1)
 
-            sub_text = batch["sub_text"].cuda(non_blocking=True)
+            # sub_text = batch["sub_text"].cuda(non_blocking=True)
 
             text_mask = batch["text_mask"].cuda(non_blocking=True)
             # text_mask = torch.stack([text_mask]*self.num_frames, dim=1)
 
-            sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
+            # sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
             
             # gt_timestep = batch["gt_timestep"].cuda(non_blocking=True)
 
