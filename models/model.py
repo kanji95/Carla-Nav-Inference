@@ -167,12 +167,12 @@ class JointSegmentationBaseline(nn.Module):
         )
 
         self.traj_decoder = nn.Sequential(
-            ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
+            # ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
             ConvUpsample(
-                in_channels=256,
+                in_channels=384,
                 out_channels=1,
                 channels=[256, 256, 128],
-                upsample=[True, True, True],
+                upsample=[True, True, False],
                 drop=0.2,
             ),
             nn.Upsample(size=(traj_dim, traj_dim), mode="bilinear", align_corners=True),
