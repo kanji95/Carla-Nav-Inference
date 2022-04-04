@@ -156,6 +156,27 @@ class Solver(object):
                 num_frames=self.num_frames,
                 attn_type=self.attn_type,
             )
+            
+        elif "conv3d_baseline" in self.img_backbone:
+            self.mode = "video"
+            spatial_dim = self.image_dim // self.patch_size
+
+            video_encoder = torch.hub.load(
+                "facebookresearch/pytorchvideo", "x3d_s", pretrained=True
+            )
+            visual_encoder = nn.Sequential(
+                *list(video_encoder.blocks.children())[:-1])
+
+            self.network = Conv3D_Baseline(
+                visual_encoder,
+                hidden_dim=self.hidden_dim,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
+                traj_dim=self.traj_dim,
+                spatial_dim=spatial_dim,
+                num_frames=self.num_frames,
+                attn_type=self.attn_type,
+            )
 
         wandb.watch(self.network, log="all")
 

@@ -171,6 +171,7 @@ if __name__ == "__main__":
             "deeplabv3_resnet101",
             "deeplabv3_mobilenet_v3_large",
             "convlstm",
+            "conv3d_baseline"
         ],
         type=str,
     )

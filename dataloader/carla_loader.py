@@ -124,137 +124,137 @@ def get_curve_length(points):
     )
 
 
-class CarlaDataset(Dataset):
-    """Some Information about CarlaDataset"""
+# class CarlaDataset(Dataset):
+#     """Some Information about CarlaDataset"""
 
-    def __init__(
-        self,
-        data_root,
-        glove_path,
-        split="train",
-        img_transform=None,
-        mask_transform=None,
-        dataset_len=10000,
-        skip=5,
-        sequence_len=16,
-        mode="image",
-        image_dim=224,
-        mask_dim=112,
-    ):
-        self.data_dir = os.path.join(data_root, split)
+#     def __init__(
+#         self,
+#         data_root,
+#         glove_path,
+#         split="train",
+#         img_transform=None,
+#         mask_transform=None,
+#         dataset_len=10000,
+#         skip=5,
+#         sequence_len=16,
+#         mode="image",
+#         image_dim=224,
+#         mask_dim=112,
+#     ):
+#         self.data_dir = os.path.join(data_root, split)
 
-        self.img_transform = img_transform
-        self.mask_transform = mask_transform
+#         self.img_transform = img_transform
+#         self.mask_transform = mask_transform
 
-        self.dataset_len = dataset_len
-        self.skip = skip
-        self.sequence_len = sequence_len
-        self.mode = mode
+#         self.dataset_len = dataset_len
+#         self.skip = skip
+#         self.sequence_len = sequence_len
+#         self.mode = mode
 
-        self.image_dim = image_dim
-        self.mask_dim = mask_dim
+#         self.image_dim = image_dim
+#         self.mask_dim = mask_dim
 
-        if self.mode == "video":
-            self.dataset_len = self.dataset_len // self.sequence_len
+#         if self.mode == "video":
+#             self.dataset_len = self.dataset_len // self.sequence_len
 
-        self.episodes = sorted(os.listdir(self.data_dir))
-        print("Number of episodes before removal: ", len(self.episodes))
+#         self.episodes = sorted(os.listdir(self.data_dir))
+#         print("Number of episodes before removal: ", len(self.episodes))
 
-        # Remove Episodes
-        for episode in IGNORE[split]:
-            self.episodes.remove(episode)
-        print("Number of episodes after removal: ", len(self.episodes))
+#         # Remove Episodes
+#         for episode in IGNORE[split]:
+#             self.episodes.remove(episode)
+#         print("Number of episodes after removal: ", len(self.episodes))
 
-        self.corpus = Corpus(glove_path)
+#         self.corpus = Corpus(glove_path)
 
-    def __len__(self):
-        return len(self.episodes)
+#     def __len__(self):
+#         return len(self.episodes)
 
-    def get_video_data(self, image_files, mask_files, num_files):
-        sample_idx = np.random.choice(range(num_files - self.sequence_len))
+#     def get_video_data(self, image_files, mask_files, num_files):
+#         sample_idx = np.random.choice(range(num_files - self.sequence_len))
 
-        frames = []
-        orig_frames = []
-        frame_masks = []
+#         frames = []
+#         orig_frames = []
+#         frame_masks = []
 
-        for index in range(self.sequence_len):
-            img_path = image_files[sample_idx + index]
-            mask_path = mask_files[sample_idx + index]
+#         for index in range(self.sequence_len):
+#             img_path = image_files[sample_idx + index]
+#             mask_path = mask_files[sample_idx + index]
 
-            img = Image.open(img_path).convert("RGB")
-            mask = Image.open(mask_path).convert("L")
+#             img = Image.open(img_path).convert("RGB")
+#             mask = Image.open(mask_path).convert("L")
 
-            orig_frames.append(np.array(img))
+#             orig_frames.append(np.array(img))
 
-            if self.img_transform:
-                img = self.img_transform(img)
+#             if self.img_transform:
+#                 img = self.img_transform(img)
 
-            if self.mask_transform:
-                mask = self.mask_transform(mask)
-                mask[mask > 0] = 1
+#             if self.mask_transform:
+#                 mask = self.mask_transform(mask)
+#                 mask[mask > 0] = 1
 
-            frames.append(img)
-            frame_masks.append(mask)
+#             frames.append(img)
+#             frame_masks.append(mask)
 
-        orig_frames = np.stack(orig_frames, axis=0)
-        frames = torch.stack(frames, dim=1)
-        frame_masks = torch.stack(frame_masks, dim=1)
-        return frames, orig_frames[-1], frame_masks[:, -1]
+#         orig_frames = np.stack(orig_frames, axis=0)
+#         frames = torch.stack(frames, dim=1)
+#         frame_masks = torch.stack(frame_masks, dim=1)
+#         return frames, orig_frames[-1], frame_masks[:, -1]
 
-    def get_image_data(self, image_files, mask_files, num_files):
-        sample_idx = np.random.choice(range(num_files - self.skip))
+#     def get_image_data(self, image_files, mask_files, num_files):
+#         sample_idx = np.random.choice(range(num_files - self.skip))
 
-        img_path = image_files[sample_idx]
-        mask_path = mask_files[sample_idx]
-        img = Image.open(img_path).convert("RGB")
-        mask = Image.open(mask_path).convert("L")
+#         img_path = image_files[sample_idx]
+#         mask_path = mask_files[sample_idx]
+#         img = Image.open(img_path).convert("RGB")
+#         mask = Image.open(mask_path).convert("L")
 
-        orig_image = np.array(img)
+#         orig_image = np.array(img)
 
-        if self.img_transform:
-            img = self.img_transform(img)
+#         if self.img_transform:
+#             img = self.img_transform(img)
 
-        if self.mask_transform:
-            mask = self.mask_transform(mask)
-            mask[mask > 0] = 1
-        return img, orig_image, mask
+#         if self.mask_transform:
+#             mask = self.mask_transform(mask)
+#             mask[mask > 0] = 1
+#         return img, orig_image, mask
 
-    def __getitem__(self, idx):
-        output = {}
+#     def __getitem__(self, idx):
+#         output = {}
 
-        episode_dir = os.path.join(
-            self.data_dir, np.random.choice(self.episodes))
+#         episode_dir = os.path.join(
+#             self.data_dir, np.random.choice(self.episodes))
 
-        image_files = sorted(glob(episode_dir + f"/images/*.png"))
-        mask_files = sorted(glob(episode_dir + f"/masks/*.png"))
-        command_path = os.path.join(episode_dir, "command.txt")
+#         image_files = sorted(glob(episode_dir + f"/images/*.png"))
+#         mask_files = sorted(glob(episode_dir + f"/masks/*.png"))
+#         command_path = os.path.join(episode_dir, "command.txt")
 
-        num_files = len(image_files)
+#         num_files = len(image_files)
 
-        if self.mode == "image":
-            frames, orig_frames, frame_masks = self.get_image_data(
-                image_files, mask_files, num_files
-            )
-        elif self.mode == "video":
-            frames, orig_frames, frame_masks = self.get_video_data(
-                image_files, mask_files, num_files
-            )
-        else:
-            raise NotImplementedError(f"{self.mode} mode not implemented!")
+#         if self.mode == "image":
+#             frames, orig_frames, frame_masks = self.get_image_data(
+#                 image_files, mask_files, num_files
+#             )
+#         elif self.mode == "video":
+#             frames, orig_frames, frame_masks = self.get_video_data(
+#                 image_files, mask_files, num_files
+#             )
+#         else:
+#             raise NotImplementedError(f"{self.mode} mode not implemented!")
 
-        output["orig_frame"] = orig_frames
-        output["frame"] = frames
-        output["gt_frame"] = frame_masks
+#         output["orig_frame"] = orig_frames
+#         output["frame"] = frames
+#         output["gt_frame"] = frame_masks
 
-        command = open(command_path, "r").read()
-        command = re.sub(r"[^\w\s]", "", command)
-        output["orig_text"] = command
+#         command = open(command_path, "r").read()
+#         command = re.sub(r"[^\w\s]", "", command)
+#         output["orig_text"] = command
 
-        tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
-        output["text"] = tokens
-        output["text_mask"] = phrase_mask
+#         tokens, phrase_mask = self.corpus.tokenize(output["orig_text"])
+#         output["text"] = tokens
+#         output["text_mask"] = phrase_mask
 
-        return output
+#         return output
 
 
 class CarlaFullDataset(Dataset):
@@ -459,7 +459,7 @@ class CarlaFullDataset(Dataset):
 
         # print(traj_mask.min(), traj_mask.max(), pixel_coordinates.shape)
         # print(traj_mask.shape, orig_frames.shape)
-        return frames, orig_frames, frame_masks, traj_mask, sub_commands, sample_idx
+        return frames, orig_frames, frame_masks[-1], traj_mask, sub_commands, sample_idx
 
     def get_image_data(
         self,
@@ -529,7 +529,7 @@ class CarlaFullDataset(Dataset):
             sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
             # curr_timestep = 0.
 
-        mask = mask_ + 1e-4
+        mask = mask_ #+ 1e-4
 
         rgb_matrix = np.load(matrix_files[sample_idx])
 

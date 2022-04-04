@@ -674,6 +674,143 @@ class ConvLSTMBaseline(nn.Module):
         # traj_mask = self.traj_decoder(last_state_feat)
 
         return segm_mask, None
+    
+    
+class Conv3D_Baseline(nn.Module):
+    """Some Information about MyModule"""
+
+    def __init__(
+        self,
+        vision_encoder,
+        hidden_dim=768,
+        image_dim=112,
+        mask_dim=112,
+        traj_dim=56,
+        spatial_dim=14,
+        num_frames=16,
+        attn_type="dot_product",
+        num_encoder_layers=2,
+        normalize_before=True,
+    ):
+        super(Conv3D_Baseline, self).__init__()
+
+        self.hidden_dim = hidden_dim
+        self.spatial_dim = spatial_dim
+        self.num_frames = num_frames
+
+        self.attn_type = attn_type
+
+        self.vision_encoder = vision_encoder
+
+        for param in self.vision_encoder.parameters():
+            param.requires_grad_(False)
+
+        self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
+
+        self.conv3d = nn.Conv3d(192, hidden_dim, kernel_size=3, stride=1, padding=1)
+
+        encoder_layer = TransformerEncoderLayer(
+            self.hidden_dim,
+            nhead=8,
+            dim_feedforward=512,
+            dropout=0.2,
+            normalize_before=normalize_before,
+        )
+        encoder_norm = nn.LayerNorm(self.hidden_dim) if normalize_before else None
+        self.transformer_encoder = TransformerEncoder(
+            encoder_layer, num_encoder_layers, encoder_norm
+        )
+
+        self.conv_fuse = nn.Conv2d(
+                self.hidden_dim * 2,
+                self.hidden_dim,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+        )
+
+        self.mm_decoder = ConvLSTM(
+            input_dim=hidden_dim,
+            mask_dim=mask_dim,
+            hidden_dim=hidden_dim,
+            kernel_size=(3, 3),
+            num_layers=1,
+            batch_first=True,
+            return_all_layers=False,
+            attn_type=self.attn_type,
+        )
+
+        self.traj_decoder = nn.Sequential(
+            ASPP(in_channels=hidden_dim, atrous_rates=[4, 6, 8], out_channels=256),
+            ConvUpsample(
+                in_channels=256,
+                out_channels=1,
+                channels=[256, 256],
+                upsample=[True, True],
+                drop=0.2,
+            ),
+            nn.Upsample(size=(traj_dim, traj_dim), mode="bilinear", align_corners=True),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, frames, text, frame_mask, text_mask):
+
+        # bs = frames.shape[0]
+        # nf = self.num_frames
+
+        vision_feat = self.vision_encoder(frames)
+        vision_feat = F.relu(self.conv3d(vision_feat))
+        b, c, t, h, w = vision_feat.shape
+        
+        vision_feat = rearrange(vision_feat, "b c t h w -> (b t) c (h w)")
+
+        text_feat = self.text_encoder(text)
+        l = text_feat.shape[1]
+        
+        text_feat = repeat(text_feat, "b l c -> (b repeat) c l", repeat=t)
+        
+        vis_pos_embd = positionalencoding2d(b, c, height=h, width=w)
+        vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
+
+        txt_pos_embd = positionalencoding1d(b*t, c, max_len=l)
+        
+        combined_pos_embd = torch.cat([vis_pos_embd, txt_pos_embd], dim=1)
+        combined_pos_embd = rearrange(combined_pos_embd, "b l c -> l b c")
+        
+        frame_tensor = rearrange(vision_feat, "b l c -> l b c")
+
+        lang_tensor = rearrange(text_feat, "b l c -> l b c")
+
+        frame_mask = repeat(frame_mask, "b l -> (b repeat) l", repeat=t)
+        text_mask = repeat(text_mask, "b l -> (b repeat) l", repeat=t)
+        
+        combined_padding = ~torch.cat(
+            [frame_mask, text_mask], dim=-1
+        ).bool()
+
+        combined_tensor = torch.cat([frame_tensor, lang_tensor], dim=0)
+        enc_out = self.transformer_encoder(
+            combined_tensor,
+            pos=combined_pos_embd,
+            src_key_padding_mask=combined_padding,
+        )
+        enc_out = enc_out.permute(1, 2, 0)
+
+        f_img_out = enc_out[:, :, : h * w].view(b, c, h, w)
+
+        f_txt_out = enc_out[:, :, h * w :].transpose(1, 2)  # B, L, E
+        f_txt_out = f_txt_out.mean(dim=1)
+
+        f_out = torch.cat(
+            [f_img_out, f_txt_out[:, :, None, None].expand(b, -1, h, w)], dim=1
+        )
+
+        enc_out = F.relu(self.conv_fuse(f_out))
+
+        segm_mask = self.mm_decoder(enc_out)
+        traj_mask = self.traj_decoder(enc_out)
+
+        return segm_mask, traj_mask
 
 
 class TextEncoder(nn.Module):
