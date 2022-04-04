@@ -660,8 +660,8 @@ class CarlaFullDataset(Dataset):
 
         # if self.split == "train":
         #     command = sub_commands
-        # if self.mode == "image":
-        #     sub_commands = [sub_commands]
+        if self.mode == "image":
+            sub_commands = [sub_commands]
 
         tokens, phrase_mask = self.corpus.tokenize(command)
 
@@ -676,7 +676,7 @@ class CarlaFullDataset(Dataset):
 
         sub_tokens = []
         sub_phrase_masks = []
-        for sub_command in [sub_commands]:
+        for sub_command in sub_commands:
             sub_command = re.sub(r"[^\w\s]", "", sub_command.lower())
             sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
             sub_tokens.append(sub_token)

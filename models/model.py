@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from einops import rearrange, repeat
+from einops.layers.torch import Rearrange
 
 from .transformer import *
 from .position_encoding import *
@@ -729,15 +730,23 @@ class Conv3D_Baseline(nn.Module):
                 padding=1,
         )
 
-        self.mm_decoder = ConvLSTM(
-            input_dim=hidden_dim,
-            mask_dim=mask_dim,
-            hidden_dim=hidden_dim,
-            kernel_size=(3, 3),
-            num_layers=1,
-            batch_first=True,
-            return_all_layers=False,
-            attn_type=self.attn_type,
+        self.temporal_conv = nn.Sequential(
+            nn.Conv3d(hidden_dim, hidden_dim, kernel_size=(4, 3, 3), stride=1, padding=(0, 1, 1)),
+            nn.ReLU(),
+            Rearrange('b c 1 h w -> b c h w'),
+        )
+
+        self.mm_decoder = nn.Sequential(
+            ASPP(in_channels=hidden_dim, atrous_rates=[4, 6, 8], out_channels=256),
+            ConvUpsample(
+                in_channels=256,
+                out_channels=1,
+                channels=[256, 256, 128],
+                upsample=[True, True, True],
+                drop=0.2,
+            ),
+            nn.Upsample(size=(mask_dim, mask_dim), mode="bilinear", align_corners=True),
+            nn.Sigmoid(),
         )
 
         self.traj_decoder = nn.Sequential(
@@ -769,7 +778,7 @@ class Conv3D_Baseline(nn.Module):
         
         text_feat = repeat(text_feat, "b l c -> (b repeat) c l", repeat=t)
         
-        vis_pos_embd = positionalencoding2d(b, c, height=h, width=w)
+        vis_pos_embd = positionalencoding2d(b*t, c, height=h, width=w)
         vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
 
         txt_pos_embd = positionalencoding1d(b*t, c, max_len=l)
@@ -777,9 +786,9 @@ class Conv3D_Baseline(nn.Module):
         combined_pos_embd = torch.cat([vis_pos_embd, txt_pos_embd], dim=1)
         combined_pos_embd = rearrange(combined_pos_embd, "b l c -> l b c")
         
-        frame_tensor = rearrange(vision_feat, "b l c -> l b c")
+        frame_tensor = rearrange(vision_feat, "b c l -> l b c")
 
-        lang_tensor = rearrange(text_feat, "b l c -> l b c")
+        lang_tensor = rearrange(text_feat, "b c l -> l b c")
 
         frame_mask = repeat(frame_mask, "b l -> (b repeat) l", repeat=t)
         text_mask = repeat(text_mask, "b l -> (b repeat) l", repeat=t)
@@ -796,17 +805,20 @@ class Conv3D_Baseline(nn.Module):
         )
         enc_out = enc_out.permute(1, 2, 0)
 
-        f_img_out = enc_out[:, :, : h * w].view(b, c, h, w)
+        f_img_out = enc_out[:, :, : h * w].view(b*t, c, h, w)
 
         f_txt_out = enc_out[:, :, h * w :].transpose(1, 2)  # B, L, E
         f_txt_out = f_txt_out.mean(dim=1)
 
         f_out = torch.cat(
-            [f_img_out, f_txt_out[:, :, None, None].expand(b, -1, h, w)], dim=1
+            [f_img_out, f_txt_out[:, :, None, None].expand(b*t, -1, h, w)], dim=1
         )
 
         enc_out = F.relu(self.conv_fuse(f_out))
+        enc_out = rearrange(enc_out, "(b t) c h w -> b c t h w", t=t)
+        enc_out = self.temporal_conv(enc_out)
 
+        # import pdb; pdb.set_trace()
         segm_mask = self.mm_decoder(enc_out)
         traj_mask = self.traj_decoder(enc_out)
 
