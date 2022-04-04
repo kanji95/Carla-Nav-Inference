@@ -302,7 +302,7 @@ class Solver(object):
                 params,
                 lr=self.lr,
                 alpha=0.99,
-                ps=1e-08,
+                eps=1e-08,
                 weight_decay=self.weight_decay,
                 momentum=0.8,
                 centered=False,
