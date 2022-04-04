@@ -25,6 +25,7 @@ IGNORE = {
     # "train": ['107', '138', '164', '170', '175', '193', '211', '213', '219', '227', '238', '248', '250', '254', '260', '270', '28', '283', '284', '285', '288', '293', '298', '305', '52', '80'],
     # "val": ['1', '44']
     # "train": ['100', '128', '153', '159', '163', '180', '197', '198', '204', '211', '221', '231', '233', '237', '242', '251', '263', '264', '265', '268', '27', '273', '278', '284', '286', '327', '50', '65', '75'],
+    # [116, 119, 122, 130, 131, 133, 142, 148, 160, 186, 190, 200, 408]
     "train": [
         "65",
         "100",
@@ -118,7 +119,8 @@ def world_to_pixel(K, rgb_matrix, destination, curr_position):
 
 def get_curve_length(points):
     return np.sum(
-        [np.linalg.norm(points[i + 1] - points[i]) for i in range(len(points) - 1)]
+        [np.linalg.norm(points[i + 1] - points[i])
+         for i in range(len(points) - 1)]
     )
 
 
@@ -220,7 +222,8 @@ class CarlaDataset(Dataset):
     def __getitem__(self, idx):
         output = {}
 
-        episode_dir = os.path.join(self.data_dir, np.random.choice(self.episodes))
+        episode_dir = os.path.join(
+            self.data_dir, np.random.choice(self.episodes))
 
         image_files = sorted(glob(episode_dir + f"/images/*.png"))
         mask_files = sorted(glob(episode_dir + f"/masks/*.png"))
@@ -302,7 +305,8 @@ class CarlaFullDataset(Dataset):
 
         # import pdb; pdb.set_trace()
         self.episodes = sorted(os.listdir(self.data_dir))
-        self.episodes = [episode for episode in self.episodes if episode.isnumeric()]
+        self.episodes = [
+            episode for episode in self.episodes if episode.isnumeric()]
         print("Number of episodes before removal: ", len(self.episodes))
 
         # Remove Episodes
@@ -314,7 +318,8 @@ class CarlaFullDataset(Dataset):
 
         # import pdb; pdb.set_trace()
         # print(os.getcwd())
-        self.sub_command_data = pd.read_csv(f"./dataloader/sub_commands_{self.split}.csv", index_col=0)
+        self.sub_command_data = pd.read_csv(
+            f"./dataloader/sub_commands_{self.split}.csv", index_col=0)
 
     def __len__(self):
         return len(self.episodes)
@@ -361,13 +366,14 @@ class CarlaFullDataset(Dataset):
 
         valid_indices = list(range(0, sample_idx, self.one_in_n))
         if len(valid_indices) > self.sequence_len:
-            indices = valid_indices[-self.sequence_len :]
+            indices = valid_indices[-self.sequence_len:]
         else:
-            indices = [0] * (self.sequence_len - len(valid_indices)) + valid_indices
+            indices = [0] * (self.sequence_len -
+                             len(valid_indices)) + valid_indices
         start_idx = indices[0]
 
         final_click_idx = target_positions["click_no"].max()
-        
+
         sub_commands = []
         # sub_command_labels = []
 
@@ -397,7 +403,6 @@ class CarlaFullDataset(Dataset):
                     sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
             else:
                 sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
-                
 
             frames.append(img)
             frame_masks.append(mask)
@@ -510,7 +515,7 @@ class CarlaFullDataset(Dataset):
 
         mask_ = torch.zeros_like(mask)
         mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
-            
+
         # curr_timestep = 0.
         if curr_click_idx >= 1 or curr_click_idx == final_click_idx:
             mask_[1] = mask[0]
@@ -518,14 +523,14 @@ class CarlaFullDataset(Dataset):
             # curr_timestep = 1.
             if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
                 sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
-                    # curr_timestep = 0 1. * random.randint(0, 1)
+                # curr_timestep = 0 1. * random.randint(0, 1)
         else:
             mask_[0] = mask[0]
             sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
             # curr_timestep = 0.
 
         mask = mask_ + 1e-4
-        
+
         rgb_matrix = np.load(matrix_files[sample_idx])
 
         pixel_coordinates = [np.array([0, 0])]
@@ -597,7 +602,8 @@ class CarlaFullDataset(Dataset):
                 position = np.array(line.split(","), dtype=np.float32)
                 vehicle_positions.append(position)
 
-        target_positions = pd.read_csv(target_path, names=["x", "y", "z", "click_no"])
+        target_positions = pd.read_csv(
+            target_path, names=["x", "y", "z", "click_no"])
 
         traj_mask = None
         sample_idx = None
@@ -651,14 +657,14 @@ class CarlaFullDataset(Dataset):
         command = open(command_path, "r").read()
         command = self.sub_command_data.loc[episode_num]['command']
         command = re.sub(r"[^\w\s]", "", command)
-        
+
         # if self.split == "train":
         #     command = sub_commands
         # if self.mode == "image":
         #     sub_commands = [sub_commands]
 
         tokens, phrase_mask = self.corpus.tokenize(command)
-        
+
         output["orig_text"] = command
         output["text"] = tokens
         output["text_mask"] = phrase_mask
@@ -667,7 +673,7 @@ class CarlaFullDataset(Dataset):
         # sub_commands = [self.sub_command_data.loc[episode_num]['sub_command_0'], self.sub_command_data.loc[episode_num]['sub_command_1']]
         # if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
         #     sub_commands[1] = self.sub_command_data.loc[episode_num]['sub_command_0']
-        
+
         sub_tokens = []
         sub_phrase_masks = []
         for sub_command in [sub_commands]:
@@ -675,10 +681,10 @@ class CarlaFullDataset(Dataset):
             sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
             sub_tokens.append(sub_token)
             sub_phrase_masks.append(sub_phrase_mask)
-        
+
         sub_tokens = torch.stack(sub_tokens, dim=0)
         sub_phrase_masks = torch.stack(sub_phrase_masks, dim=0)
-        
+
         output['orig_sub_text'] = sub_commands
         output['sub_text'] = sub_tokens
         output['sub_text_mask'] = sub_phrase_masks
