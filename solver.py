@@ -259,7 +259,7 @@ class Solver(object):
                 num_workers=self.num_workers,
                 pin_memory=True,
                 shuffle=True,
-                drop_last=False,
+                drop_last=True,
             )
             self.val_loader = DataLoader(
                 self.val_dataset,
