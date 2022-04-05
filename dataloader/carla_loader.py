@@ -266,7 +266,8 @@ class CarlaFullDataset(Dataset):
             f"./dataloader/sub_commands_{self.split}.csv", index_col=0)
 
     def __len__(self):
-        return len(self.episodes)
+        # return len(self.episodes)
+        return self.dataset_len
 
     # TODO - Include Vehicle Position
     def get_video_data(
@@ -318,7 +319,7 @@ class CarlaFullDataset(Dataset):
 
         final_click_idx = target_positions["click_no"].max()
 
-        sub_commands = []
+        # sub_commands = []
         # sub_command_labels = []
 
         for index in indices:
@@ -341,16 +342,23 @@ class CarlaFullDataset(Dataset):
                 mask = self.mask_transform(mask)
             mask[mask > 0] = 1
 
+            mask_ = torch.zeros_like(mask)
+            mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
+
             if curr_click_idx == final_click_idx:
-                sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
-                if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
-                    sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+                mask_[1] = mask[0]
+                # sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
+                # if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
+                    # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
             else:
-                sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+                mask_[0] = mask[0]
+                # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+
+            mask = mask_
 
             frames.append(img)
             frame_masks.append(mask)
-            sub_commands.append(sub_command)
+            # sub_commands.append(sub_command)
 
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
@@ -403,7 +411,7 @@ class CarlaFullDataset(Dataset):
 
         # print(traj_mask.min(), traj_mask.max(), pixel_coordinates.shape)
         # print(traj_mask.shape, orig_frames.shape)
-        return frames, orig_frames, frame_masks[-1], traj_mask, sub_commands, sample_idx
+        return frames, orig_frames, frame_masks, traj_mask, None, sample_idx
 
     def get_image_data(
         self,
@@ -523,8 +531,8 @@ class CarlaFullDataset(Dataset):
     def __getitem__(self, idx):
         output = {}
 
-        # episode = np.random.choice(self.episodes)
-        episode = self.episodes[idx]
+        episode = np.random.choice(self.episodes)
+        # episode = self.episodes[idx]
         episode_dir = os.path.join(self.data_dir, episode)
 
         # import pdb; pdb.set_trace()
