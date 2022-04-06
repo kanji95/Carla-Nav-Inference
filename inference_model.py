@@ -1131,7 +1131,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         #       intermediate_mask_np.max(), intermediate_mask_np.min())
         # print(final_mask_np.shape, final_mask_np.max(), final_mask_np.min())
 
-        mask_np = np.clip(intermediate_mask_np+final_mask_np, 0.0, 1.0)
+        mask_np = intermediate_mask_np+final_mask_np
+        mask_np = mask_np/2
 
         traj_mask_np = traj_mask.detach().cpu()
         traj_mask_np = rearrange(traj_mask_np, "1 1 h w -> h w").numpy()
@@ -1141,10 +1142,11 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         # mask_np = cv2.resize(mask_np, (1280, 720))
         if args.target == 'mask':
             pixel_out = best_pixel(mask_np, threshold, confidence)
-            probs, region = pixel_out
-            if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
-                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                               region, K, destination, set_destination=True)
+            if pixel_out != -1:
+                probs, region = pixel_out
+                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                   region, K, destination, set_destination=True)
         if args.target == 'mask_dual':
             pixel_out = best_pixel(final_mask_np, threshold, confidence)
             if pixel_out == -1:
@@ -1217,10 +1219,11 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                     pixel_out = best_pixel(
                         final_mask_np, threshold, confidence)
                     pred_found = 1
-        probs, region = pixel_out
-        if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
-            pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                           region, K, destination, set_destination=True)
+        if pixel_out != -1:
+            probs, region = pixel_out
+            if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                               region, K, destination, set_destination=True)
 
         if pixel_out != -1:
 
@@ -2195,7 +2198,7 @@ def game_loop(args):
                     print('Reached')
                 if frame_count > 1500+stationary_frames or frame_count > 3000:
                     num_preds = args.num_preds
-                if time_since_stopped > 10 and agent.done():
+                if time_since_stopped > 100 and agent.done():
                     num_preds = args.num_preds
                 if num_preds >= args.num_preds:
                     command_given = False
@@ -2545,7 +2548,7 @@ def main():
                            default=100, help="mask confidence")
 
     argparser.add_argument("--confidence_probs", type=float,
-                           default=1, help="mask confidence")
+                           default=0.5, help="mask confidence")
 
     argparser.add_argument("--sampling", type=float,
                            default=20, help="mask confidence")
