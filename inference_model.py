@@ -1003,8 +1003,8 @@ class CameraManager(object):
                 img = img[:, :, :]  # BGR
                 # im.save(f'_out/{episode_number}/images/{image.frame:08d}.png')
 
-                # cv2.imwrite(
-                #     f'_out/{episode_number}/images/{image.frame:08d}.png', img)
+                cv2.imwrite(
+                    f'_out/{episode_number}/images/{image.frame:08d}.png', img)
 
                 # image.save_to_disk(
                 #     f'_out/{episode_number}/images/{image.frame:08d}')
@@ -1114,6 +1114,9 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             mask, traj_mask = network(
                 video_frames, phrase, frame_mask, phrase_mask)
 
+        if len(mask.shape) == 5:
+            mask = mask.detach()[:, -1]
+
         mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
         intermediate_mask_np = mask_np[:, :, 0].reshape(
             mask_np.shape[0], mask_np.shape[1])
@@ -1139,8 +1142,9 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         if args.target == 'mask':
             pixel_out = best_pixel(mask_np, threshold, confidence)
             probs, region = pixel_out
-            pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                           region, K, destination, set_destination=True)
+            if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                               region, K, destination, set_destination=True)
         if args.target == 'mask_dual':
             pixel_out = best_pixel(final_mask_np, threshold, confidence)
             if pixel_out == -1:
@@ -1148,13 +1152,15 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                     intermediate_mask_np, threshold, confidence)
             if pixel_out != -1:
                 probs, region = pixel_out
-                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                               region, K, destination, set_destination=True)
+                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                   region, K, destination, set_destination=True)
         elif args.target == 'trajectory':
             pixel_out = best_pixel_traj(traj_mask_np)
             probs, region = pixel_out
-            pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                           region, K, destination, set_destination=True)
+            if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                               region, K, destination, set_destination=True)
         elif args.target == 'network':
             pixel_out = best_pixel(final_mask_np, threshold, confidence)
             if pixel_out == -1:
@@ -1212,8 +1218,9 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                         final_mask_np, threshold, confidence)
                     pred_found = 1
         probs, region = pixel_out
-        pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                       region, K, destination)
+        if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+            pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                           region, K, destination, set_destination=True)
 
         if pixel_out != -1:
 
@@ -1234,9 +1241,10 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                         print(
                             f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
                         if probs >= confidence:
-                            if args.sub_command:
-                                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                                               region, K, destination)
+                            if args.sub_command or True:
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
 
                             color = (0, 0, 255)
                             pred_found = 1
@@ -1250,9 +1258,10 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                         print(
                             f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
                         if probs >= confidence:
-                            if args.sub_command:
-                                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                                               region, K, destination)
+                            if args.sub_command or True:
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
 
                             color = (0, 0, 255)
                             pred_found = 1
@@ -1272,8 +1281,9 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                         probs, region = pixel_temp_intermediate
                         if probs >= confidence:
                             if args.sub_command or True:
-                                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                                               region, K, destination)
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
                             color = (255, 0, 0)
 
                     elif pixel_temp != -1:
@@ -1282,8 +1292,9 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                             f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
                         if probs >= confidence:
                             if args.sub_command or True:
-                                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                                               region, K, destination)
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
 
                             color = (0, 0, 255)
                             pred_found = 1
@@ -1310,8 +1321,9 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
                             if args.sub_command or True:
                                 probs, region = pixel_temp
-                                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                                               region, K, destination)
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
 
                 print(
                     f'Distance from target: {np.linalg.norm(np.array([vehicle_location.x, vehicle_location.y])- np.array([agent.target_destination.x,agent.target_destination.y]))}')
@@ -1478,7 +1490,7 @@ def best_pixel_traj(traj_mask_np):
     final = (final[0]*1280/traj_mask_np.shape[1],
              final[1]*720/traj_mask_np.shape[0])
     final = (int(final[0]), int(final[1]))
-    return (1, final)
+    return (-1, final)
 
 
 def world_to_pixel(K, rgb_matrix, destination,  curr_position):
@@ -1954,6 +1966,9 @@ def game_loop(args):
         full_video = []
         prev_loc = None
 
+        time_since_stopped = 0
+        time_since_running = 0
+
         weak_dc = weakref.ref(depth_camera)
         weak_agent = weakref.ref(agent)
 
@@ -2052,6 +2067,13 @@ def game_loop(args):
                         num_preds = 0
                         full_video = []
                         episode_number += 1
+                        try:
+                            if os.path.exists(f'_out/{episode_number}'):
+                                shutil.rmtree(f'_out/{episode_number}')
+                            else:
+                                print('Failed to delete')
+                        except:
+                            print('Failed to delete')
                         os.makedirs(f'_out/{episode_number}', exist_ok=True)
                         if not args.command:
                             command = input('Enter Command: ')
@@ -2131,6 +2153,11 @@ def game_loop(args):
                     if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-3 and abs(prev_loc.x - vehicle_location.x) < 1e-3:
                         pred_found = 0
                         stationary_frames += 1
+                        time_since_stopped += 1
+                        time_since_running = 0
+                    else:
+                        time_since_running += 1
+                        time_since_stopped = 0
                     if frame_count % args.sampling == 0 and print_network_stats:
                         print(
                             f'Network took {end-start}, pred_found = {pred_found}, curr_times = {curr_times}')
@@ -2167,6 +2194,8 @@ def game_loop(args):
                     num_preds += 1
                     print('Reached')
                 if frame_count > 1500+stationary_frames or frame_count > 3000:
+                    num_preds = args.num_preds
+                if time_since_stopped > 10 and agent.done():
                     num_preds = args.num_preds
                 if num_preds >= args.num_preds:
                     command_given = False
@@ -2511,6 +2540,12 @@ def main():
 
     argparser.add_argument("--confidence", type=float,
                            default=100, help="mask confidence")
+
+    argparser.add_argument("--min_confidence", type=float,
+                           default=100, help="mask confidence")
+
+    argparser.add_argument("--confidence_probs", type=float,
+                           default=1, help="mask confidence")
 
     argparser.add_argument("--sampling", type=float,
                            default=20, help="mask confidence")
