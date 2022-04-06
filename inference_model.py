@@ -1107,8 +1107,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
         else:
             video_frames = video_queue[::-1][::args.one_in_n][::-1]
-            video_frames = full_video[-args.num_frames *
-                                      args.one_in_n][::-1][::args.one_in_n][::-1]
+            # video_frames = full_video[-args.num_frames *
+            #                           args.one_in_n][::-1][::args.one_in_n][::-1]
             video_frames = torch.stack(video_frames, dim=1).cuda(
                 non_blocking=True).unsqueeze(0)
             mask, traj_mask = network(
@@ -1271,7 +1271,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                     if pixel_temp != -1 and pixel_temp_intermediate != -1 and pixel_temp_intermediate[0] >= pixel_temp[0]:
                         probs, region = pixel_temp_intermediate
                         if probs >= confidence:
-                            if args.sub_command:
+                            if args.sub_command or True:
                                 pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
                                                region, K, destination)
                             color = (255, 0, 0)
@@ -1281,7 +1281,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                         print(
                             f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
                         if probs >= confidence:
-                            if args.sub_command:
+                            if args.sub_command or True:
                                 pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
                                                region, K, destination)
 
@@ -1308,7 +1308,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                             color = (0, 0, 255)
                             pred_found = 1
 
-                            if args.sub_command:
+                            if args.sub_command or True:
                                 probs, region = pixel_temp
                                 pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
                                                region, K, destination)
@@ -1907,8 +1907,13 @@ def game_loop(args):
         checkpoint_path = args.checkpoint
 
         corpus = Corpus(glove_path)
+        if args.img_backbone == 'conv3d_baseline':
+            feature_dim = 7
+        else:
+            feature_dim = 14
+
         frame_mask = torch.ones(
-            1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
+            1, feature_dim * feature_dim, dtype=torch.int64).cuda(non_blocking=True)
 
         threshold = args.threshold
         confidence = args.confidence
@@ -1927,9 +1932,6 @@ def game_loop(args):
         mask_transform = solver.mask_transform
 
         traj_transform = solver.traj_transform
-
-        frame_mask = torch.ones(
-            1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
 
         command_given = False
         # currently saving, need to start next episode, delete current episode
@@ -2124,7 +2126,7 @@ def game_loop(args):
                         print_network_stats = 1
                     start = time.time()
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
-                                    vehicle_location, args.sampling*(curr_times+1))
+                                    vehicle_location, args.sampling*(num_preds+1 if not args.sub_command else curr_times+1))
                     end = time.time()
                     if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-3 and abs(prev_loc.x - vehicle_location.x) < 1e-3:
                         pred_found = 0
@@ -2134,9 +2136,12 @@ def game_loop(args):
                             f'Network took {end-start}, pred_found = {pred_found}, curr_times = {curr_times}')
                         # print(
                         #     f'++++++++++++++++++++++++++++++++frame_count:{frame_count} out of {1500+stationary_frames}++++++++++++++++++++++++++++++++')
-                        curr_times += pred_found
-                        # if curr_times >= times_check:
-                        #     num_preds += 1
+                        if args.sub_command:
+                            curr_times += pred_found
+                            # if curr_times >= times_check:
+                            #     num_preds += 1
+                        else:
+                            num_preds += pred_found
                     if pred_found:
                         print(
                             f'-------------Num Preds: {num_preds}-------------')
@@ -2442,7 +2447,8 @@ def main():
             "timesformer",
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",
-            "deeplabv3_mobilenet_v3_large"
+            "deeplabv3_mobilenet_v3_large",
+            "conv3d_baseline"
         ],
         type=str,
     )
