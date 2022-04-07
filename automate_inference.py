@@ -1,10 +1,32 @@
 import os
 # 1-7, 16, 23, 24
-episodes = list(range(23, 25))
-episodes = [17]
+episodes = list(range(0, 50))
 checkpoint = './saved_model/conv3d_baseline_class_level_combo_multi_head_hd_384_sf_10_tf_20_05_Apr_09_00.pth'
-maps = ['Town03', 'Town03', 'Town03', 'Town03', 'Town01', 'Town05', 'Town03', 'Town10HD', 'Town05', 'Town05', 'Town10HD', 'Town03',
-        'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town02', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
+maps = ['Town10HD', 'Town03',
+        'Town05', 'Town10HD',
+        'Town01', 'Town05',
+        'Town05', 'Town03',
+        'Town02', 'Town01',
+        'Town05', 'Town03',
+        'Town01', 'Town03',
+        'Town05', 'Town03',
+        'Town01', 'Town02',
+        'Town02', 'Town05',
+        'Town02', 'Town05',
+        'Town10HD', 'Town03',
+        'Town01', 'Town01',
+        'Town07', 'Town05',
+        'Town02', 'Town10HD',
+        'Town03', 'Town03',
+        'Town05', 'Town10HD',
+        'Town03', 'Town07',
+        'Town10HD', 'Town05',
+        'Town05', 'Town05',
+        'Town01', 'Town10HD',
+        'Town05', 'Town01',
+        'Town01', 'Town05',
+        'Town05', 'Town05',
+        'Town05', 'Town01']
 command = True
 for i in range(len(episodes)):
     os.system(f"python inference_model.py --img_backbone conv3d_baseline --hidden_dim 384 --image_dim 224 --mask_dim 224 --traj_dim 224 --sync --threshold 0.00005 \
