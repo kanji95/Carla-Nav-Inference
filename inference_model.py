@@ -2151,7 +2151,7 @@ def game_loop(args):
                         print_network_stats = 1
                     start = time.time()
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
-                                    vehicle_location, args.sampling*(num_preds+1 if not args.sub_command else curr_times+1))
+                                    vehicle_location, args.sampling)
                     end = time.time()
                     if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-3 and abs(prev_loc.x - vehicle_location.x) < 1e-3:
                         pred_found = 0
