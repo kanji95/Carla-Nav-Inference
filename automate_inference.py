@@ -1,5 +1,5 @@
 import os
-# 1-7, 16, 23, 24
+# [4, 37, 38, 39 ,40, 42, 45, 46] conv3d
 episodes = list(range(0, 50))
 checkpoint = './saved_model/conv3d_baseline_class_level_combo_multi_head_hd_384_sf_10_tf_20_05_Apr_09_00.pth'
 maps = ['Town10HD', 'Town03',

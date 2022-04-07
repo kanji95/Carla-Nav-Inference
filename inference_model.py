@@ -2302,7 +2302,7 @@ def game_loop(args):
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
                                     vehicle_location, args.sampling*(curr_times+1 if args.sub_command else num_preds+1))
                     end = time.time()
-                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-3 and abs(prev_loc.x - vehicle_location.x) < 1e-3:
+                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-4 and abs(prev_loc.x - vehicle_location.x) < 1e-4:
                         pred_found = 0
                         stationary_frames += 1
                         time_since_stopped += 1
