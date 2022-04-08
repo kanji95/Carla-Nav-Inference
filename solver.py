@@ -371,6 +371,11 @@ class Solver(object):
 
         data_len = len(self.train_loader)
 
+        if self.mode == "video":
+            feature_dim = 7
+        else:
+            feature_dim = 14
+
         num_samples = 0
 
         epoch_start = time()
@@ -380,10 +385,10 @@ class Solver(object):
                 frame = batch["frame"].cuda(non_blocking=True)
 
                 text = batch["text"].cuda(non_blocking=True)
-                sub_text = batch["sub_text"].cuda(non_blocking=True)
+                # sub_text = batch["sub_text"].cuda(non_blocking=True)
 
                 text_mask = batch["text_mask"].cuda(non_blocking=True)
-                sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
+                # sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
 
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
@@ -391,7 +396,7 @@ class Solver(object):
                 # gt_timestep = batch["gt_timestep"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
-                frame_mask = torch.ones(batch_size, 14 * 14, dtype=torch.int64).cuda(
+                frame_mask = torch.ones(batch_size, feature_dim * feature_dim, dtype=torch.int64).cuda(
                     non_blocking=True
                 )
                 num_samples += batch_size
@@ -403,6 +408,8 @@ class Solver(object):
                 frame, text, frame_mask, text_mask
             )
             # print(type(timestep), type(gt_timestep), timestep.dtype, gt_timestep.dtype)
+
+            # print(mask.shape, traj_mask.shape, gt_mask.shape, gt_traj_mask.shape)
 
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
@@ -592,6 +599,11 @@ class Solver(object):
 
         data_len = len(self.val_loader)
 
+        if self.mode == "video":
+            feature_dim = 7
+        else:
+            feature_dim = 14
+
         num_samples = 0
 
         for step, batch in enumerate(self.val_loader):
@@ -600,12 +612,12 @@ class Solver(object):
             text = batch["text"].cuda(non_blocking=True)
             # text = torch.stack([text]*self.num_frames, dim=1)
 
-            sub_text = batch["sub_text"].cuda(non_blocking=True)
+            # sub_text = batch["sub_text"].cuda(non_blocking=True)
 
             text_mask = batch["text_mask"].cuda(non_blocking=True)
             # text_mask = torch.stack([text_mask]*self.num_frames, dim=1)
 
-            sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
+            # sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
             
             # gt_timestep = batch["gt_timestep"].cuda(non_blocking=True)
 
@@ -615,7 +627,7 @@ class Solver(object):
             gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
             batch_size = frame.shape[0]
-            frame_mask = torch.ones(batch_size, 14 * 14, dtype=torch.int64).cuda(
+            frame_mask = torch.ones(batch_size, feature_dim * feature_dim, dtype=torch.int64).cuda(
                 non_blocking=True
             )
             num_samples += batch_size

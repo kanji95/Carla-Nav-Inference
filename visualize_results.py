@@ -102,6 +102,26 @@ def main(args):
                 num_frames=args.num_frames,
                 attn_type=args.attn_type,
             )
+    elif "conv3d_baseline" in args.img_backbone:
+            mode = "video"
+            spatial_dim = args.image_dim // args.patch_size
+
+            video_encoder = torch.hub.load(
+                "facebookresearch/pytorchvideo", "x3d_s", pretrained=True
+            )
+            visual_encoder = nn.Sequential(
+                *list(video_encoder.blocks.children())[:-1])
+
+            network = Conv3D_Baseline(
+                visual_encoder,
+                hidden_dim=args.hidden_dim,
+                image_dim=args.image_dim,
+                mask_dim=args.mask_dim,
+                traj_dim=args.traj_dim,
+                spatial_dim=spatial_dim,
+                num_frames=args.num_frames,
+                attn_type=args.attn_type,
+            )
     wandb.watch(network, log="all")
 
     if num_gpu > 1:
@@ -137,7 +157,7 @@ def main(args):
     #     ]
     # )
 
-    frame_mask = torch.ones(1, 7 * 7, dtype=torch.int64).cuda(non_blocking=True)
+    frame_mask = torch.ones(1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
 
     # columns = ["Command"]
 
@@ -222,10 +242,12 @@ def main(args):
                 num_frames = args.num_frames,
             )
 
+        # frame_video = np.stack(frame_video, axis=0)
         frame_video = np.concatenate(frame_video, axis=0)
         mask_video = np.concatenate(mask_video, axis=0)
         traj_video = np.concatenate(traj_video, axis=0)
         gt_mask_video = np.concatenate(gt_mask_video, axis=0)
+
 
         # import pdb; pdb.set_trace()
         mask_video_overlay = np.copy(frame_video)
@@ -233,7 +255,7 @@ def main(args):
         # mask_video_overlay += mask_video / mask_video.max() # red - intermediate point
         mask_video_overlay[:, 0] += mask_video[:, 0] / mask_video[:, 0].max() # red - intermediate point
         # mask_video_overlay[:, 0] += mask_video[:, 0] / mask_video[:, 0].max() # red - intermediate point
-        # mask_video_overlay[:, 2] += mask_video[:, 1] / mask_video[:, 1].max() # blue - final point
+        mask_video_overlay[:, 2] += mask_video[:, 1] / mask_video[:, 1].max() # blue - final point
         mask_video_overlay = np.clip(mask_video_overlay, a_min=0.0, a_max=1.0)
 
         traj_video_overlay = np.copy(frame_video)
@@ -292,8 +314,7 @@ def run_image_model(
         frame = img_transform(image).cuda(non_blocking=True).unsqueeze(0)
         gt_mask = mask_transform(gt_mask).unsqueeze(0) #.cuda(non_blocking=True).unsqueeze(0)
 
-        mask, traj_mask, timestep = network(frame, phrase, frame_mask, phrase_mask)
-        print(timestep)
+        mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
 
         frame_video.append(frame.detach().cpu().numpy())
         mask_video.append(mask.detach().cpu().numpy())
@@ -335,11 +356,10 @@ def run_video_model(
         
         video_frames = torch.stack(video_queue, dim=1).cuda(non_blocking=True).unsqueeze(0)
 
-        mask, traj_mask, timestep = network(video_frames, sub_phrase, frame_mask, sub_phrase_mask)
-        print(timestep)
+        mask, traj_mask = network(video_frames, phrase, frame_mask, phrase_mask)
 
-        frame_video.append(frame[None].detach().cpu().numpy())
-        mask_video.append(mask[:, :, -1].detach().cpu().numpy())
+        frame_video.append(frame.detach().cpu().numpy())
+        mask_video.append(mask.detach().cpu().numpy())
         traj_video.append(traj_mask.detach().cpu().numpy())
         gt_mask_video.append(gt_mask)
 
@@ -395,7 +415,8 @@ if __name__ == "__main__":
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",
             "deeplabv3_mobilenet_v3_large",
-            "convlstm"
+            "convlstm",
+            "conv3d_baseline"
         ],
         type=str,
     )

@@ -186,94 +186,218 @@ class World(object):
                 print('Please add some Vehicle Spawn Point to your UE4 scene.')
                 sys.exit(1)
             spawn_points = self.map.get_spawn_points()
-            corresponding_maps = ['Town03', 'Town03', 'Town03', 'Town03', 'Town01', 'Town05', 'Town03', 'Town10HD', 'Town05', 'Town05', 'Town10HD', 'Town03',
-                                  'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town02', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
-            other_spawns = [[197.0673370361328, -2.0025179386138916, 0.3, -179.1441686105662],
-                            [-73.89038848876953,
-                             97.12801361083984,
-                             0.7155191974714399,
-                             -80.55661201179124],
-                            [-88.2191162109375,
-                             -158.3634490966797,
-                             0.30070819817483424,
-                             94.25537770639743],
-                            [98.9326171875, -6.8971147537231445,
-                             0.3000582877546549, -179.1441686105662],
-                            [318.23492431640625,
-                             326.6099853515625,
-                             0.30038284249603747,
-                             179.99937663149663],
+            corresponding_maps = ['Town10HD', 'Town03',
+                                  'Town05', 'Town10HD',
+                                  'Town01', 'Town05',
+                                  'Town05', 'Town03',
+                                  'Town02', 'Town01',
+                                  'Town05', 'Town03',
+                                  'Town01', 'Town03',
+                                  'Town05', 'Town03',
+                                  'Town01', 'Town02',
+                                  'Town02', 'Town05',
+                                  'Town02', 'Town05',
+                                  'Town10HD', 'Town03',
+                                  'Town01', 'Town01',
+                                  'Town07', 'Town05',
+                                  'Town02', 'Town10HD',
+                                  'Town03', 'Town03',
+                                  'Town05', 'Town10HD',
+                                  'Town03', 'Town07',
+                                  'Town10HD', 'Town05',
+                                  'Town05', 'Town05',
+                                  'Town01', 'Town10HD',
+                                  'Town05', 'Town01',
+                                  'Town01', 'Town05',
+                                  'Town05', 'Town05',
+                                  'Town05', 'Town01']
+            ['Town03', 'Town03', 'Town03', 'Town03', 'Town01', 'Town05', 'Town03', 'Town10HD', 'Town05', 'Town05', 'Town10HD', 'Town03',
+             'Town03', 'Town10HD', 'Town03', 'Town10HD', 'Town02', 'Town07', 'Town03', 'Town01', 'Town10HD', 'Town10HD', 'Town01', 'Town10HD', 'Town10HD']
+            other_spawns = [[60.48438262939453,
+                            141.18972778320312,
+                            0.3005282778292894,
+                            0.30501081094723576],
+                            [150.08656311035156, -110.10604095458984,
+                                8.30025009084493, 91.4936144379134],
+                            [-12.596940994262695,
+                             -84.39875030517578,
+                             0.3003468319773674,
+                             0.6381015056073027],
+                            [14.130091667175293,
+                             69.71400451660156,
+                             0.2998158449307084,
+                             0.07327298994360518],
+                            [134.89044189453125,
+                             133.4287872314453,
+                             0.30033439602702855,
+                             0.6146810410042063],
+                            [-184.30650329589844,
+                             60.27643585205078,
+                             0.35583991948515176,
+                             -74.90271786032402],
+                            [-184.47097778320312,
+                             -27.163793563842773,
+                             0.3558374198153615,
+                             -94.50897205943477],
+                            [-88.30622100830078,
+                             21.530597686767578,
+                             0.3340757546946406,
+                             89.84950003104187],
+                            [146.53599548339844,
+                             302.54486083984375,
+                             0.520397879369557,
+                             179.97736976081973],
+                            [392.4732666015625, 23.067138671875,
+                             0.30034572556614875, 85.00644477467706],
+                            [69.17860412597656,
+                             -145.4691619873047,
+                             0.33887405339628457,
+                             1.9406163128470022],
+                            [-9.446842193603516,
+                             141.4587860107422,
+                             0.30041685067117213,
+                             89.56831411795777],
+                            [117.75764465332031,
+                             -2.0557615756988525,
+                             0.3001340480521321,
+                             -179.64662467034285],
+                            [110.70651245117188,
+                             -6.827028274536133,
+                             0.300383204780519,
+                             -179.12100060558794],
+                            [-184.58981323242188,
+                             -70.45106506347656,
+                             0.35560743156820535,
+                             -90.16402948723683],
+                            [-88.5179214477539,
+                             -56.07951354980469,
+                             -0.36518218349665404,
+                             89.84120365225724],
+                            [156.6979522705078,
+                             326.59637451171875,
+                             0.30038486439734696,
+                             179.85426244937062],
+                            [-3.679999589920044,
+                             121.20999908447266,
+                             0.5199136512354017,
+                             -89.99981808937414],
+                            [173.87005615234375,
+                             109.40003967285156,
+                             0.5200336949899793,
+                             -0.0001831054738447505],
+                            [151.48081970214844,
+                             -42.736541748046875,
+                             0.33903186600655316,
+                             89.79522662591198],
+                            [178.01829528808594,
+                             105.29766082763672,
+                             0.5204970614984632,
+                             176.37047726606554],
+                            [-120.8493881225586,
+                             -122.12298583984375,
+                             0.3004674904048443,
+                             -89.25620863215258],
+                            [-107.59674835205078,
+                             71.62081909179688,
+                             0.300389308668673,
+                             -92.17511696926216],
+                            [5.6316423416137695,
+                             153.82647705078125,
+                             0.3003566741943359,
+                             -90.59941984702316],
+                            [-2.0694081783294678,
+                             9.504401206970215,
+                             0.29992961809039115,
+                             90.92640835629265],
+                            [88.36209869384766,
+                             34.347347259521484,
+                             0.3003819270059466,
+                             90.87295525533357],
+                            [-51.79652786254883,
+                             -88.22584533691406,
+                             0.2997422406449914,
+                             -0.08966065264642963],
+                            [-184.6378631591797,
+                             109.74862670898438,
+                             0.3560904676094651,
+                             -93.91201157373341],
+                            [178.29005432128906,
+                             302.57000732421875,
+                             0.5199603812769056,
+                             -179.9996361787483],
+                            [31.848548889160156,
+                             140.7878875732422,
+                             0.3003435704857111,
+                             -4.29834204509062],
+                            [-122.78031921386719,
+                             -135.75857543945312,
+                             0.9996723311021924,
+                             162.061529676021],
+                            [-14.913074493408203,
+                             -138.3224639892578,
+                             0.3002548974007368,
+                             171.65064528036277],
                             [11.787281036376953,
                              -87.84796905517578,
                              0.30034687016159295,
                              -7.662209257643786],
-                            [98.9326171875, -6.8971147537231445,
-                             0.30007099099457263, -179.1441686105662],
                             [-41.8338623046875,
                              -16.555164337158203,
                              0.3000702468678355,
                              -90.16118813760058],
-                            [-146.88998413085938,
-                             94.90290069580078,
-                             0.3003176303580403,
-                             -0.9829707712548377],
-                            [-146.27835083007812,
-                             -84.61176300048828,
-                             0.3004425421357155,
-                             -0.20031690302969796],
-                            [43.85604476928711,
-                             13.305377006530762,
-                             0.3003337664529681,
-                             -179.8284033324019],
-                            [138.63233947753906,
-                             131.96141052246094,
-                             0.72413177061826,
-                             -4.4046158360598495],
-                            [113.21733093261719,
-                             -132.3077392578125,
-                             8.30026344228536,
-                             3.2000541230955126],
-                            [-0.6047325134277344,
-                             13.182565689086914,
-                             0.3002050586044788,
-                             -179.6291394172958],
-                            [105.97994232177734,
-                             -3.397510290145874,
-                             0.2998512268066406,
-                             -179.1441686105662],
-                            [45.382850646972656,
-                             13.414804458618164,
-                             0.29987836834043263,
-                             -179.84079329940388],
-                            [-3.4244236946105957,
-                             145.79156494140625,
-                             0.5202879087999464,
-                             -89.90887412684728],
-                            [-99.6025161743164,
-                             43.710227966308594,
-                             0.2998861690983176,
-                             -88.33090233275658],
                             [49.407962799072266,
                              -192.74472045898438,
                              0.30028278306126593,
                              2.552531121288393],
-                            [88.3858871459961, 113.70683288574219,
-                             0.3004896158352494, 89.91921503548342],
-                            [-45.49116134643555,
-                             -30.401912689208984,
-                             0.30022943411022424,
-                             -90],
+                            [-99.6025161743164,
+                             43.710227966308594,
+                             0.2998861690983176,
+                             -88.33090233275658],
                             [93.75914764404297, 129.8253631591797,
                              0.300583934597671, -34.53774053067005],
-                            [222.54031372070312,
-                             59.48397445678711,
-                             0.300473708845675,
-                             0.00939763096759532],
-                            [-45.16437530517578,
-                             50.209285736083984,
-                             0.30038141198456286,
-                             -90.11359536526341],
-                            [9.71006965637207, 66.27023315429688, 0.30039609894156455, 179.7619182064034]]
+                            [-54.064979553222656,
+                             35.9079704284668,
+                             0.35580652225762605,
+                             90.35752191012398],
+                            [-120.7091064453125,
+                             58.98898696899414,
+                             0.3000205412507057,
+                             -91.23781705760003],
+                            [-92.6923599243164, 84.422607421875,
+                             0.3004023928195238, -177.73175370854952],
+                            [88.3797836303711, 99.22088623046875,
+                             0.30032356195151805, 89.81719249579363],
+                            [44.73186111450195,
+                             130.58526611328125,
+                             0.30030858907848595,
+                             -178.687297299735],
+                            [-6.284280300140381,
+                             -91.40370178222656,
+                             0.30040359422564505,
+                             -179.89480642577922],
+                            [392.3371276855469,
+                             287.44012451171875,
+                             0.30033698976039885,
+                             89.99126669357798],
+                            [338.88525390625, 21.121721267700195,
+                             0.3003598779439926, -89.97128156148169],
+                            [-184.57093811035156,
+                             -33.103607177734375,
+                             0.3558558078482747,
+                             -91.40075811590339],
+                            [-150.30043029785156,
+                             -84.37971496582031,
+                             0.3003046607598662,
+                             11.199961794020014],
+                            [-12.596940994262695,
+                             -84.39875030517578,
+                             0.3003468319773674,
+                             0.6381015056073027],
+                            [-184.58981323242188,
+                             -70.45106506347656,
+                             0.35560743156820535,
+                             -90.16402948723683],
+                            [338.88525390625, 21.121721267700195, 0.3003598779439926, -89.97128156148169]]
             if args.spawn == -1:
                 spawn_point = random.choice(
                     spawn_points) if spawn_points else carla.Transform()
@@ -1003,8 +1127,8 @@ class CameraManager(object):
                 img = img[:, :, :]  # BGR
                 # im.save(f'_out/{episode_number}/images/{image.frame:08d}.png')
 
-                # cv2.imwrite(
-                #     f'_out/{episode_number}/images/{image.frame:08d}.png', img)
+                cv2.imwrite(
+                    f'_out/{episode_number}/images/{image.frame:08d}.png', img)
 
                 # image.save_to_disk(
                 #     f'_out/{episode_number}/images/{image.frame:08d}')
@@ -1107,12 +1231,15 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
         else:
             video_frames = video_queue[::-1][::args.one_in_n][::-1]
-            video_frames = full_video[-args.num_frames *
-                                      args.one_in_n][::-1][::args.one_in_n][::-1]
+            # video_frames = full_video[-args.num_frames *
+            #                           args.one_in_n][::-1][::args.one_in_n][::-1]
             video_frames = torch.stack(video_frames, dim=1).cuda(
                 non_blocking=True).unsqueeze(0)
             mask, traj_mask = network(
                 video_frames, phrase, frame_mask, phrase_mask)
+
+        if len(mask.shape) == 5:
+            mask = mask.detach()[:, -1]
 
         mask_np = mask.detach().cpu().numpy().transpose(2, 3, 1, 0)
         intermediate_mask_np = mask_np[:, :, 0].reshape(
@@ -1128,7 +1255,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         #       intermediate_mask_np.max(), intermediate_mask_np.min())
         # print(final_mask_np.shape, final_mask_np.max(), final_mask_np.min())
 
-        mask_np = np.clip(intermediate_mask_np+final_mask_np, 0.0, 1.0)
+        mask_np = intermediate_mask_np+final_mask_np
+        mask_np = mask_np/2
 
         traj_mask_np = traj_mask.detach().cpu()
         traj_mask_np = rearrange(traj_mask_np, "1 1 h w -> h w").numpy()
@@ -1138,9 +1266,11 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         # mask_np = cv2.resize(mask_np, (1280, 720))
         if args.target == 'mask':
             pixel_out = best_pixel(mask_np, threshold, confidence)
-            probs, region = pixel_out
-            pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                           region, K, destination, set_destination=True)
+            if pixel_out != -1:
+                probs, region = pixel_out
+                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                   region, K, destination, set_destination=True)
         if args.target == 'mask_dual':
             pixel_out = best_pixel(final_mask_np, threshold, confidence)
             if pixel_out == -1:
@@ -1148,13 +1278,15 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                     intermediate_mask_np, threshold, confidence)
             if pixel_out != -1:
                 probs, region = pixel_out
-                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                               region, K, destination, set_destination=True)
+                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                   region, K, destination, set_destination=True)
         elif args.target == 'trajectory':
             pixel_out = best_pixel_traj(traj_mask_np)
             probs, region = pixel_out
-            pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                           region, K, destination, set_destination=True)
+            if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                               region, K, destination, set_destination=True)
         elif args.target == 'network':
             pixel_out = best_pixel(final_mask_np, threshold, confidence)
             if pixel_out == -1:
@@ -1211,9 +1343,11 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                     pixel_out = best_pixel(
                         final_mask_np, threshold, confidence)
                     pred_found = 1
-        probs, region = pixel_out
-        pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                       region, K, destination)
+        if pixel_out != -1:
+            probs, region = pixel_out
+            if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                               region, K, destination, set_destination=True)
 
         if pixel_out != -1:
 
@@ -1234,9 +1368,10 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                         print(
                             f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
                         if probs >= confidence:
-                            if args.sub_command:
-                                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                                               region, K, destination)
+                            if args.sub_command or True:
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
 
                             color = (0, 0, 255)
                             pred_found = 1
@@ -1250,9 +1385,10 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                         print(
                             f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
                         if probs >= confidence:
-                            if args.sub_command:
-                                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                                               region, K, destination)
+                            if args.sub_command or True:
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
 
                             color = (0, 0, 255)
                             pred_found = 1
@@ -1271,9 +1407,10 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                     if pixel_temp != -1 and pixel_temp_intermediate != -1 and pixel_temp_intermediate[0] >= pixel_temp[0]:
                         probs, region = pixel_temp_intermediate
                         if probs >= confidence:
-                            if args.sub_command:
-                                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                                               region, K, destination)
+                            if args.sub_command or True:
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
                             color = (255, 0, 0)
 
                     elif pixel_temp != -1:
@@ -1281,9 +1418,10 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                         print(
                             f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
                         if probs >= confidence:
-                            if args.sub_command:
-                                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                                               region, K, destination)
+                            if args.sub_command or True:
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
 
                             color = (0, 0, 255)
                             pred_found = 1
@@ -1308,10 +1446,11 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                             color = (0, 0, 255)
                             pred_found = 1
 
-                            if args.sub_command:
+                            if args.sub_command or True:
                                 probs, region = pixel_temp
-                                pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
-                                               region, K, destination)
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
 
                 print(
                     f'Distance from target: {np.linalg.norm(np.array([vehicle_location.x, vehicle_location.y])- np.array([agent.target_destination.x,agent.target_destination.y]))}')
@@ -1478,7 +1617,7 @@ def best_pixel_traj(traj_mask_np):
     final = (final[0]*1280/traj_mask_np.shape[1],
              final[1]*720/traj_mask_np.shape[0])
     final = (int(final[0]), int(final[1]))
-    return (1, final)
+    return (-1, final)
 
 
 def world_to_pixel(K, rgb_matrix, destination,  curr_position):
@@ -1907,8 +2046,13 @@ def game_loop(args):
         checkpoint_path = args.checkpoint
 
         corpus = Corpus(glove_path)
+        if args.img_backbone == 'conv3d_baseline':
+            feature_dim = 7
+        else:
+            feature_dim = 14
+
         frame_mask = torch.ones(
-            1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
+            1, feature_dim * feature_dim, dtype=torch.int64).cuda(non_blocking=True)
 
         threshold = args.threshold
         confidence = args.confidence
@@ -1927,9 +2071,6 @@ def game_loop(args):
         mask_transform = solver.mask_transform
 
         traj_transform = solver.traj_transform
-
-        frame_mask = torch.ones(
-            1, 14 * 14, dtype=torch.int64).cuda(non_blocking=True)
 
         command_given = False
         # currently saving, need to start next episode, delete current episode
@@ -1952,37 +2093,65 @@ def game_loop(args):
         full_video = []
         prev_loc = None
 
+        time_since_stopped = 0
+        time_since_running = 0
+
         weak_dc = weakref.ref(depth_camera)
         weak_agent = weakref.ref(agent)
 
         depth_camera.listen(depth_cam_queue.put)
         done = False
         new_start = True
-        commands = ['park near the bus stand',
-                    'stop near the tallest building',
-                    'Take a right from the intersection',
-                    'Go right from the corner',
-                    'Drive towards the bus stop',
-                    'Take a left from the intersection.',
-                    'take a right and stop near the pedestrian',
+        commands = ['Go straight and stop before the traffic light.',
+                    'go straight and take a right',
+                    'Shift to the left lane and stop at the intersection.',
+                    'Stop after crossing the stop signboard',
+                    'Park on the roadside after you have crossed the bus stop',
+                    'Take the next right turn.',
+                    'Stop in front of the garbage dumpsters.',
+                    'change to left lane',
+                    'Go straight and stop a few metres ahead of the bus stop',
+                    'Stop near the signboard',
+                    'stop by the lamp post',
+                    'After crossing the blue car come to a stop',
+                    'Drive straight till the intersection and then turn left',
+                    'Drive to the corner and go right',
+                    'Turn right from the intersection.',
+                    'Stop near the red shelters',
+                    'Drive straight till you see a red coloured board',
+                    'take right and stop near the speed limit sign',
+                    'take a right turn and stop across the bench on left',
+                    'Stop before the next right turn.',
+                    'Park just ahead of the speed signboard',
+                    'Turn right and stop near the bus stop.',
+                    'Wait at the traffic light then go straight.',
+                    'Turn right from the intersection',
+                    'park immediately after the signboard',
+                    'Wait for the signal to turn green and continue straight',
+                    'park beside the red volkswagen',
+                    'Go straight and stop next to the grey gate.',
+                    'stop at the bus stand in front',
+                    'Drive towards the bus stop and park after crossing it',
+                    'Park near the hut visible on the right',
+                    'go straight and take a left',
+                    'Take a left from the interection.',
                     'stop beside the black suv',
-                    'Wait for the signal to turn green and then go straight',
-                    'Go straight from the intersection and stop next to the bus stop.',
-                    'Go straight and park behind the first car you see',
-                    'stop by the lamp pole',
-                    'stop across the house with stairs',
-                    'stop in front of the maroon car in rightmost lane',
-                    'Go right from the corner',
-                    'park behind the brown car',
-                    'take a right and stop near the man in blue',
-                    'take a right at the intersection',
                     'take a right at the traffic lights and then take a left',
-                    'Take the road on the left',
-                    'wait for traffic light then take left',
+                    'take a right at the intersection',
                     'Stop as soon as you encounter a white car',
-                    'Stop near the blue dustbin which you see in front',
-                    'Wait for the green signal then take a left from the intersection.',
-                    'Stop in front of the white car']
+                    'Turn right from the crossroads ahead.',
+                    'Drive straight then turn right.',
+                    'Turn left and stop next to the bus stop.',
+                    'Turn left from the intersection',
+                    'Stop near the scooty',
+                    'Turn left from the next crossroads.',
+                    'Park near the red signboard',
+                    'Drive to the intersection and turn left',
+                    'Drive straight from the next crossroads.',
+                    'Turn right and park near the sidewalk.',
+                    'Change lanes and stop at the junction.',
+                    'Turn right from the crossroads.',
+                    'Take a left from the intersection ahead.']
         sub_commands = [
             ['park near the bus stand'],
             ['stop near the tallest building'],
@@ -2050,6 +2219,13 @@ def game_loop(args):
                         num_preds = 0
                         full_video = []
                         episode_number += 1
+                        try:
+                            if os.path.exists(f'_out/{episode_number}'):
+                                shutil.rmtree(f'_out/{episode_number}')
+                            else:
+                                print('Failed to delete')
+                        except:
+                            print('Failed to delete')
                         os.makedirs(f'_out/{episode_number}', exist_ok=True)
                         if not args.command:
                             command = input('Enter Command: ')
@@ -2124,19 +2300,27 @@ def game_loop(args):
                         print_network_stats = 1
                     start = time.time()
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
-                                    vehicle_location, args.sampling*(curr_times+1))
+                                    vehicle_location, args.sampling*(curr_times+1 if args.sub_command else num_preds+1))
                     end = time.time()
-                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-3 and abs(prev_loc.x - vehicle_location.x) < 1e-3:
+                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-4 and abs(prev_loc.x - vehicle_location.x) < 1e-4:
                         pred_found = 0
                         stationary_frames += 1
+                        time_since_stopped += 1
+                        time_since_running = 0
+                    else:
+                        time_since_running += 1
+                        time_since_stopped = 0
                     if frame_count % args.sampling == 0 and print_network_stats:
                         print(
                             f'Network took {end-start}, pred_found = {pred_found}, curr_times = {curr_times}')
                         # print(
                         #     f'++++++++++++++++++++++++++++++++frame_count:{frame_count} out of {1500+stationary_frames}++++++++++++++++++++++++++++++++')
-                        curr_times += pred_found
-                        # if curr_times >= times_check:
-                        #     num_preds += 1
+                        if args.sub_command:
+                            curr_times += pred_found
+                            # if curr_times >= times_check:
+                            #     num_preds += 1
+                        else:
+                            num_preds += pred_found
                     if pred_found:
                         print(
                             f'-------------Num Preds: {num_preds}-------------')
@@ -2162,6 +2346,8 @@ def game_loop(args):
                     num_preds += 1
                     print('Reached')
                 if frame_count > 1500+stationary_frames or frame_count > 3000:
+                    num_preds = args.num_preds
+                if time_since_stopped > 100 and agent.done():
                     num_preds = args.num_preds
                 if num_preds >= args.num_preds:
                     command_given = False
@@ -2442,7 +2628,8 @@ def main():
             "timesformer",
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",
-            "deeplabv3_mobilenet_v3_large"
+            "deeplabv3_mobilenet_v3_large",
+            "conv3d_baseline"
         ],
         type=str,
     )
@@ -2505,6 +2692,12 @@ def main():
 
     argparser.add_argument("--confidence", type=float,
                            default=100, help="mask confidence")
+
+    argparser.add_argument("--min_confidence", type=float,
+                           default=100, help="mask confidence")
+
+    argparser.add_argument("--confidence_probs", type=float,
+                           default=0.5, help="mask confidence")
 
     argparser.add_argument("--sampling", type=float,
                            default=20, help="mask confidence")

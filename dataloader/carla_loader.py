@@ -26,64 +26,8 @@ IGNORE = {
     # "val": ['1', '44']
     # "train": ['100', '128', '153', '159', '163', '180', '197', '198', '204', '211', '221', '231', '233', '237', '242', '251', '263', '264', '265', '268', '27', '273', '278', '284', '286', '327', '50', '65', '75'],
     # [116, 119, 122, 130, 131, 133, 142, 148, 160, 186, 190, 200, 408]
-    "train": [
-        "65",
-        "100",
-        "116",
-        "119",
-        "122",
-        "128",
-        "130",
-        "131",
-        "133",
-        "142",
-        "148",
-        "153",
-        "159",
-        "160",
-        "163",
-        "180",
-        "186",
-        "190",
-        "197",
-        "198",
-        "200",
-        "204",
-        "211",
-        "221",
-        "231",
-        "233",
-        "237",
-        "242",
-        "251",
-        "263",
-        "264",
-        "265",
-        "268",
-        "27",
-        "273",
-        "278",
-        "284",
-        "286",
-        "327",
-        "356",
-        "357",
-        "366",
-        "374",
-        "390",
-        "400",
-        "402",
-        "406",
-        "408",
-        "413",
-        "415",
-        "429",
-        "430",
-        "437",
-        "50",
-        "75",
-    ],
-    "val": [],
+    "train": ['451','415', '489', '387', '423', '443', '342', '480', '407', '359', '402', '43', '97', '18', '262', '404', '386', '448', '449', '225', '475', '483', '389', '405', '412', '390', '193', '403', '161', '340', '27', '14', '401', '414'],
+    "val": ['34', '49', '44', '37', '38', '42'],
 }
 
 
@@ -322,7 +266,8 @@ class CarlaFullDataset(Dataset):
             f"./dataloader/sub_commands_{self.split}.csv", index_col=0)
 
     def __len__(self):
-        return len(self.episodes)
+        # return len(self.episodes)
+        return self.dataset_len
 
     # TODO - Include Vehicle Position
     def get_video_data(
@@ -374,7 +319,7 @@ class CarlaFullDataset(Dataset):
 
         final_click_idx = target_positions["click_no"].max()
 
-        sub_commands = []
+        # sub_commands = []
         # sub_command_labels = []
 
         for index in indices:
@@ -397,16 +342,23 @@ class CarlaFullDataset(Dataset):
                 mask = self.mask_transform(mask)
             mask[mask > 0] = 1
 
+            mask_ = torch.zeros_like(mask)
+            mask_ = repeat(mask_, "c h w -> (repeat c) h w", repeat=2)
+
             if curr_click_idx == final_click_idx:
-                sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
-                if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
-                    sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+                mask_[1] = mask[0]
+                # sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
+                # if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
+                    # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
             else:
-                sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+                mask_[0] = mask[0]
+                # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+
+            mask = mask_
 
             frames.append(img)
             frame_masks.append(mask)
-            sub_commands.append(sub_command)
+            # sub_commands.append(sub_command)
 
         orig_frames = np.stack(orig_frames, axis=0)
         frames = torch.stack(frames, dim=1)
@@ -459,7 +411,7 @@ class CarlaFullDataset(Dataset):
 
         # print(traj_mask.min(), traj_mask.max(), pixel_coordinates.shape)
         # print(traj_mask.shape, orig_frames.shape)
-        return frames, orig_frames, frame_masks[-1], traj_mask, sub_commands, sample_idx
+        return frames, orig_frames, frame_masks, traj_mask, None, sample_idx
 
     def get_image_data(
         self,
@@ -519,14 +471,14 @@ class CarlaFullDataset(Dataset):
         # curr_timestep = 0.
         if curr_click_idx >= 1 or curr_click_idx == final_click_idx:
             mask_[1] = mask[0]
-            sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
+            # sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
             # curr_timestep = 1.
-            if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
-                sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+            # if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
+                # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
                 # curr_timestep = 0 1. * random.randint(0, 1)
         else:
             mask_[0] = mask[0]
-            sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+            # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
             # curr_timestep = 0.
 
         mask = mask_ #+ 1e-4
@@ -574,13 +526,13 @@ class CarlaFullDataset(Dataset):
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
 
-        return img, orig_image, mask, traj_mask, sub_command, sample_idx
+        return img, orig_image, mask, traj_mask, None, sample_idx
 
     def __getitem__(self, idx):
         output = {}
 
-        # episode = np.random.choice(self.episodes)
-        episode = self.episodes[idx]
+        episode = np.random.choice(self.episodes)
+        # episode = self.episodes[idx]
         episode_dir = os.path.join(self.data_dir, episode)
 
         # import pdb; pdb.set_trace()
@@ -655,13 +607,13 @@ class CarlaFullDataset(Dataset):
         # output['gt_timestep'] = torch.tensor(curr_timestep, dtype=torch.float32)
 
         command = open(command_path, "r").read()
-        command = self.sub_command_data.loc[episode_num]['command']
+        # command = self.sub_command_data.loc[episode_num]['command']
         command = re.sub(r"[^\w\s]", "", command)
 
         # if self.split == "train":
         #     command = sub_commands
-        # if self.mode == "image":
-        #     sub_commands = [sub_commands]
+        if self.mode == "image":
+            sub_commands = [sub_commands]
 
         tokens, phrase_mask = self.corpus.tokenize(command)
 
@@ -674,20 +626,20 @@ class CarlaFullDataset(Dataset):
         # if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
         #     sub_commands[1] = self.sub_command_data.loc[episode_num]['sub_command_0']
 
-        sub_tokens = []
-        sub_phrase_masks = []
-        for sub_command in [sub_commands]:
-            sub_command = re.sub(r"[^\w\s]", "", sub_command.lower())
-            sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
-            sub_tokens.append(sub_token)
-            sub_phrase_masks.append(sub_phrase_mask)
+        # sub_tokens = []
+        # sub_phrase_masks = []
+        # for sub_command in sub_commands:
+        #     sub_command = re.sub(r"[^\w\s]", "", sub_command.lower())
+        #     sub_token, sub_phrase_mask = self.corpus.tokenize(sub_command)
+        #     sub_tokens.append(sub_token)
+        #     sub_phrase_masks.append(sub_phrase_mask)
 
-        sub_tokens = torch.stack(sub_tokens, dim=0)
-        sub_phrase_masks = torch.stack(sub_phrase_masks, dim=0)
+        # sub_tokens = torch.stack(sub_tokens, dim=0)
+        # sub_phrase_masks = torch.stack(sub_phrase_masks, dim=0)
 
-        output['orig_sub_text'] = sub_commands
-        output['sub_text'] = sub_tokens
-        output['sub_text_mask'] = sub_phrase_masks
+        # output['orig_sub_text'] = sub_commands
+        # output['sub_text'] = sub_tokens
+        # output['sub_text_mask'] = sub_phrase_masks
         # output['sub_text_labels'] = sub_command_labels.float()
 
         return output
