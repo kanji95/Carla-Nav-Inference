@@ -67,7 +67,7 @@ def get_traj_mask(
 
         pixel_t_2d = world_to_pixel(K, rgb_matrix, position_t, position_0)
 
-        pixel_t_2d = np.array([int(pixel_t_2d[0]), int(pixel_t_2d[1]),])
+        pixel_t_2d = np.array([int(pixel_t_2d[0]), int(pixel_t_2d[1]), ])
         pixel_coordinates.append(pixel_t_2d)
 
         if len(pixel_coordinates) == traj_frames:
@@ -96,121 +96,37 @@ def main(args):
     checkpoint_path = args.checkpoint
     threshold = args.threshold
 
+    solver = Solver(args, inference=True, force_parallel=True)
+
+    glove_path = args.glove_path
+    checkpoint_path = args.checkpoint
+
     corpus = Corpus(glove_path)
+    if args.img_backbone == 'conv3d_baseline':
+        feature_dim = 7
+    else:
+        feature_dim = 14
 
-    return_layers = {"layer2": "layer2", "layer3": "layer3", "layer4": "layer4"}
+    frame_mask = torch.ones(
+        1, feature_dim * feature_dim, dtype=torch.int64).cuda(non_blocking=True)
 
-    mode = "image"
-    if "vit_" in args.img_backbone:
-        img_backbone = timm.create_model(args.img_backbone, pretrained=True)
-        visual_encoder = nn.Sequential(*list(img_backbone.children())[:-1])
-        network = JointSegmentationBaseline(
-            visual_encoder,
-            hidden_dim=args.hidden_dim,
-            mask_dim=args.mask_dim,
-            traj_dim=args.traj_dim,
-            backbone=args.img_backbone,
-        )
-    elif "dino_resnet50" in args.img_backbone:
-        img_backbone = torch.hub.load("facebookresearch/dino:main", "dino_resnet50")
-        visual_encoder = IntermediateLayerGetter(img_backbone, return_layers)
-        network = IROSBaseline(
-            visual_encoder, hidden_dim=args.hidden_dim, mask_dim=args.mask_dim
-        )
-    elif "timesformer" in args.img_backbone:
-        mode = "video"
-        spatial_dim = args.image_dim // args.patch_size
-        visual_encoder = VisionTransformer(
-            img_size=args.image_dim,
-            patch_size=args.patch_size,
-            embed_dim=args.hidden_dim,
-            depth=2,
-            num_heads=8,
-            num_frames=args.num_frames,
-        )
-        network = JointVideoSegmentationBaseline(
-            visual_encoder,
-            hidden_dim=args.hidden_dim,
-            mask_dim=args.mask_dim,
-            traj_dim=args.traj_dim,
-            spatial_dim=spatial_dim,
-            num_frames=args.num_frames,
-        )
-    elif "deeplabv3_" in args.img_backbone:
-        img_backbone = torch.hub.load(
-            "pytorch/vision:v0.10.0", args.img_backbone, pretrained=True
-        )
-        visual_encoder = nn.Sequential(
-            *list(img_backbone._modules["backbone"].children())
-        )
-        network = JointSegmentationBaseline(
-            visual_encoder,
-            hidden_dim=args.hidden_dim,
-            mask_dim=args.mask_dim,
-            traj_dim=args.traj_dim,
-            backbone=args.img_backbone,
-        )
-    elif "convlstm" in args.img_backbone:
-        mode = "video"
-        spatial_dim = args.image_dim // args.patch_size
-        video_encoder = torch.hub.load(
-            "facebookresearch/pytorchvideo", "x3d_s", pretrained=True
-        )
-        visual_encoder = nn.Sequential(*list(video_encoder.blocks.children())[:-1])
+    threshold = args.threshold
+    confidence = args.confidence
 
-        network = ConvLSTMBaseline(
-            visual_encoder,
-            hidden_dim=args.hidden_dim,
-            image_dim=args.image_dim,
-            mask_dim=args.mask_dim,
-            traj_dim=args.traj_dim,
-            spatial_dim=spatial_dim,
-            num_frames=args.num_frames,
-            attn_type=args.attn_type,
-        )
-    elif "conv3d_baseline" in args.img_backbone:
-        mode = "video"
-        spatial_dim = args.image_dim // args.patch_size
-
-        video_encoder = torch.hub.load(
-            "facebookresearch/pytorchvideo", "x3d_s", pretrained=True
-        )
-        visual_encoder = nn.Sequential(*list(video_encoder.blocks.children())[:-1])
-
-        network = Conv3D_Baseline(
-            visual_encoder,
-            hidden_dim=args.hidden_dim,
-            image_dim=args.image_dim,
-            mask_dim=args.mask_dim,
-            traj_dim=args.traj_dim,
-            spatial_dim=spatial_dim,
-            num_frames=args.num_frames,
-            attn_type=args.attn_type,
-        )
-
-    if num_gpu > 1:
-        network = nn.DataParallel(network)
-        print("Using DataParallel mode!")
-    network.to(device)
+    mode = solver.mode
+    network = solver.network
 
     checkpoint = torch.load(checkpoint_path)
     network.load_state_dict(checkpoint["state_dict"])
 
     network.eval()
 
-    img_transform = transforms.Compose(
-        [transforms.Resize((args.image_dim, args.image_dim)), transforms.ToTensor(),]
-    )
+    img_transform = solver.val_transform
+    unnormalized_transform = solver.unnormalized_transform
 
-    mask_transform = transforms.Compose(
-        [transforms.Resize((args.mask_dim, args.mask_dim)), transforms.ToTensor(),]
-    )
+    mask_transform = solver.mask_transform
 
-    traj_transform = transforms.Compose(
-        [transforms.Resize((args.traj_dim, args.traj_dim)), transforms.ToTensor(),]
-    )
-
-    frame_mask = torch.ones(1, 7 * 7, dtype=torch.int64).cuda(non_blocking=True)
+    traj_transform = solver.traj_transform
 
     total_inter_traj, total_union_traj = 0, 0
     total_rk_traj = {1: 0, 10: 0, 100: 0, 1000: 0}
@@ -316,6 +232,8 @@ def main(args):
         total_inter_traj += inter_traj.item()
         total_union_traj += union_traj.item()
 
+        # import pdb
+        # pdb.set_trace()
         total_pg_traj += pointing_game(
             torch.from_numpy(np.asarray(traj_video)),
             torch.from_numpy(np.asarray(gt_traj_video)),
@@ -466,10 +384,12 @@ def run_video_model(
             video_queue.append(frame)
 
         video_frames = (
-            torch.stack(video_queue, dim=1).cuda(non_blocking=True).unsqueeze(0)
+            torch.stack(video_queue, dim=1).cuda(
+                non_blocking=True).unsqueeze(0)
         )
 
-        mask, traj_mask = network(video_frames, phrase, frame_mask, phrase_mask)
+        mask, traj_mask = network(
+            video_frames, phrase, frame_mask, phrase_mask)
         gt_traj = get_traj_mask(
             num_files,
             cur_file,
@@ -497,14 +417,14 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--data_root",
-        default="/scratch/ashwin_mittal/dataset",
+        required=True,
         type=str,
         help="dataset name",
     )
 
     parser.add_argument(
         "--glove_path",
-        default="/scratch/ashwin_mittal/glove",
+        required=True,
         type=str,
         help="dataset name",
     )
@@ -545,22 +465,28 @@ if __name__ == "__main__":
         type=str,
     )
 
-    parser.add_argument("--image_dim", type=int, default=448, help="Image Dimension")
-    parser.add_argument("--mask_dim", type=int, default=448, help="Mask Dimension")
-    parser.add_argument("--traj_dim", type=int, default=56, help="Traj Dimension")
-    parser.add_argument("--hidden_dim", type=int, default=256, help="Hidden Dimension")
-    parser.add_argument("--num_frames", type=int, default=16, help="Frames of Video")
+    parser.add_argument("--image_dim", type=int,
+                        default=448, help="Image Dimension")
+    parser.add_argument("--mask_dim", type=int,
+                        default=448, help="Mask Dimension")
+    parser.add_argument("--traj_dim", type=int,
+                        default=56, help="Traj Dimension")
+    parser.add_argument("--hidden_dim", type=int,
+                        default=256, help="Hidden Dimension")
+    parser.add_argument("--num_frames", type=int,
+                        default=16, help="Frames of Video")
     parser.add_argument(
         "--patch_size", type=int, default=16, help="Patch Size of Video Frame for ViT"
     )
 
     parser.add_argument(
         "--checkpoint",
-        default="/scratch/ashwin_mittal/models/conv3d_baseline_class_level_combo_multi_head_hd_384_sf_10_tf_20_05_Apr_09_00.pth",
+        required=True,
         type=str,
     )
 
-    parser.add_argument("--threshold", type=float, default=0.4, help="mask threshold")
+    parser.add_argument("--threshold", type=float,
+                        default=0.4, help="mask threshold")
 
     parser.add_argument("--save", default=False, action="store_true")
 
