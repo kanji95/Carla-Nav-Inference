@@ -20,6 +20,8 @@ from utilities.loss import *
 from utilities.metrics import *
 from utilities.utilities import *
 
+from solver import Solver
+
 
 def world_to_pixel(K, rgb_matrix, destination, curr_position):
     point_3d = np.ones((4, destination.shape[1]))
