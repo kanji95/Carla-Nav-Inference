@@ -1,0 +1,11 @@
+,,Conv3D,Conv3D,Conv3D,VIT,VIT,VIT
+Measure,,Mean,Median,STD,Mean,Median,STD
+Command Type,Metric,,,,,,
+Stopping Based,Frechet,17.326,9.665,21.375,53.981,12.282,72.795
+Stopping Based,FDE,17.316,9.665,21.383,47.667,12.282,60.744
+Stopping Based,ADE,10.724,7.157,12.428,26.614,7.676,39.105
+Stopping Based,ADE Match,4.444,1.366,9.003,20.895,3.702,37.588
+Turning Based,Frechet,17.97,6.965,21.371,36.416,16.678,40.996
+Turning Based,FDE,17.97,6.965,21.371,35.569,16.678,39.775
+Turning Based,ADE,10.017,5.041,9.3,17.524,10.15,21.721
+Turning Based,ADE Match,5.033,1.321,7.565,11.398,3.451,18.248
