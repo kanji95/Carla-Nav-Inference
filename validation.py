@@ -113,7 +113,6 @@ def main(args):
         1, feature_dim * feature_dim, dtype=torch.int64).cuda(non_blocking=True)
 
     threshold = args.threshold
-    confidence = args.confidence
 
     mode = solver.mode
     network = solver.network
@@ -140,6 +139,8 @@ def main(args):
 
     episodes = glob(val_path + "*")
     episode_num = 0
+    num_samples = 0
+    pbar = tqdm(total = len(episodes))
     for episode in episodes:
         episode_num = int(episode.split("/")[-1])
 
@@ -218,6 +219,7 @@ def main(args):
                 gt_mask_video,
                 gt_traj_video,
                 num_frames=args.num_frames,
+                one_in_n=args.one_in_n,
             )
 
         frame_video = np.concatenate(frame_video, axis=0)
@@ -236,10 +238,8 @@ def main(args):
 
         # import pdb
         # pdb.set_trace()
-        total_pg_traj += pointing_game(
-            torch.from_numpy(np.asarray(traj_video)),
-            torch.from_numpy(np.asarray(gt_traj_video)),
-        )
+        total_pg_traj += pointing_game(torch.from_numpy(np.asarray(
+            traj_video)), torch.from_numpy(np.asarray(gt_traj_video)))
         for k in total_rk_traj:
             total_rk_traj[k] += recall_at_k(
                 torch.from_numpy(np.asarray(traj_video)),
@@ -268,12 +268,15 @@ def main(args):
         #     )
 
         episode_num += 1
+        num_samples += np.array(traj_video).shape[0]
+        pbar.update(1)
+        pbar.set_description(f"Traj_IOU {total_inter_traj/total_union_traj:.4f} Traj_PG {total_pg_traj/num_samples:.4f} Traj RK {total_rk_traj[1]/num_samples:.4f} (k = 1), {total_rk_traj[10]/num_samples:.4f} (k = 10), {total_rk_traj[100]/num_samples:.4f} (k = 100), {total_rk_traj[1000]/num_samples:.4f} (k = 1000)")
 
     val_IOU_traj = total_inter_traj / total_union_traj
-    val_pg_traj = total_pg_traj / episode_num
+    val_pg_traj = total_pg_traj / num_samples
     val_rk_traj = {}
     for k in total_rk_traj:
-        val_rk_traj[k] = total_rk_traj[k] / episode_num
+        val_rk_traj[k] = total_rk_traj[k] / num_samples
 
     print(
         f"Traj_IOU {val_IOU_traj:.4f} Traj_PG {val_pg_traj:.4f} Traj RK {val_rk_traj[1]:.4f} (k = 1), {val_rk_traj[10]:.4f} (k = 10), {val_rk_traj[100]:.4f} (k = 100), {val_rk_traj[1000]:.4f} (k = 1000)"
@@ -312,8 +315,9 @@ def run_image_model(
     gt_traj_video,
 ):
     num_files = len(image_files)
-    traj_frames = 10
+    traj_frames = 20
     cur_file = 0
+    pbar = tqdm(total = num_files,leave=False)
     for image_file, mask_file in zip(image_files, mask_files):
         image = Image.open(image_file).convert("RGB")
         gt_mask = Image.open(mask_file).convert("L")
@@ -343,6 +347,7 @@ def run_image_model(
         cur_file += 1
         if cur_file + traj_frames == num_files:
             break
+        pbar.update(1)
 
 
 def run_video_model(
@@ -366,11 +371,13 @@ def run_video_model(
     gt_mask_video,
     gt_traj_video,
     num_frames=16,
+    one_in_n=10,
 ):
     num_files = len(image_files)
-    traj_frames = 10
+    traj_frames = 20
     cur_file = 0
     video_queue = []
+    pbar = tqdm(total = num_files,leave = False)
     for idx, (image_file, mask_file) in enumerate(zip(image_files, mask_files)):
 
         image = Image.open(image_file).convert("RGB")
@@ -380,13 +387,14 @@ def run_video_model(
         gt_mask = mask_transform(gt_mask).unsqueeze(0)
 
         if idx == 0:
-            video_queue = [frame] * num_frames
+            video_queue = [frame] * num_frames * one_in_n
         else:
             video_queue.pop()
             video_queue.append(frame)
+        video_frames = video_queue[::-1][::args.one_in_n][::-1]
 
         video_frames = (
-            torch.stack(video_queue, dim=1).cuda(
+            torch.stack(video_frames, dim=1).cuda(
                 non_blocking=True).unsqueeze(0)
         )
 
@@ -412,6 +420,7 @@ def run_video_model(
         cur_file += 1
         if cur_file + traj_frames == num_files:
             break
+        pbar.update(1)
 
 
 if __name__ == "__main__":
@@ -467,12 +476,23 @@ if __name__ == "__main__":
         type=str,
     )
 
+    parser.add_argument(
+        "--imtext_matching",
+        default='cross_attention',
+        choices=[
+            'cross_attention',
+            'concat',
+            'avg_concat',
+        ],
+        type=str,
+    )
+
     parser.add_argument("--image_dim", type=int,
                         default=448, help="Image Dimension")
     parser.add_argument("--mask_dim", type=int,
                         default=448, help="Mask Dimension")
     parser.add_argument("--traj_dim", type=int,
-                        default=56, help="Traj Dimension")
+                        default=224, help="Traj Dimension")
     parser.add_argument("--hidden_dim", type=int,
                         default=256, help="Hidden Dimension")
     parser.add_argument("--num_frames", type=int,
@@ -486,6 +506,13 @@ if __name__ == "__main__":
         required=True,
         type=str,
     )
+
+    parser.add_argument("--traj_frames", type=int,
+                        default=16, help="Next Frames of Trajectory")
+    parser.add_argument("--traj_size", type=int,
+                        default=25, help="Trajectory Size")
+    parser.add_argument("--one_in_n", type=int,
+                        default=20, help="Image Dimension")
 
     parser.add_argument("--threshold", type=float,
                         default=0.4, help="mask threshold")
