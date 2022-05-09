@@ -25,11 +25,13 @@ from utilities.utilities import *
 
 
 class Solver(object):
-    def __init__(self, args, inference=False, force_parallel=False):
+    def __init__(self, args, inference=False, force_parallel=False, show_rk=False, average_masks=False):
         self.args = args
 
         self.inference = inference
         self.force_parallel = force_parallel
+        self.show_rk = show_rk
+        self.average_masks = average_masks
 
         self.experiment = wandb.init(
             project="Language Navigation", config=self.args)
@@ -156,7 +158,7 @@ class Solver(object):
                 num_frames=self.num_frames,
                 attn_type=self.attn_type,
             )
-            
+
         elif "conv3d_baseline" in self.img_backbone:
             self.mode = "video"
             spatial_dim = self.image_dim // self.patch_size
@@ -392,7 +394,7 @@ class Solver(object):
 
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
-                
+
                 # gt_timestep = batch["gt_timestep"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
@@ -414,27 +416,27 @@ class Solver(object):
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif self.loss_func == "combo":
                 loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "tversky" in self.loss_func:
                 loss = self.tversky_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "lovasz" in self.loss_func:
                 loss = self.lovasz_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
@@ -593,6 +595,11 @@ class Solver(object):
         total_inter_mask, total_union_mask = 0, 0
         total_inter_traj, total_union_traj = 0, 0
         total_pg_mask, total_pg_traj = 0, 0
+
+        total_rk_keys = np.array([1, 10, 100, 1000])
+        total_rk_mask = np.zeros(total_rk_keys.shape)
+        total_rk_traj = np.zeros(total_rk_keys.shape)
+
         # total_it_mask, total_it_traj = 0, 0
         # total_rk_mask, total_rk_traj = 0, 0
         # total_ds_mask, total_ds_traj = 0, 0
@@ -618,7 +625,7 @@ class Solver(object):
             # text_mask = torch.stack([text_mask]*self.num_frames, dim=1)
 
             # sub_text_mask = batch["sub_text_mask"].cuda(non_blocking=True)
-            
+
             # gt_timestep = batch["gt_timestep"].cuda(non_blocking=True)
 
             # sub_text_labels = batch["sub_text_labels"].cuda(non_blocking=True)
@@ -652,32 +659,44 @@ class Solver(object):
             if self.loss_func == "bce":
                 loss = self.bce_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif self.loss_func == "combo":
                 loss = self.combo_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "class_level" in self.loss_func:
                 loss = self.class_level_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "focal" in self.loss_func:
                 loss = self.focal_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "tversky" in self.loss_func:
                 loss = self.tversky_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             elif "lovasz" in self.loss_func:
                 loss = self.lovasz_loss(mask, gt_mask) + self.combo_loss(
                     traj_mask, gt_traj_mask
-                ) 
+                )
             else:
                 raise NotImplementedError(f"{self.loss_func} not implemented!")
 
             end_time = time()
             elapsed_time = end_time - start_time
+
+            if self.average_masks:
+                if len(mask.shape) == 5:
+                    mask = mask.mean(2).unsqueeze(2)
+                    mask = repeat(mask, 'b t 1 h w -> b t 2 h w')
+                    gt_mask = gt_mask.mean(2).unsqueeze(2)
+                    gt_mask = repeat(gt_mask, 'b t 1 h w -> b t 2 h w')
+                elif len(mask.shape) == 4:
+                    mask = mask.mean(1).unsqueeze(1)
+                    mask = repeat(mask, 'b 1 h w -> b 2 h w')
+                    gt_mask = gt_mask.mean(1).unsqueeze(1)
+                    gt_mask = repeat(gt_mask, 'b 1 h w -> b 2 h w')
 
             inter_mask, union_mask = compute_mask_IOU(
                 mask, gt_mask, self.threshold)
@@ -693,6 +712,18 @@ class Solver(object):
 
             total_pg_mask += pointing_game(mask, gt_mask)
             total_pg_traj += pointing_game(traj_mask, gt_traj_mask)
+
+            for idx, k in np.ndenumerate(total_rk_keys):
+                total_rk_traj[idx] += recall_at_k(
+                    traj_mask,
+                    gt_traj_mask,
+                    topk=k,
+                )
+                total_rk_mask[idx] += recall_at_k(
+                    mask,
+                    gt_mask,
+                    topk=k,
+                )
 
             # total_it_mask += intersection_at_t(mask, gt_mask)
             # total_it_traj += intersection_at_t(traj_mask, gt_traj_mask)
@@ -784,28 +815,42 @@ class Solver(object):
         # val_it_mask = total_it_mask / num_samples
         # val_it_traj = total_it_traj / num_samples
 
-        # val_rk_mask = total_rk_mask / num_samples
-        # val_rk_traj = total_rk_traj / num_samples
+        val_rk_mask = total_rk_mask / num_samples
+        val_rk_traj = total_rk_traj / num_samples
 
         # val_ds_mask = total_ds_mask / num_samples
         # val_ds_traj = total_ds_traj / num_samples
 
         timestamp = datetime.now().strftime("%Y|%m|%d-%H:%M")
 
+        val_rk_mask_dict = {
+            f"val_Mask_RK (k={k})": val_rk_mask[idx]
+            for idx, k in np.ndenumerate(total_rk_keys)
+        }
+        val_rk_traj_dict = {
+            f"val_Traj_RK (k={k})": val_rk_traj[idx]
+            for idx, k in np.ndenumerate(total_rk_keys)
+        }
+
+        logs_dict = {
+            "val_loss": val_loss,
+            "val_Mask_IOU": val_IOU_mask,
+            "val_Traj_IOU": val_IOU_traj,
+            "val_Mask_PG": val_pg_mask,
+            "val_Traj_PG": val_pg_traj,
+            # "val_Mask_IT": val_it_mask,
+            # "val_Traj_IT": val_it_traj,
+            # "val_Mask_RK": val_rk_mask,
+            # "val_Traj_RK": val_rk_traj,
+            # "val_Mask_DS": val_ds_mask,
+            # "val_Traj_DS": val_ds_traj,
+        }
+        if self.show_rk:
+            logs_dict.update(val_rk_traj_dict)
+            logs_dict.update(val_rk_mask_dict)
+
         wandb.log(
-            {
-                "val_loss": val_loss,
-                "val_Mask_IOU": val_IOU_mask,
-                "val_Traj_IOU": val_IOU_traj,
-                "val_Mask_PG": val_pg_mask,
-                "val_Traj_PG": val_pg_traj,
-                # "val_Mask_IT": val_it_mask,
-                # "val_Traj_IT": val_it_traj,
-                # "val_Mask_RK": val_rk_mask,
-                # "val_Traj_RK": val_rk_traj,
-                # "val_Mask_DS": val_ds_mask,
-                # "val_Traj_DS": val_ds_traj,
-            }
+            logs_dict
         )
 
         # print(
@@ -815,5 +860,8 @@ class Solver(object):
         print(
             f"{timestamp} Validation: EpochId: {epochId:2d} loss {val_loss:.4f} Mask_IOU {val_IOU_mask:.4f} Traj_IOU {val_IOU_traj:.4f} Mask_PG {val_pg_mask:.4f} Traj_PG {val_pg_traj:.4f}"
         )
+        if self.show_rk:
+            print(val_rk_traj_dict)
+            print(val_rk_mask_dict)
 
         return val_IOU_mask, val_loss

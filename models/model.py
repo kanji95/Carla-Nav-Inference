@@ -821,6 +821,7 @@ class Conv3D_Baseline(nn.Module):
         # import pdb; pdb.set_trace()
         segm_mask = self.mm_decoder(enc_out)
 
+        # import pdb; pdb.set_trace()
         enc_out = rearrange(enc_out, "(b t) c h w -> b c t h w", t=t)
         traj_mask = self.traj_decoder(self.temporal_conv(enc_out))
 
