@@ -45,7 +45,8 @@ class SegmentationBaseline(nn.Module):
         # self.mm_fusion = None
 
         self.mm_decoder = nn.Sequential(
-            ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
+            ASPP(in_channels=hidden_dim, atrous_rates=[
+                 6, 12, 24], out_channels=256),
             ConvUpsample(
                 in_channels=256,
                 out_channels=1,
@@ -53,7 +54,8 @@ class SegmentationBaseline(nn.Module):
                 upsample=[True, True, True],
                 drop=0.2,
             ),
-            nn.Upsample(size=(mask_dim, mask_dim), mode="bilinear", align_corners=True),
+            nn.Upsample(size=(mask_dim, mask_dim),
+                        mode="bilinear", align_corners=True),
             nn.Sigmoid(),
         )
 
@@ -85,14 +87,16 @@ class SegmentationBaseline(nn.Module):
             fused_feat = vision_feat * attn_feat
 
         elif self.imtext_matching == "concat":
-            concat = torch.concat([vision_feat, text_feat], axis=1)  # B x L+N x C
+            concat = torch.concat(
+                [vision_feat, text_feat], axis=1)  # B x L+N x C
             fused_feat = self.concat_decoder(concat)  # B x N x C
 
         elif self.imtext_matching == "avg_concat":
             concat = torch.concat(
                 [
                     vision_feat,
-                    torch.mean(text_feat, dim=1).repeat(1, vision_feat.shape[1], 1),
+                    torch.mean(text_feat, dim=1).repeat(
+                        1, vision_feat.shape[1], 1),
                 ],
                 axis=2,
             )  # B x N x 2C
@@ -141,21 +145,23 @@ class JointSegmentationBaseline(nn.Module):
             dropout=0.2,
             normalize_before=normalize_before,
         )
-        encoder_norm = nn.LayerNorm(self.hidden_feat) if normalize_before else None
+        encoder_norm = nn.LayerNorm(
+            self.hidden_feat) if normalize_before else None
         self.transformer_encoder = TransformerEncoder(
             encoder_layer, num_encoder_layers, encoder_norm
         )
 
         self.conv_fuse = nn.Conv2d(
-                self.hidden_feat * 2,
-                self.hidden_feat,
-                kernel_size=3,
-                stride=1,
-                padding=1,
+            self.hidden_feat * 2,
+            self.hidden_feat,
+            kernel_size=3,
+            stride=1,
+            padding=1,
         )
 
         self.mm_decoder = nn.Sequential(
-            ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
+            ASPP(in_channels=hidden_dim, atrous_rates=[
+                 6, 12, 24], out_channels=256),
             ConvUpsample(
                 in_channels=256,
                 out_channels=2,
@@ -163,7 +169,8 @@ class JointSegmentationBaseline(nn.Module):
                 upsample=[True, True, True],
                 drop=0.2,
             ),
-            nn.Upsample(size=(mask_dim, mask_dim), mode="bilinear", align_corners=True),
+            nn.Upsample(size=(mask_dim, mask_dim),
+                        mode="bilinear", align_corners=True),
             nn.Sigmoid(),
         )
 
@@ -176,31 +183,32 @@ class JointSegmentationBaseline(nn.Module):
                 upsample=[True, True, False],
                 drop=0.2,
             ),
-            nn.Upsample(size=(traj_dim, traj_dim), mode="bilinear", align_corners=True),
+            nn.Upsample(size=(traj_dim, traj_dim),
+                        mode="bilinear", align_corners=True),
             nn.Sigmoid(),
         )
 
     def forward(self, frames, text, frame_mask, text_mask):
 
         vision_feat = self.vision_encoder(frames)
-        
-        b,n,c = vision_feat.shape
+
+        b, n, c = vision_feat.shape
         h = w = 14
-        
-        vision_feat = F.normalize(vision_feat, p=2, dim=1) 
+
+        vision_feat = F.normalize(vision_feat, p=2, dim=1)
 
         text_feat = self.text_encoder(text)
-        # text_feat = F.normalize(text_feat, p=2, dim=1) 
+        # text_feat = F.normalize(text_feat, p=2, dim=1)
         l = text_feat.shape[1]
 
         vis_pos_embd = positionalencoding2d(b, c, height=h, width=w)
         vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
 
         txt_pos_embd = positionalencoding1d(b, c, max_len=l)
-        
+
         combined_pos_embd = torch.cat([vis_pos_embd, txt_pos_embd], dim=1)
         combined_pos_embd = rearrange(combined_pos_embd, "b l c -> l b c")
-        
+
         frame_tensor = rearrange(vision_feat, "b l c -> l b c")
 
         lang_tensor = rearrange(text_feat, "b l c -> l b c")
@@ -219,7 +227,7 @@ class JointSegmentationBaseline(nn.Module):
 
         f_img_out = enc_out[:, :, : h * w].view(b, c, h, w)
 
-        f_txt_out = enc_out[:, :, h * w :].transpose(1, 2)  # B, L, E
+        f_txt_out = enc_out[:, :, h * w:].transpose(1, 2)  # B, L, E
         f_txt_out = f_txt_out.mean(dim=1)
 
         f_out = torch.cat(
@@ -269,7 +277,8 @@ class VideoSegmentationBaseline(nn.Module):
             )
 
         self.mm_decoder = nn.Sequential(
-            ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
+            ASPP(in_channels=hidden_dim, atrous_rates=[
+                 6, 12, 24], out_channels=256),
             ConvUpsample(
                 in_channels=256,
                 out_channels=1,
@@ -277,7 +286,8 @@ class VideoSegmentationBaseline(nn.Module):
                 upsample=[True, True, True],
                 drop=0.2,
             ),
-            nn.Upsample(size=(mask_dim, mask_dim), mode="bilinear", align_corners=True),
+            nn.Upsample(size=(mask_dim, mask_dim),
+                        mode="bilinear", align_corners=True),
             nn.Sigmoid(),
         )
 
@@ -309,14 +319,16 @@ class VideoSegmentationBaseline(nn.Module):
             fused_feat = vision_feat * attn_feat
 
         elif self.imtext_matching == "concat":
-            concat = torch.concat([vision_feat, text_feat], axis=1)  # B x L+N x C
+            concat = torch.concat(
+                [vision_feat, text_feat], axis=1)  # B x L+N x C
             fused_feat = self.concat_decoder(concat)  # B x N x C
 
         elif self.imtext_matching == "avg_concat":
             concat = torch.concat(
                 [
                     vision_feat,
-                    torch.mean(text_feat, dim=1).repeat(1, vision_feat.shape[1], 1),
+                    torch.mean(text_feat, dim=1).repeat(
+                        1, vision_feat.shape[1], 1),
                 ],
                 axis=2,
             )  # B x N x 2C
@@ -391,7 +403,8 @@ class JointVideoSegmentationBaseline(nn.Module):
         # )
 
         self.traj_decoder = nn.Sequential(
-            ASPP(in_channels=hidden_dim, atrous_rates=[6, 12, 24], out_channels=256),
+            ASPP(in_channels=hidden_dim, atrous_rates=[
+                 6, 12, 24], out_channels=256),
             ConvUpsample(
                 in_channels=256,
                 out_channels=1,
@@ -399,7 +412,8 @@ class JointVideoSegmentationBaseline(nn.Module):
                 upsample=[True, True],
                 drop=0.2,
             ),
-            nn.Upsample(size=(traj_dim, traj_dim), mode="bilinear", align_corners=True),
+            nn.Upsample(size=(traj_dim, traj_dim),
+                        mode="bilinear", align_corners=True),
             nn.Sigmoid(),
         )
 
@@ -426,14 +440,16 @@ class JointVideoSegmentationBaseline(nn.Module):
             fused_feat = vision_feat * attn_feat
 
         elif self.imtext_matching == "concat":
-            concat = torch.concat([vision_feat, text_feat], axis=1)  # B x L+N x C
+            concat = torch.concat(
+                [vision_feat, text_feat], axis=1)  # B x L+N x C
             fused_feat = self.concat_decoder(concat)  # B x N x C
 
         elif self.imtext_matching == "avg_concat":
             concat = torch.concat(
                 [
                     vision_feat,
-                    torch.mean(text_feat, dim=1).repeat(1, vision_feat.shape[1], 1),
+                    torch.mean(text_feat, dim=1).repeat(
+                        1, vision_feat.shape[1], 1),
                 ],
                 axis=2,
             )  # B x N x 2C
@@ -480,15 +496,18 @@ class IROSBaseline(nn.Module):
         self.conv_3x3 = nn.ModuleDict(
             {
                 "layer2": nn.Sequential(
-                    nn.Conv2d(512, hidden_dim, kernel_size=3, stride=2, padding=1),
+                    nn.Conv2d(512, hidden_dim, kernel_size=3,
+                              stride=2, padding=1),
                     nn.BatchNorm2d(hidden_dim),
                 ),
                 "layer3": nn.Sequential(
-                    nn.Conv2d(1024, hidden_dim, kernel_size=3, stride=2, padding=1),
+                    nn.Conv2d(1024, hidden_dim, kernel_size=3,
+                              stride=2, padding=1),
                     nn.BatchNorm2d(hidden_dim),
                 ),
                 "layer4": nn.Sequential(
-                    nn.Conv2d(2048, hidden_dim, kernel_size=3, stride=2, padding=1),
+                    nn.Conv2d(2048, hidden_dim, kernel_size=3,
+                              stride=2, padding=1),
                     nn.BatchNorm2d(hidden_dim),
                 ),
             }
@@ -506,11 +525,27 @@ class IROSBaseline(nn.Module):
             encoder_layer, num_encoder_layers, encoder_norm
         )
         self.conv_fuse = nn.Sequential(
-            nn.Conv2d(hidden_dim * 2, hidden_dim, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(hidden_dim * 2, hidden_dim,
+                      kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(hidden_dim),
         )
 
         self.mm_decoder = nn.Sequential(
+            ASPP(
+                in_channels=hidden_dim * 3, atrous_rates=[6, 12, 24], out_channels=256
+            ),
+            ConvUpsample(
+                in_channels=256,
+                out_channels=2,
+                channels=[256, 256, 128],
+                upsample=[True, True, True],
+                drop=0.2,
+            ),
+            nn.Upsample(size=(mask_dim, mask_dim),
+                        mode="bilinear", align_corners=True),
+            nn.Sigmoid(),
+        )
+        self.traj_decoder = nn.Sequential(
             ASPP(
                 in_channels=hidden_dim * 3, atrous_rates=[6, 12, 24], out_channels=256
             ),
@@ -521,7 +556,8 @@ class IROSBaseline(nn.Module):
                 upsample=[True, True, True],
                 drop=0.2,
             ),
-            nn.Upsample(size=(mask_dim, mask_dim), mode="bilinear", align_corners=True),
+            nn.Upsample(size=(mask_dim, mask_dim),
+                        mode="bilinear", align_corners=True),
             nn.Sigmoid(),
         )
 
@@ -545,7 +581,8 @@ class IROSBaseline(nn.Module):
         pos_embed_img = positionalencoding2d(B, d_model=C, height=H, width=W)
         pos_embed_img = pos_embed_img.flatten(2).permute(2, 0, 1)
 
-        pos_embed_txt = positionalencoding1d(B, d_model=E, max_len=text_mask.shape[1])
+        pos_embed_txt = positionalencoding1d(
+            B, d_model=E, max_len=text_mask.shape[1])
         pos_embed_txt = pos_embed_txt.permute(1, 0, 2)
 
         pos_embed = torch.cat([pos_embed_img, pos_embed_txt], dim=0)
@@ -560,7 +597,8 @@ class IROSBaseline(nn.Module):
             f_joint = torch.cat([f_img, f_text], dim=2)
             src = f_joint.flatten(2).permute(2, 0, 1)
 
-            src_key_padding_mask = ~torch.cat([img_mask, text_mask], dim=1).bool()
+            src_key_padding_mask = ~torch.cat(
+                [img_mask, text_mask], dim=1).bool()
 
             enc_out = self.transformer_encoder(
                 src, pos=pos_embed, src_key_padding_mask=src_key_padding_mask
@@ -569,9 +607,10 @@ class IROSBaseline(nn.Module):
 
             f_img_out = enc_out[:, :, : H * W].view(B, C, H, W)
 
-            f_txt_out = enc_out[:, :, H * W :].transpose(1, 2)  # B, L, E
+            f_txt_out = enc_out[:, :, H * W:].transpose(1, 2)  # B, L, E
             masked_sum = f_txt_out * text_mask[:, :, None]
-            f_txt_out = masked_sum.sum(dim=1) / text_mask.sum(dim=-1, keepdim=True)
+            f_txt_out = masked_sum.sum(
+                dim=1) / text_mask.sum(dim=-1, keepdim=True)
 
             f_out = torch.cat(
                 [f_img_out, f_txt_out[:, :, None, None].expand(B, -1, H, W)], dim=1
@@ -584,8 +623,9 @@ class IROSBaseline(nn.Module):
         fused_feature = torch.cat(joint_features, dim=1)
 
         segm_mask = self.mm_decoder(fused_feature)  # .squeeze(1)
+        traj_mask = self.traj_decoder(fused_feature)  # .squeeze(1)
 
-        return segm_mask
+        return segm_mask, traj_mask
 
 
 class ConvLSTMBaseline(nn.Module):
@@ -618,7 +658,8 @@ class ConvLSTMBaseline(nn.Module):
         self.sub_text_encoder = TextEncoder(
             num_layers=1, hidden_size=hidden_dim)
 
-        self.conv3d = nn.Conv3d(192, hidden_dim, kernel_size=3, stride=1, padding=1)
+        self.conv3d = nn.Conv3d(
+            192, hidden_dim, kernel_size=3, stride=1, padding=1)
 
         # self.bilinear = nn.Bilinear(
         #     self.num_frames * 49, 20, self.num_frames * 49)
@@ -671,12 +712,12 @@ class ConvLSTMBaseline(nn.Module):
             vision_feat, sub_text_feat, frame_mask, sub_text_mask
         )  # .squeeze(1)
 
-        ## use last hidden state
+        # use last hidden state
         # traj_mask = self.traj_decoder(last_state_feat)
 
         return segm_mask, None
-    
-    
+
+
 class Conv3D_Baseline(nn.Module):
     """Some Information about MyModule"""
 
@@ -708,7 +749,8 @@ class Conv3D_Baseline(nn.Module):
 
         self.text_encoder = TextEncoder(num_layers=1, hidden_size=hidden_dim)
 
-        self.conv3d = nn.Conv3d(192, hidden_dim, kernel_size=3, stride=1, padding=1)
+        self.conv3d = nn.Conv3d(
+            192, hidden_dim, kernel_size=3, stride=1, padding=1)
 
         encoder_layer = TransformerEncoderLayer(
             self.hidden_dim,
@@ -717,27 +759,30 @@ class Conv3D_Baseline(nn.Module):
             dropout=0.2,
             normalize_before=normalize_before,
         )
-        encoder_norm = nn.LayerNorm(self.hidden_dim) if normalize_before else None
+        encoder_norm = nn.LayerNorm(
+            self.hidden_dim) if normalize_before else None
         self.transformer_encoder = TransformerEncoder(
             encoder_layer, num_encoder_layers, encoder_norm
         )
 
         self.conv_fuse = nn.Conv2d(
-                self.hidden_dim * 2,
-                self.hidden_dim,
-                kernel_size=3,
-                stride=1,
-                padding=1,
+            self.hidden_dim * 2,
+            self.hidden_dim,
+            kernel_size=3,
+            stride=1,
+            padding=1,
         )
 
         self.temporal_conv = nn.Sequential(
-            nn.Conv3d(hidden_dim, hidden_dim, kernel_size=(4, 3, 3), stride=1, padding=(0, 1, 1)),
+            nn.Conv3d(hidden_dim, hidden_dim, kernel_size=(
+                4, 3, 3), stride=1, padding=(0, 1, 1)),
             nn.ReLU(),
             Rearrange('b c 1 h w -> b c h w'),
         )
 
         self.mm_decoder = nn.Sequential(
-            ASPP(in_channels=hidden_dim, atrous_rates=[4, 6, 8], out_channels=256),
+            ASPP(in_channels=hidden_dim, atrous_rates=[
+                 4, 6, 8], out_channels=256),
             ConvUpsample(
                 in_channels=256,
                 out_channels=2,
@@ -745,12 +790,14 @@ class Conv3D_Baseline(nn.Module):
                 upsample=[True, True, True],
                 drop=0.2,
             ),
-            nn.Upsample(size=(mask_dim, mask_dim), mode="bilinear", align_corners=True),
+            nn.Upsample(size=(mask_dim, mask_dim),
+                        mode="bilinear", align_corners=True),
             nn.Sigmoid(),
         )
 
         self.traj_decoder = nn.Sequential(
-            ASPP(in_channels=hidden_dim, atrous_rates=[4, 6, 8], out_channels=256),
+            ASPP(in_channels=hidden_dim, atrous_rates=[
+                 4, 6, 8], out_channels=256),
             ConvUpsample(
                 in_channels=256,
                 out_channels=1,
@@ -758,7 +805,8 @@ class Conv3D_Baseline(nn.Module):
                 upsample=[True, True],
                 drop=0.2,
             ),
-            nn.Upsample(size=(traj_dim, traj_dim), mode="bilinear", align_corners=True),
+            nn.Upsample(size=(traj_dim, traj_dim),
+                        mode="bilinear", align_corners=True),
             nn.Sigmoid(),
         )
 
@@ -770,29 +818,29 @@ class Conv3D_Baseline(nn.Module):
         vision_feat = self.vision_encoder(frames)
         vision_feat = F.relu(self.conv3d(vision_feat))
         b, c, t, h, w = vision_feat.shape
-        
+
         vision_feat = rearrange(vision_feat, "b c t h w -> (b t) c (h w)")
 
         text_feat = self.text_encoder(text)
         l = text_feat.shape[1]
-        
+
         text_feat = repeat(text_feat, "b l c -> (b repeat) c l", repeat=t)
-        
+
         vis_pos_embd = positionalencoding2d(b*t, c, height=h, width=w)
         vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
 
         txt_pos_embd = positionalencoding1d(b*t, c, max_len=l)
-        
+
         combined_pos_embd = torch.cat([vis_pos_embd, txt_pos_embd], dim=1)
         combined_pos_embd = rearrange(combined_pos_embd, "b l c -> l b c")
-        
+
         frame_tensor = rearrange(vision_feat, "b c l -> l b c")
 
         lang_tensor = rearrange(text_feat, "b c l -> l b c")
 
         frame_mask = repeat(frame_mask, "b l -> (b repeat) l", repeat=t)
         text_mask = repeat(text_mask, "b l -> (b repeat) l", repeat=t)
-        
+
         combined_padding = ~torch.cat(
             [frame_mask, text_mask], dim=-1
         ).bool()
@@ -807,7 +855,7 @@ class Conv3D_Baseline(nn.Module):
 
         f_img_out = enc_out[:, :, : h * w].view(b*t, c, h, w)
 
-        f_txt_out = enc_out[:, :, h * w :].transpose(1, 2)  # B, L, E
+        f_txt_out = enc_out[:, :, h * w:].transpose(1, 2)  # B, L, E
         f_txt_out = f_txt_out.mean(dim=1)
 
         f_out = torch.cat(
