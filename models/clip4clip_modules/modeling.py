@@ -222,7 +222,7 @@ class CLIP4Clip(CLIP4ClipPreTrainedModel):
         show_log(task_config, "\t transformer_layers: {}".format(
             transformer_layers))
 
-        self.linear_patch = '2d'
+        self.linear_patch = '3d'
         if hasattr(task_config, "linear_patch"):
             self.linear_patch = task_config.linear_patch
             show_log(task_config, "\t\t linear_patch: {}".format(

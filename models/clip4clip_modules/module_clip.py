@@ -32,6 +32,7 @@ _PT_NAME = {
     "ViT-B/16": "ViT-B-16.pt",
 }
 
+
 def _download(url: str, root: str = os.path.expanduser("~/.cache/clip")):
     os.makedirs(root, exist_ok=True)
     filename = os.path.basename(url)
@@ -40,13 +41,15 @@ def _download(url: str, root: str = os.path.expanduser("~/.cache/clip")):
     download_target = os.path.join(root, filename)
 
     if os.path.exists(download_target) and not os.path.isfile(download_target):
-        raise RuntimeError(f"{download_target} exists and is not a regular file")
+        raise RuntimeError(
+            f"{download_target} exists and is not a regular file")
 
     if os.path.isfile(download_target):
         if hashlib.sha256(open(download_target, "rb").read()).hexdigest() == expected_sha256:
             return download_target
         else:
-            warnings.warn(f"{download_target} exists, but the SHA256 checksum does not match; re-downloading the file")
+            warnings.warn(
+                f"{download_target} exists, but the SHA256 checksum does not match; re-downloading the file")
 
     with urllib.request.urlopen(url) as source, open(download_target, "wb") as output:
         with tqdm(total=int(source.info().get("Content-Length")), ncols=80, unit='iB', unit_scale=True) as loop:
@@ -59,15 +62,18 @@ def _download(url: str, root: str = os.path.expanduser("~/.cache/clip")):
                 loop.update(len(buffer))
 
     if hashlib.sha256(open(download_target, "rb").read()).hexdigest() != expected_sha256:
-        raise RuntimeError(f"Model has been downloaded but the SHA256 checksum does not not match")
+        raise RuntimeError(
+            f"Model has been downloaded but the SHA256 checksum does not not match")
 
     return download_target
+
 
 def available_models():
     """Returns the names of available CLIP models"""
     return list(_MODELS.keys())
 
 # =============================
+
 
 class Bottleneck(nn.Module):
     expansion = 4
@@ -95,7 +101,8 @@ class Bottleneck(nn.Module):
             # downsampling layer is prepended with an avgpool, and the subsequent convolution has stride 1
             self.downsample = nn.Sequential(OrderedDict([
                 ("-1", nn.AvgPool2d(stride)),
-                ("0", nn.Conv2d(inplanes, planes * self.expansion, 1, stride=1, bias=False)),
+                ("0", nn.Conv2d(inplanes, planes *
+                 self.expansion, 1, stride=1, bias=False)),
                 ("1", nn.BatchNorm2d(planes * self.expansion))
             ]))
 
@@ -118,7 +125,8 @@ class Bottleneck(nn.Module):
 class AttentionPool2d(nn.Module):
     def __init__(self, spacial_dim: int, embed_dim: int, num_heads: int, output_dim: int = None):
         super().__init__()
-        self.positional_embedding = nn.Parameter(torch.randn(spacial_dim ** 2 + 1, embed_dim) / embed_dim ** 0.5)
+        self.positional_embedding = nn.Parameter(torch.randn(
+            spacial_dim ** 2 + 1, embed_dim) / embed_dim ** 0.5)
         self.k_proj = nn.Linear(embed_dim, embed_dim)
         self.q_proj = nn.Linear(embed_dim, embed_dim)
         self.v_proj = nn.Linear(embed_dim, embed_dim)
@@ -126,7 +134,8 @@ class AttentionPool2d(nn.Module):
         self.num_heads = num_heads
 
     def forward(self, x):
-        x = x.reshape(x.shape[0], x.shape[1], x.shape[2] * x.shape[3]).permute(2, 0, 1)  # NCHW -> (HW)NC
+        x = x.reshape(x.shape[0], x.shape[1], x.shape[2]
+                      * x.shape[3]).permute(2, 0, 1)  # NCHW -> (HW)NC
         x = torch.cat([x.mean(dim=0, keepdim=True), x], dim=0)  # (HW+1)NC
         x = x + self.positional_embedding[:, None, :].to(x.dtype)  # (HW+1)NC
         x, _ = F.multi_head_attention_forward(
@@ -137,7 +146,8 @@ class AttentionPool2d(nn.Module):
             k_proj_weight=self.k_proj.weight,
             v_proj_weight=self.v_proj.weight,
             in_proj_weight=None,
-            in_proj_bias=torch.cat([self.q_proj.bias, self.k_proj.bias, self.v_proj.bias]),
+            in_proj_bias=torch.cat(
+                [self.q_proj.bias, self.k_proj.bias, self.v_proj.bias]),
             bias_k=None,
             bias_v=None,
             add_zero_attn=False,
@@ -166,11 +176,14 @@ class ModifiedResNet(nn.Module):
         self.input_resolution = input_resolution
 
         # the 3-layer stem
-        self.conv1 = nn.Conv2d(3, width // 2, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(3, width // 2, kernel_size=3,
+                               stride=2, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(width // 2)
-        self.conv2 = nn.Conv2d(width // 2, width // 2, kernel_size=3, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(width // 2, width // 2,
+                               kernel_size=3, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(width // 2)
-        self.conv3 = nn.Conv2d(width // 2, width, kernel_size=3, padding=1, bias=False)
+        self.conv3 = nn.Conv2d(
+            width // 2, width, kernel_size=3, padding=1, bias=False)
         self.bn3 = nn.BatchNorm2d(width)
         self.avgpool = nn.AvgPool2d(2)
         self.relu = nn.ReLU(inplace=True)
@@ -183,7 +196,8 @@ class ModifiedResNet(nn.Module):
         self.layer4 = self._make_layer(width * 8, layers[3], stride=2)
 
         embed_dim = width * 32  # the ResNet feature dimension
-        self.attnpool = AttentionPool2d(input_resolution // 32, embed_dim, heads, output_dim)
+        self.attnpool = AttentionPool2d(
+            input_resolution // 32, embed_dim, heads, output_dim)
 
     def _make_layer(self, planes, blocks, stride=1):
         layers = [Bottleneck(self._inplanes, planes, stride)]
@@ -245,10 +259,11 @@ class ResidualAttentionBlock(nn.Module):
         if self.attn_mask is not None and hasattr(self.attn_mask, '__call__'):
             attn_mask_ = self.attn_mask(x.size(0))   # LND
 
-        attn_mask_ = attn_mask_.to(dtype=x.dtype, device=x.device) if attn_mask_ is not None else None
+        attn_mask_ = attn_mask_.to(
+            dtype=x.dtype, device=x.device) if attn_mask_ is not None else None
         return self.attn(x, x, x, need_weights=False, attn_mask=attn_mask_)[0]
 
-    def forward(self, x_tuple:tuple):
+    def forward(self, x_tuple: tuple):
         x, video_frame = x_tuple
         x = x + self.attention(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
@@ -256,11 +271,12 @@ class ResidualAttentionBlock(nn.Module):
 
 
 class Transformer(nn.Module):
-    def __init__(self, width: int, layers: int, heads: int, attn_mask = None):
+    def __init__(self, width: int, layers: int, heads: int, attn_mask=None):
         super().__init__()
         self.width = width
         self.layers = layers
-        self.resblocks = nn.Sequential(*[ResidualAttentionBlock(width, heads, attn_mask) for _ in range(layers)])
+        self.resblocks = nn.Sequential(
+            *[ResidualAttentionBlock(width, heads, attn_mask) for _ in range(layers)])
 
     def forward(self, x: torch.Tensor, video_frame=-1):
         return self.resblocks((x, video_frame))[0]
@@ -273,11 +289,13 @@ class VisualTransformer(nn.Module):
         self.input_resolution = input_resolution
         self.output_dim = output_dim
 
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=width, kernel_size=patch_size, stride=patch_size, bias=False)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=width,
+                               kernel_size=patch_size, stride=patch_size, bias=False)
 
         scale = width ** -0.5
         self.class_embedding = nn.Parameter(scale * torch.randn(width))
-        self.positional_embedding = nn.Parameter(scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width))
+        self.positional_embedding = nn.Parameter(
+            scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width))
         self.ln_pre = LayerNorm(width)
 
         self.transformer = Transformer(width, layers, heads)
@@ -296,17 +314,23 @@ class VisualTransformer(nn.Module):
 
         if self.linear_patch == '3d':
             assert video_frame != -1
-            x_3d = x.reshape(-1, video_frame, x.shape[-3], x.shape[-2], x.shape[-1])
+            x_3d = x.reshape(-1, video_frame,
+                             x.shape[-3], x.shape[-2], x.shape[-1])
             x_3d = x_3d.permute(0, 2, 1, 3, 4)
             x_3d = self.conv2(x_3d)     # shape = [*, width, frame, grid, grid]
-            x_3d = x_3d.permute(0, 2, 1, 3, 4)      # shape = [*, frame, width, grid, grid]
-            x = x_3d.reshape(-1, x_3d.shape[-3], x_3d.shape[-2], x_3d.shape[-1]).contiguous() # shape = [*, width, grid, grid]
+            # shape = [*, frame, width, grid, grid]
+            x_3d = x_3d.permute(0, 2, 1, 3, 4)
+            # shape = [*, width, grid, grid]
+            x = x_3d.reshape(-1, x_3d.shape[-3],
+                             x_3d.shape[-2], x_3d.shape[-1]).contiguous()
         else:
             x = self.conv1(x)  # shape = [*, width, grid, grid]
 
-        x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
+        # shape = [*, width, grid ** 2]
+        x = x.reshape(x.shape[0], x.shape[1], -1)
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
-        x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
+        x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1],
+                      dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
         x = x + self.positional_embedding.to(x.dtype)
         x = self.ln_pre(x)
 
@@ -373,10 +397,12 @@ class CLIP(nn.Module):
 
         self.vocab_size = vocab_size
         self.token_embedding = nn.Embedding(vocab_size, transformer_width)
-        self.positional_embedding = nn.Parameter(torch.empty(self.context_length, transformer_width))
+        self.positional_embedding = nn.Parameter(
+            torch.empty(self.context_length, transformer_width))
         self.ln_final = LayerNorm(transformer_width)
 
-        self.text_projection = nn.Parameter(torch.empty(transformer_width, embed_dim))
+        self.text_projection = nn.Parameter(
+            torch.empty(transformer_width, embed_dim))
         self.logit_scale = nn.Parameter(torch.ones([]))
 
         self.initialize_parameters()
@@ -398,7 +424,8 @@ class CLIP(nn.Module):
                     if name.endswith("bn3.weight"):
                         nn.init.zeros_(param)
 
-        proj_std = (self.transformer.width ** -0.5) * ((2 * self.transformer.layers) ** -0.5)
+        proj_std = (self.transformer.width ** -0.5) * \
+            ((2 * self.transformer.layers) ** -0.5)
         attn_std = self.transformer.width ** -0.5
         fc_std = (2 * self.transformer.width) ** -0.5
         for block in self.transformer.resblocks:
@@ -408,13 +435,16 @@ class CLIP(nn.Module):
             nn.init.normal_(block.mlp.c_proj.weight, std=proj_std)
 
         if self.text_projection is not None:
-            nn.init.normal_(self.text_projection, std=self.transformer.width ** -0.5)
+            nn.init.normal_(self.text_projection,
+                            std=self.transformer.width ** -0.5)
 
     @staticmethod
     def get_config(pretrained_clip_name="ViT-B/32"):
-        model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ViT-B-32.pt")
+        model_path = os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), "ViT-B-32.pt")
         if pretrained_clip_name in _MODELS and pretrained_clip_name in _PT_NAME:
-            model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), _PT_NAME[pretrained_clip_name])
+            model_path = os.path.join(os.path.dirname(
+                os.path.abspath(__file__)), _PT_NAME[pretrained_clip_name])
 
         if pretrained_clip_name in ["ViT-B/32", "ViT-B/16"] and os.path.exists(model_path):
             pass
@@ -424,7 +454,8 @@ class CLIP(nn.Module):
             elif os.path.isfile(pretrained_clip_name):
                 model_path = pretrained_clip_name
             else:
-                raise RuntimeError(f"Model {pretrained_clip_name} not found; available models = {available_models()}")
+                raise RuntimeError(
+                    f"Model {pretrained_clip_name} not found; available models = {available_models()}")
 
         try:
             # loading JIT archive
@@ -448,10 +479,13 @@ class CLIP(nn.Module):
         return self.visual.conv1.weight.dtype
 
     def encode_image(self, image, return_hidden=False, video_frame=-1):
+        # import pdb; pdb.set_trace()
         hidden = self.visual(image.type(self.dtype), video_frame=video_frame)
+        # import pdb; pdb.set_trace()
         hidden = self.visual.ln_post(hidden) @ self.visual.proj
+        # import pdb; pdb.set_trace()
 
-        x = hidden[:, 0, :]
+        x = hidden[:, :-1, :]
 
         if return_hidden:
             return x, hidden
@@ -459,13 +493,16 @@ class CLIP(nn.Module):
         return x
 
     def encode_text(self, text, return_hidden=False):
-        x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
+        x = self.token_embedding(text).type(
+            self.dtype)  # [batch_size, n_ctx, d_model]
 
         pos_emd = self.positional_embedding[:x.size(1), :].type(self.dtype)
         x = x + pos_emd
         x = x.permute(1, 0, 2)  # NLD -> LND
         x = self.transformer(x)
         x = x.permute(1, 0, 2)  # LND -> NLD
+
+        # import pdb; pdb.set_trace()
 
         hidden = self.ln_final(x).type(self.dtype) @ self.text_projection
 
@@ -483,8 +520,10 @@ class CLIP(nn.Module):
         text_features = self.encode_text(text)
 
         # normalized features
-        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
-        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        image_features = image_features / \
+            image_features.norm(dim=-1, keepdim=True)
+        text_features = text_features / \
+            text_features.norm(dim=-1, keepdim=True)
 
         # cosine similarity as logits
         logit_scale = self.logit_scale.exp()
@@ -524,17 +563,22 @@ def build_model(state_dict: dict):
 
     if vit:
         vision_width = state_dict["visual.conv1.weight"].shape[0]
-        vision_layers = len([k for k in state_dict.keys() if k.startswith("visual.") and k.endswith(".attn.in_proj_weight")])
+        vision_layers = len([k for k in state_dict.keys() if k.startswith(
+            "visual.") and k.endswith(".attn.in_proj_weight")])
         vision_patch_size = state_dict["visual.conv1.weight"].shape[-1]
-        grid_size = round((state_dict["visual.positional_embedding"].shape[0] - 1) ** 0.5)
+        grid_size = round(
+            (state_dict["visual.positional_embedding"].shape[0] - 1) ** 0.5)
         image_resolution = vision_patch_size * grid_size
     else:
-        counts: list = [len(set(k.split(".")[2] for k in state_dict if k.startswith(f"visual.layer{b}"))) for b in [1, 2, 3, 4]]
+        counts: list = [len(set(k.split(".")[2] for k in state_dict if k.startswith(
+            f"visual.layer{b}"))) for b in [1, 2, 3, 4]]
         vision_layers = tuple(counts)
         vision_width = state_dict["visual.layer1.0.conv1.weight"].shape[0]
-        output_width = round((state_dict["visual.attnpool.positional_embedding"].shape[0] - 1) ** 0.5)
+        output_width = round(
+            (state_dict["visual.attnpool.positional_embedding"].shape[0] - 1) ** 0.5)
         vision_patch_size = None
-        assert output_width ** 2 + 1 == state_dict["visual.attnpool.positional_embedding"].shape[0]
+        assert output_width ** 2 + \
+            1 == state_dict["visual.attnpool.positional_embedding"].shape[0]
         image_resolution = output_width * 32
 
     embed_dim = state_dict["text_projection"].shape[1]
@@ -542,7 +586,8 @@ def build_model(state_dict: dict):
     vocab_size = state_dict["token_embedding.weight"].shape[0]
     transformer_width = state_dict["ln_final.weight"].shape[0]
     transformer_heads = transformer_width // 64
-    transformer_layers = len(set(k.split(".")[2] for k in state_dict if k.startswith(f"transformer.resblocks")))
+    transformer_layers = len(set(
+        k.split(".")[2] for k in state_dict if k.startswith(f"transformer.resblocks")))
 
     model = CLIP(
         embed_dim,

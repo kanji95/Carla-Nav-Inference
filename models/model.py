@@ -1,11 +1,12 @@
 import imp
 from matplotlib.pyplot import text
+from numpy import sqrt
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from einops import rearrange, repeat
+from einops import rearrange, repeat, reduce
 from einops.layers.torch import Rearrange
 
 from .transformer import *
@@ -804,24 +805,34 @@ class CLIP_Baseline(nn.Module):
     def forward(self, frames, text, frame_mask, text_mask):
 
         tok_type_ids = (text*0).detach().clone()
-        # import pdb; pdb.set_trace()
+        import pdb
+        pdb.set_trace()
 
         text_feat, vision_feat = self.get_sequence_visual_output(
             text, tok_type_ids, text_mask, frames, frame_mask)
+        # vision feat: b t (h w) c
+        # text feat: b c
+        # print(vision_feat.shape)
 
-        t = vision_feat.shape(1)
+        h = w = int(sqrt(vision_feat.size(2)))
+        b = vision_feat.size(0)
+        t = vision_feat.size(1)
+        c = vision_feat.size(3)
 
-        text_feat = repeat(text_feat, "b c -> b t c", t=vision_feat.shape(1))
+        text_feat = repeat(text_feat, "b 1 c -> (b t) c 1",
+                           t=vision_feat.size(1))
 
-        text_feat = self.text_encoder(text)
-        l = text_feat.shape[1]
+        text_feat_mask = text_feat.detach().clone()[:, 0, :]
+        text_feat_mask = 1-0*text_feat_mask
 
-        text_feat = repeat(text_feat, "b l c -> (b repeat) c l", repeat=t)
+        vision_feat = repeat(vision_feat, 'b t l c -> (b t) c l')
+
+        visual_feat_mask = vision_feat[:, 0, :]
 
         vis_pos_embd = positionalencoding2d(b*t, c, height=h, width=w)
         vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
 
-        txt_pos_embd = positionalencoding1d(b*t, c, max_len=l)
+        txt_pos_embd = positionalencoding1d(b*t, c, max_len=1)
 
         combined_pos_embd = torch.cat([vis_pos_embd, txt_pos_embd], dim=1)
         combined_pos_embd = rearrange(combined_pos_embd, "b l c -> l b c")
@@ -830,11 +841,11 @@ class CLIP_Baseline(nn.Module):
 
         lang_tensor = rearrange(text_feat, "b c l -> l b c")
 
-        frame_mask = repeat(frame_mask, "b l -> (b repeat) l", repeat=t)
-        text_mask = repeat(text_mask, "b l -> (b repeat) l", repeat=t)
+        # frame_mask = repeat(frame_mask, "b l -> (b repeat) l", repeat=t)
+        # text_mask = repeat(text_mask, "b l -> (b repeat) l", repeat=t)
 
         combined_padding = ~torch.cat(
-            [frame_mask, text_mask], dim=-1
+            [visual_feat_mask, text_feat_mask.view(text_feat_mask.size(0), -1)], dim=-1
         ).bool()
 
         combined_tensor = torch.cat([frame_tensor, lang_tensor], dim=0)
@@ -894,7 +905,9 @@ class CLIP_Baseline(nn.Module):
         bs_pair = video_mask.size(0)
         visual_hidden = self.clip.encode_image(
             video, video_frame=video_frame).float()
-        visual_hidden = visual_hidden.view(bs_pair, -1, visual_hidden.size(-1))
+        # import pdb; pdb.set_trace()
+        visual_hidden = visual_hidden.view(
+            bs_pair, video_frame, -1, visual_hidden.size(-1))
 
         return visual_hidden
 
@@ -949,7 +962,7 @@ class CLIP_Baseline(nn.Module):
         transformer_layers = len(set(k.split(
             ".")[2] for k in clip_state_dict if k.startswith(f"transformer.resblocks")))
 
-        self.linear_patch = '2d'  # set between 2d and 3d
+        self.linear_patch = '3d'  # set between 2d and 3d
 
         # use .float() to avoid overflow/underflow from fp16 weight. https://github.com/openai/CLIP/issues/40
         cut_top_layer = 0
