@@ -775,7 +775,7 @@ class Conv3D_Baseline(nn.Module):
 
         self.temporal_conv = nn.Sequential(
             nn.Conv3d(hidden_dim, hidden_dim, kernel_size=(
-                4, 3, 3), stride=1, padding=(0, 1, 1)),
+                self.num_frames, 3, 3), stride=1, padding=(0, 1, 1)),
             nn.ReLU(),
             Rearrange('b c 1 h w -> b c h w'),
         )
