@@ -35,7 +35,7 @@ def main(args):
 
     model_filename = os.path.join(
         save_path,
-        f'{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{datetime.now().strftime("%d_%b_%H_%M")}.pth',
+        f'{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}-{args.num_frames}_tf_{args.traj_frames}_{datetime.now().strftime("%d_%b_%H_%M")}.pth'.replace('/', '_'),
     )
 
     print(
@@ -84,7 +84,7 @@ def main(args):
     if args.save:
         print(f"Current Model Name {model_filename}")
         new_filename = os.path.join(
-            save_path, f'{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{best_pg_mask:.5f}.pth')
+            save_path, f'{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}-{args.num_frames}_tf_{args.traj_frames}_{best_pg_mask:.5f}.pth'.replace('/', '_'))
         os.rename(model_filename, new_filename)
         print(f"Renamed to {new_filename}!")
 
@@ -171,7 +171,12 @@ if __name__ == "__main__":
             "deeplabv3_resnet101",
             "deeplabv3_mobilenet_v3_large",
             "convlstm",
-            "conv3d_baseline"
+            "conv3d_baseline",
+            "clip_ViT-B/16",
+            "clip_ViT-B/32",
+            "clip_ViT-L/16",
+            "clip_ViT-L/32",
+            "clip_ViT-L/14@336px",
         ],
         type=str,
     )

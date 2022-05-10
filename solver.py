@@ -11,6 +11,7 @@ from torch.optim import *
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from torchvision.models._utils import IntermediateLayerGetter
+from dataloader.carla_loader_clip import CarlaCLIPFullDataset
 
 import timm
 from timesformer.models.vit import VisionTransformer
@@ -18,6 +19,8 @@ from timesformer.models.vit import VisionTransformer
 from segmentation_models_pytorch.losses import *
 
 from models.model import *
+from models.clip4clip_modules.modeling import CLIP4Clip
+from models.clip4clip_modules.module_clip import CLIP
 from dataloader.carla_loader import *
 from utilities.loss import *
 from utilities.metrics import *
@@ -180,6 +183,24 @@ class Solver(object):
                 attn_type=self.attn_type,
             )
 
+        elif "clip_" in self.img_backbone:
+            self.mode = "video"
+            spatial_dim = self.image_dim // self.patch_size
+
+            clip_model = CLIP.get_config(
+                '_'.join(self.img_backbone.split('_')[1:]))
+
+            self.network = CLIP_Baseline(
+                clip_model,
+                hidden_dim=self.hidden_dim,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
+                traj_dim=self.traj_dim,
+                spatial_dim=spatial_dim,
+                num_frames=self.num_frames,
+                attn_type=self.attn_type,
+            )
+
         wandb.watch(self.network, log="all")
 
         self.log_parameter_info()
@@ -241,40 +262,75 @@ class Solver(object):
         )
 
         if not self.inference:
-            self.train_dataset = CarlaFullDataset(
-                data_root=self.data_root,
-                glove_path=self.glove_path,
-                split="train",
-                dataset_len=100000,
-                img_transform=self.train_transform,
-                mask_transform=self.mask_transform,
-                traj_transform=self.traj_transform,
-                sequence_len=self.num_frames,
-                mode=self.mode,
-                image_dim=self.image_dim,
-                mask_dim=self.mask_dim,
-                traj_dim=self.traj_dim,
-                traj_frames=self.traj_frames,
-                traj_size=self.traj_size,
-                one_in_n=self.one_in_n,
-            )
-            self.val_dataset = CarlaFullDataset(
-                data_root=self.data_root,
-                glove_path=self.glove_path,
-                split="val",
-                dataset_len=20000,
-                img_transform=self.val_transform,
-                mask_transform=self.mask_transform,
-                traj_transform=self.traj_transform,
-                sequence_len=self.num_frames,
-                mode=self.mode,
-                image_dim=self.image_dim,
-                mask_dim=self.mask_dim,
-                traj_dim=self.traj_dim,
-                traj_frames=self.traj_frames,
-                traj_size=self.traj_size,
-                one_in_n=self.one_in_n,
-            )
+            if 'clip_' not in self.img_backbone:
+                self.train_dataset = CarlaFullDataset(
+                    data_root=self.data_root,
+                    glove_path=self.glove_path,
+                    split="train",
+                    dataset_len=100000,
+                    img_transform=self.train_transform,
+                    mask_transform=self.mask_transform,
+                    traj_transform=self.traj_transform,
+                    sequence_len=self.num_frames,
+                    mode=self.mode,
+                    image_dim=self.image_dim,
+                    mask_dim=self.mask_dim,
+                    traj_dim=self.traj_dim,
+                    traj_frames=self.traj_frames,
+                    traj_size=self.traj_size,
+                    one_in_n=self.one_in_n,
+                )
+                self.val_dataset = CarlaFullDataset(
+                    data_root=self.data_root,
+                    glove_path=self.glove_path,
+                    split="val",
+                    dataset_len=20000,
+                    img_transform=self.val_transform,
+                    mask_transform=self.mask_transform,
+                    traj_transform=self.traj_transform,
+                    sequence_len=self.num_frames,
+                    mode=self.mode,
+                    image_dim=self.image_dim,
+                    mask_dim=self.mask_dim,
+                    traj_dim=self.traj_dim,
+                    traj_frames=self.traj_frames,
+                    traj_size=self.traj_size,
+                    one_in_n=self.one_in_n,
+                )
+
+            else:
+                self.train_dataset = CarlaCLIPFullDataset(
+                    data_root=self.data_root,
+                    split="train",
+                    dataset_len=100000,
+                    img_transform=self.train_transform,
+                    mask_transform=self.mask_transform,
+                    traj_transform=self.traj_transform,
+                    sequence_len=self.num_frames,
+                    mode=self.mode,
+                    image_dim=self.image_dim,
+                    mask_dim=self.mask_dim,
+                    traj_dim=self.traj_dim,
+                    traj_frames=self.traj_frames,
+                    traj_size=self.traj_size,
+                    one_in_n=self.one_in_n,
+                )
+                self.val_dataset = CarlaCLIPFullDataset(
+                    data_root=self.data_root,
+                    split="val",
+                    dataset_len=20000,
+                    img_transform=self.val_transform,
+                    mask_transform=self.mask_transform,
+                    traj_transform=self.traj_transform,
+                    sequence_len=self.num_frames,
+                    mode=self.mode,
+                    image_dim=self.image_dim,
+                    mask_dim=self.mask_dim,
+                    traj_dim=self.traj_dim,
+                    traj_frames=self.traj_frames,
+                    traj_size=self.traj_size,
+                    one_in_n=self.one_in_n,
+                )
 
             self.train_loader = DataLoader(
                 self.train_dataset,
