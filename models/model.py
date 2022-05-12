@@ -1,6 +1,7 @@
 import imp
 from matplotlib.pyplot import text
 from numpy import sqrt
+import logging
 
 import torch
 import torch.nn as nn
@@ -16,8 +17,11 @@ from .conv_lstm import ConvLSTM
 from timesformer.models.vit import TimeSformer
 from .clip4clip_modules.module_clip import CLIP
 
+logger = logging.getLogger(__name__)
 
 # simplest thing should be to predict a segmentation mask first
+
+
 class SegmentationBaseline(nn.Module):
     """Some Information about MyModule"""
 
@@ -805,9 +809,8 @@ class CLIP_Baseline(nn.Module):
     def forward(self, frames, text, frame_mask, text_mask):
 
         tok_type_ids = (text*0).detach().clone()
-        import pdb
-        pdb.set_trace()
-
+        # import pdb; pdb.set_trace()
+        # with torch.no_grad():
         text_feat, vision_feat = self.get_sequence_visual_output(
             text, tok_type_ids, text_mask, frames, frame_mask)
         # vision feat: b t (h w) c
@@ -931,6 +934,70 @@ class CLIP_Baseline(nn.Module):
 
         return sequence_output, visual_output
 
+    @classmethod
+    def init_preweight(self, model, state_dict, prefix=None, task_config=None):
+        old_keys = []
+        new_keys = []
+        for key in state_dict.keys():
+            new_key = None
+            if 'gamma' in key:
+                new_key = key.replace('gamma', 'weight')
+            if 'beta' in key:
+                new_key = key.replace('beta', 'bias')
+            if new_key:
+                old_keys.append(key)
+                new_keys.append(new_key)
+        for old_key, new_key in zip(old_keys, new_keys):
+            state_dict[new_key] = state_dict.pop(old_key)
+
+        if prefix is not None:
+            old_keys = []
+            new_keys = []
+            for key in state_dict.keys():
+                old_keys.append(key)
+                new_keys.append(prefix + key)
+            for old_key, new_key in zip(old_keys, new_keys):
+                state_dict[new_key] = state_dict.pop(old_key)
+
+        missing_keys = []
+        unexpected_keys = []
+        error_msgs = []
+        # copy state_dict so _load_from_state_dict can modify it
+        metadata = getattr(state_dict, '_metadata', None)
+        state_dict = state_dict.copy()
+        if metadata is not None:
+            state_dict._metadata = metadata
+
+        def load(module, prefix=''):
+            local_metadata = {} if metadata is None else metadata.get(
+                prefix[:-1], {})
+            module._load_from_state_dict(
+                state_dict, prefix, local_metadata, True, missing_keys, unexpected_keys, error_msgs)
+            for name, child in module._modules.items():
+                if child is not None:
+                    load(child, prefix + name + '.')
+
+        load(model, prefix='')
+
+        if prefix is None and (task_config is None or task_config.local_rank == 0):
+            logger.info("-" * 20)
+            if len(missing_keys) > 0:
+                print("Weights of {} not initialized from pretrained model: {}"
+                      .format(model.__class__.__name__, "\n   " + "\n   ".join(missing_keys)))
+            if len(unexpected_keys) > 0:
+                print("Weights from pretrained model not used in {}: {}"
+                      .format(model.__class__.__name__, "\n   " + "\n   ".join(unexpected_keys)))
+            if len(error_msgs) > 0:
+                print("Weights from pretrained model cause errors in {}: {}"
+                      .format(model.__class__.__name__, "\n   " + "\n   ".join(error_msgs)))
+
+        for name, param in model.named_parameters():
+            if name in missing_keys:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+        return model
+
     def clip_from_dict(self, clip_state_dict):
         vit = "visual.proj" in clip_state_dict
         assert vit
@@ -977,7 +1044,13 @@ class CLIP_Baseline(nn.Module):
             if key in clip_state_dict:
                 del clip_state_dict[key]
 
+        self.clip = self.init_preweight(self.clip, clip_state_dict)
         self.convert_weights(self.clip)
+
+        self.clip = self.clip.float()
+
+        # print(self.clip)
+        # print(clip_state_dict)
 
     def convert_weights(self, model: nn.Module):
         """Convert applicable model parameters to fp16"""

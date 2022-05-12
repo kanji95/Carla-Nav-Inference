@@ -28,18 +28,25 @@ from utilities.utilities import *
 
 
 class Solver(object):
-    def __init__(self, args, inference=False, force_parallel=False, show_rk=False, average_masks=False):
+    def __init__(self, args, inference=False, validation=False, force_parallel=False, show_rk=False, average_masks=False):
         self.args = args
 
         self.inference = inference
+        self.validation = validation
         self.force_parallel = force_parallel
         self.show_rk = show_rk
         self.average_masks = average_masks
 
         self.experiment = wandb.init(
             project="Language Navigation", config=self.args)
-        if not self.inference:
-            self.experiment.name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}_tf_{args.traj_frames}_{self.experiment.id}"
+        exp_name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}-{args.num_frames}_tf_{args.traj_frames}_{self.experiment.id}"
+        if self.inference:
+            self.experiment.name = 'infer_'+exp_name
+        elif self.validation:
+            self.experiment.name = 'val_'+exp_name
+        else:
+            self.experiment.name = exp_name
+
         # else:
         #     self.experiment.name = f'inference_{args.checkpoint}'
         if not self.inference:
@@ -200,6 +207,7 @@ class Solver(object):
                 num_frames=self.num_frames,
                 attn_type=self.attn_type,
             )
+            self.network = self.network.float()
 
         wandb.watch(self.network, log="all")
 

@@ -29,14 +29,15 @@ def main(args):
     torch.cuda.manual_seed(seed)
     np.random.seed(seed)
 
-
     print(
         f"================= Model Filename: {args.checkpoint} =================")
 
     print("Initializing Solver!")
-    solver = Solver(args,force_parallel = True,show_rk=True,average_masks=True)
+    solver = Solver(args, force_parallel=True, show_rk=True,
+                    average_masks=True, validation=True)
 
-    solver.network.load_state_dict(torch.load(args.checkpoint,map_location=solver.device)['state_dict'])
+    solver.network.load_state_dict(torch.load(
+        args.checkpoint, map_location=solver.device)['state_dict'])
 
     print(
         f"Training Iterations: {len(solver.train_loader)}, Validation Iterations: {len(solver.val_loader)}")
@@ -74,7 +75,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--checkpoint",
-        required = True,
+        required=True,
         type=str,
         help="checkpoint path",
     )
@@ -105,7 +106,7 @@ if __name__ == "__main__":
         ],
         type=str,
     )
-    
+
     parser.add_argument(
         "--attn_type",
         default='dot_product',
@@ -133,7 +134,12 @@ if __name__ == "__main__":
             "deeplabv3_resnet101",
             "deeplabv3_mobilenet_v3_large",
             "convlstm",
-            "conv3d_baseline"
+            "conv3d_baseline",
+            "clip_ViT-B/16",
+            "clip_ViT-B/32",
+            "clip_ViT-L/16",
+            "clip_ViT-L/32",
+            "clip_ViT-L/14@336px",
         ],
         type=str,
     )

@@ -485,7 +485,7 @@ class CLIP(nn.Module):
         hidden = self.visual.ln_post(hidden) @ self.visual.proj
         # import pdb; pdb.set_trace()
 
-        x = hidden[:, :-1, :]
+        x = hidden[:, 1:, :]
 
         if return_hidden:
             return x, hidden
