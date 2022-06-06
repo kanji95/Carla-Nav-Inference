@@ -748,6 +748,10 @@ class CLIP_Baseline(nn.Module):
 
         self.clip_from_dict(clip_dict)
 
+        self.temporal_clip_encode = nn.Conv3d(
+            in_channels=self.hidden_dim, out_channels=self.hidden_dim,
+            kernel_size=(3, 1, 1), padding=(1, 0, 0))
+
         encoder_layer = TransformerEncoderLayer(
             self.hidden_dim,
             nhead=8,
@@ -814,7 +818,7 @@ class CLIP_Baseline(nn.Module):
         text_feat, vision_feat = self.get_sequence_visual_output(
             text, tok_type_ids, text_mask, frames, frame_mask)
         # vision feat: b t (h w) c
-        # text feat: b c
+        # text feat: b 1 c
         # print(vision_feat.shape)
 
         h = w = int(sqrt(vision_feat.size(2)))
@@ -822,13 +826,21 @@ class CLIP_Baseline(nn.Module):
         t = vision_feat.size(1)
         c = vision_feat.size(3)
 
+        vision_feat = rearrange(
+            vision_feat, 'b t (h w) c -> b c t h w ', h=h, w=w)
+
+        vision_feat = self.temporal_clip_encode(vision_feat)
+
+        vision_feat = rearrange(
+            vision_feat, 'b c t h w -> b t (h w) c', h=h, w=w)
+
         text_feat = repeat(text_feat, "b 1 c -> (b t) c 1",
                            t=vision_feat.size(1))
 
         text_feat_mask = text_feat.detach().clone()[:, 0, :]
         text_feat_mask = 1-0*text_feat_mask
 
-        vision_feat = repeat(vision_feat, 'b t l c -> (b t) c l')
+        vision_feat = rearrange(vision_feat, 'b t l c -> (b t) c l')
 
         visual_feat_mask = vision_feat[:, 0, :]
 
@@ -1029,7 +1041,7 @@ class CLIP_Baseline(nn.Module):
         transformer_layers = len(set(k.split(
             ".")[2] for k in clip_state_dict if k.startswith(f"transformer.resblocks")))
 
-        self.linear_patch = '3d'  # set between 2d and 3d
+        self.linear_patch = '2d'  # set between 2d and 3d
 
         # use .float() to avoid overflow/underflow from fp16 weight. https://github.com/openai/CLIP/issues/40
         cut_top_layer = 0
