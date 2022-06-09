@@ -20,6 +20,9 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
+from matplotlib import pyplot as plt
+from matplotlib import transforms
+
 from einops import repeat
 
 from .word_utils import Corpus
@@ -270,6 +273,57 @@ class CarlaCLIPFullDataset(Dataset):
         # return len(self.episodes)
         return self.dataset_len
 
+    def make_timeline(self, past):
+        vals = np.array(past)
+        x = vals[:, 0]
+        y = vals[:, 1]
+        z = vals[:, 2]
+
+        first_x = 0
+        end_x = int(x.shape[0]/5)
+
+        line_rot = np.arctan((y[end_x]-y[first_x]) /
+                             (x[end_x]-x[first_x]+1e-9)) * 180/np.pi
+
+        if x[end_x]-x[first_x] < 0:
+            line_rot += 180
+        elif x[end_x] == x[first_x] and y[first_x]-y[end_x] < 0:
+            line_rot += 180
+
+        rot = transforms.Affine2D().rotate_deg(90-line_rot)
+
+        fig = plt.figure()
+
+        points = vals[:, :3]
+        points[:, 2] = 1
+
+        temp_out = rot.transform(points[:, :2])
+
+        x = -temp_out[:, 0]
+        y = temp_out[:, 1]
+
+        plt.plot(x, y, color='black')
+
+        y_min = np.min([y[0]-20, np.min(y)-10])
+        y_max = np.max([y[0]+80, np.max(y)+10])
+
+        x_size = np.max([50, np.max(x)-x[0]+10, x[0]-np.min(x)+10])
+        x_min = x[0]-x_size
+        x_max = x[0]+x_size
+
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
+        plt.gca().set_aspect('equal')
+        plt.axis('off')
+
+        fig.canvas.draw()
+        timeline = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        timeline = timeline.reshape(fig.canvas.get_width_height()[::-1]+(3,))
+        plt.close()
+        timeline = timeline[:, :, 0].astype(np.float32)/255
+        timeline = 1-timeline
+        return timeline
+
     # TODO - Include Vehicle Position
     def get_video_data(
         self,
@@ -410,9 +464,12 @@ class CarlaCLIPFullDataset(Dataset):
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
 
+        past = vehicle_positions[:sample_idx+1]
+        timeline = self.make_timeline(past)
+
         # print(traj_mask.min(), traj_mask.max(), pixel_coordinates.shape)
         # print(traj_mask.shape, orig_frames.shape)
-        return frames, orig_frames, frame_masks, traj_mask, None, sample_idx
+        return frames, orig_frames, frame_masks, traj_mask, None, sample_idx, timeline
 
     def get_image_data(
         self,
@@ -586,6 +643,7 @@ class CarlaCLIPFullDataset(Dataset):
                 traj_mask,
                 sub_commands,
                 sample_idx,
+                timeline,
             ) = self.get_video_data(
                 episode_num,
                 K,
@@ -605,6 +663,7 @@ class CarlaCLIPFullDataset(Dataset):
         output["gt_traj_mask"] = traj_mask
         output["episode"] = episode_dir.split("/")[-1]
         output["sample_idx"] = sample_idx
+        output["timeline"] = timeline
         # output['gt_timestep'] = torch.tensor(curr_timestep, dtype=torch.float32)
 
         command = open(command_path, "r").read()

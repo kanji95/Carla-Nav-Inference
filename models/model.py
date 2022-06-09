@@ -810,7 +810,7 @@ class CLIP_Baseline(nn.Module):
             nn.Sigmoid(),
         )
 
-    def forward(self, frames, text, frame_mask, text_mask):
+    def forward(self, frames, text, frame_mask, text_mask, timeline):
 
         tok_type_ids = (text*0).detach().clone()
         # import pdb; pdb.set_trace()
@@ -820,6 +820,7 @@ class CLIP_Baseline(nn.Module):
         # vision feat: b t (h w) c
         # text feat: b 1 c
         # print(vision_feat.shape)
+        # timeline: b 480 640
 
         h = w = int(sqrt(vision_feat.size(2)))
         b = vision_feat.size(0)

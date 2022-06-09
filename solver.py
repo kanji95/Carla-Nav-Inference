@@ -459,6 +459,9 @@ class Solver(object):
                 gt_mask = batch["gt_frame"].cuda(non_blocking=True)
                 gt_traj_mask = batch["gt_traj_mask"].cuda(non_blocking=True)
 
+                if 'clip_' in self.img_backbone:
+                    timeline = batch['timeline'].cuda(non_blocking=True)
+
                 # gt_timestep = batch["gt_timestep"].cuda(non_blocking=True)
 
                 batch_size = frame.shape[0]
@@ -470,9 +473,14 @@ class Solver(object):
             start_time = time()
 
             # import pdb; pdb.set_trace()
-            mask, traj_mask = self.network(
-                frame, text, frame_mask, text_mask
-            )
+            if 'clip_' in self.img_backbone:
+                mask, traj_mask = self.network(
+                    frame, text, frame_mask, text_mask, timeline
+                )
+            else:
+                mask, traj_mask = self.network(
+                    frame, text, frame_mask, text_mask
+                )
             # print(type(timestep), type(gt_timestep), timestep.dtype, gt_timestep.dtype)
 
             # print(mask.shape, traj_mask.shape, gt_mask.shape, gt_traj_mask.shape)
