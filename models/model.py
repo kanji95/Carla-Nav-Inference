@@ -748,8 +748,20 @@ class CLIP_Baseline(nn.Module):
 
         self.clip_from_dict(clip_dict)
 
+        self.timeline_encode = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=3, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=3, out_channels=5, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=5, out_channels=7, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            # h = w = 7 generally for clip encoded output image conversion
+            nn.Linear(480*640*7, 49)
+        )
+
         self.temporal_clip_encode = nn.Conv3d(
-            in_channels=self.hidden_dim, out_channels=self.hidden_dim,
+            in_channels=self.hidden_dim+1, out_channels=self.hidden_dim,
             kernel_size=(3, 1, 1), padding=(1, 0, 0))
 
         encoder_layer = TransformerEncoderLayer(
@@ -822,10 +834,16 @@ class CLIP_Baseline(nn.Module):
         # print(vision_feat.shape)
         # timeline: b 480 640
 
+        timeline = rearrange(timeline, 'b h w -> b 1 h w')
+        timeline_feat = self.timeline_encode(timeline)  # b (h w) where h=w=7
+
         h = w = int(sqrt(vision_feat.size(2)))
         b = vision_feat.size(0)
         t = vision_feat.size(1)
         c = vision_feat.size(3)
+
+        timeline_feat = repeat(timeline_feat, 'b hw -> b t hw 1', t=t)
+        vision_feat = torch.cat([vision_feat, timeline_feat], dim=3)
 
         vision_feat = rearrange(
             vision_feat, 'b t (h w) c -> b c t h w ', h=h, w=w)

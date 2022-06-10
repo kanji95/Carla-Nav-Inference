@@ -711,6 +711,8 @@ class Solver(object):
             )
             num_samples += batch_size
 
+            timeline = batch['timeline'].cuda(non_blocking=True)
+
             # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
             # re_gt_mask = rearrange(gt_mask, "b c t h w -> (b t) c h w")
             # bs, _, h, w = re_gt_mask.shape
@@ -722,9 +724,14 @@ class Solver(object):
             start_time = time()
 
             # import pdb; pdb.set_trace()
-            mask, traj_mask = self.network(
-                frame, text, frame_mask, text_mask
-            )
+            if 'clip_' in self.img_backbone:
+                mask, traj_mask = self.network(
+                    frame, text, frame_mask, text_mask, timeline
+                )
+            else:
+                mask, traj_mask = self.network(
+                    frame, text, frame_mask, text_mask
+                )
             # print(type(timestep), type(gt_timestep))
             # re_mask = rearrange(mask, "b c t h w -> (b t) c h w")
 
