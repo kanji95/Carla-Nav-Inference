@@ -39,12 +39,15 @@ class Solver(object):
 
         self.experiment = wandb.init(
             project="Language Navigation", config=self.args)
-        exp_name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}-{args.num_frames}_tf_{args.traj_frames}_{self.experiment.id}"
+
         if self.inference:
-            self.experiment.name = 'infer_'+exp_name
+            self.experiment.name = 'infer_' + \
+                f"{args.img_backbone}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}-{args.num_frames}_tf_{args.traj_frames}_{self.experiment.id}"
         elif self.validation:
+            exp_name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}-{args.num_frames}_tf_{args.traj_frames}_{self.experiment.id}"
             self.experiment.name = 'val_'+exp_name
         else:
+            exp_name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}-{args.num_frames}_tf_{args.traj_frames}_{self.experiment.id}"
             self.experiment.name = exp_name
 
         # else:
