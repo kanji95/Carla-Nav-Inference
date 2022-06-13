@@ -26,8 +26,10 @@ IGNORE = {
     # "val": ['1', '44']
     # "train": ['100', '128', '153', '159', '163', '180', '197', '198', '204', '211', '221', '231', '233', '237', '242', '251', '263', '264', '265', '268', '27', '273', '278', '284', '286', '327', '50', '65', '75'],
     # [116, 119, 122, 130, 131, 133, 142, 148, 160, 186, 190, 200, 408]
-    "train": ['451','415', '489', '387', '423', '443', '342', '480', '407', '359', '402', '43', '97', '18', '262', '404', '386', '448', '449', '225', '475', '483', '389', '405', '412', '390', '193', '403', '161', '340', '27', '14', '401', '414'],
-    "val": ['34', '49', '44', '37', '38', '42'],
+    # "train": ['451','415', '489', '387', '423', '443', '342', '480', '407', '359', '402', '43', '97', '18', '262', '404', '386', '448', '449', '225', '475', '483', '389', '405', '412', '390', '193', '403', '161', '340', '27', '14', '401', '414'],
+    # "val": ['34', '49', '44', '37', '38', '42'],
+    'train': [],
+    'val': [],
 }
 
 
@@ -349,7 +351,7 @@ class CarlaFullDataset(Dataset):
                 mask_[1] = mask[0]
                 # sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
                 # if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
-                    # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+                # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
             else:
                 mask_[0] = mask[0]
                 # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
@@ -474,14 +476,14 @@ class CarlaFullDataset(Dataset):
             # sub_command = self.sub_command_data.loc[episode_num]['sub_command_1']
             # curr_timestep = 1.
             # if pd.isna(self.sub_command_data.loc[episode_num]['sub_command_1']):
-                # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
-                # curr_timestep = 0 1. * random.randint(0, 1)
+            # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
+            # curr_timestep = 0 1. * random.randint(0, 1)
         else:
             mask_[0] = mask[0]
             # sub_command = self.sub_command_data.loc[episode_num]['sub_command_0']
             # curr_timestep = 0.
 
-        mask = mask_ #+ 1e-4
+        mask = mask_  # + 1e-4
 
         rgb_matrix = np.load(matrix_files[sample_idx])
 
