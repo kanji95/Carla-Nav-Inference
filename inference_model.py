@@ -14,6 +14,8 @@ from __future__ import print_function
 from einops import rearrange
 import shutil
 
+import matplotlib
+
 from agents.navigation.basic_agent import BasicAgent  # pylint: disable=import-error
 from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
 from carla import ColorConverter as cc
@@ -290,58 +292,104 @@ class World(object):
                 corresponding_maps = ['Town05', 'Town03', 'Town10HD', 'Town01', 'Town05', 'Town03',
                                       'Town02', 'Town03', 'Town05', 'Town02', 'Town05', 'Town05',
                                       'Town05', 'Town01', 'Town01', 'Town10HD', 'Town02', 'Town05',
-                                      'Town05', 'Town03', 'Town07', 'Town02', 'Town05', 'Town05',
+                                      'Town05', 'Town03', 'Town07', 'Town03', 'Town05', 'Town05',
                                       'Town01']
-                other_spawns = [[-9.26923599e+01,  8.44226074e+01,  3.00402393e-01,
-                                 -1.77731754e+02],
-                                [1.17872810e+01, -8.78479691e+01,  3.00346870e-01,
-                                 -7.66220926e+00],
-                                [1.56697952e+02,  3.26596375e+02,  3.00384864e-01,
-                                 1.79854262e+02],
-                                [1.78018295e+02,  1.05297661e+02,  5.20497061e-01,
-                                 1.76370477e+02],
-                                [-1.84306503e+02,  6.02764359e+01,  3.55839919e-01,
-                                 -7.49027179e+01],
-                                [-1.84570938e+02, -3.31036072e+01,  3.55855808e-01,
-                                 -9.14007581e+01],
-                                [-8.83062210e+01,  2.15305977e+01,  3.34075755e-01,
-                                 8.98495000e+01],
-                                [4.47318611e+01,  1.30585266e+02,  3.00308589e-01,
-                                 -1.78687297e+02],
-                                [-3.67999959e+00,  1.21209999e+02,  5.19913651e-01,
-                                 -8.99998181e+01],
-                                [-1.20849388e+02, -1.22122986e+02,  3.00467490e-01,
-                                 -8.92562086e+01],
-                                [-1.25969410e+01, -8.43987503e+01,  3.00346832e-01,
-                                 6.38101506e-01],
-                                [1.41300917e+01,  6.97140045e+01,  2.99815845e-01,
-                                 7.32729899e-02],
-                                [3.92337128e+02,  2.87440125e+02,  3.00336990e-01,
-                                 8.99912667e+01],
-                                [-1.07596748e+02,  7.16208191e+01,  3.00389309e-01,
-                                 -9.21751170e+01],
-                                [1.17757645e+02, -2.05576158e+00,  3.00134048e-01,
-                                 -1.79646625e+02],
-                                [-1.49130745e+01, -1.38322464e+02,  3.00254897e-01,
-                                 1.71650645e+02],
-                                [9.37591476e+01,  1.29825363e+02,  3.00583935e-01,
-                                 -3.45377405e+01],
-                                [-9.96025162e+01,  4.37102280e+01,  2.99886169e-01,
-                                 -8.83309023e+01],
-                                [-8.85179214e+01, -5.60795135e+01, -3.65182183e-01,
-                                 8.98412037e+01],
-                                [8.83797836e+01,  9.92208862e+01,  3.00323562e-01,
-                                 8.98171925e+01],
-                                [-1.20887642e+02,  3.76235085e+01,  3.00598297e-01,
-                                 -9.05027520e+01],
-                                [-1.22780319e+02, -1.35758575e+02,  9.99672331e-01,
-                                 1.62061530e+02],
-                                [6.04843826e+01,  1.41189728e+02,  3.00528278e-01,
-                                 3.05010811e-01],
-                                [1.78290054e+02,  3.02570007e+02,  5.19960381e-01,
-                                 -1.79999636e+02],
-                                [-1.84589813e+02, -7.04510651e+01,  3.55607432e-01,
-                                 -9.01640295e+01]]
+                other_spawns = [[151.48081970214844,
+                                 -42.736541748046875,
+                                 0.33903186600655316,
+                                 89.79522662591198],
+                                [-9.446842193603516,
+                                 141.4587860107422,
+                                 0.30041685067117213,
+                                 89.56831411795777],
+                                [-41.8338623046875,
+                                 -16.555164337158203,
+                                 0.3000702468678355,
+                                 -90.16118813760058],
+                                [392.4732666015625, 23.067138671875,
+                                 0.30034572556614875, 85.00644477467706],
+                                [-120.81031036376953,
+                                 -124.56148529052734,
+                                 0.30048427563160657,
+                                 -81.09232441446947],
+                                [5.6316423416137695,
+                                 153.82647705078125,
+                                 0.3003566741943359,
+                                 -90.59941984702316],
+                                [176.5747833251953,
+                                 240.9458770751953,
+                                 0.5204409139230848,
+                                 0.6865905492633397],
+                                [110.70651245117188,
+                                 -6.827028274536133,
+                                 0.300383204780519,
+                                 -179.12100060558794],
+                                [-166.29696655273438,
+                                 -4.21021842956543,
+                                 0.3003206245601177,
+                                 -171.88326762970178],
+                                [146.53599548339844,
+                                 302.54486083984375,
+                                 0.520397879369557,
+                                 179.97736976081973],
+                                [-184.47097778320312,
+                                 -27.163793563842773,
+                                 0.3558374198153615,
+                                 -94.50897205943477],
+                                [-184.6378631591797,
+                                 109.74862670898438,
+                                 0.3560904676094651,
+                                 -93.91201157373341],
+                                [-12.596940994262695,
+                                 -84.39875030517578,
+                                 0.3003468319773674,
+                                 0.6381015056073027],
+                                [134.89044189453125,
+                                 133.4287872314453,
+                                 0.30033439602702855,
+                                 0.6146810410042063],
+                                [88.36209869384766,
+                                 34.347347259521484,
+                                 0.3003819270059466,
+                                 90.87295525533357],
+                                [31.848548889160156,
+                                 140.7878875732422,
+                                 0.3003435704857111,
+                                 -4.29834204509062],
+                                [173.87005615234375,
+                                 109.40003967285156,
+                                 0.5200336949899793,
+                                 -0.0001831054738447505],
+                                [-146.84095764160156,
+                                 -84.61760711669922,
+                                 0.3000925436615944,
+                                 -0.5131835517592315],
+                                [-150.30043029785156,
+                                 -84.37971496582031,
+                                 0.3003046607598662,
+                                 11.199961794020014],
+                                [150.08656311035156, -110.10604095458984,
+                                 8.30025009084493, 91.4936144379134],
+                                [-51.79652786254883,
+                                 -88.22584533691406,
+                                 0.2997422406449914,
+                                 -0.08966065264642963],
+                                [-6.184450626373291,
+                                 104.49187469482422,
+                                 0.30405727326869963,
+                                 89.91715809890914],
+                                [-184.58981323242188,
+                                 -70.45106506347656,
+                                 0.35560743156820535,
+                                 -90.16402948723683],
+                                [69.17860412597656,
+                                 -145.4691619873047,
+                                 0.33887405339628457,
+                                 1.9406163128470022],
+                                [-2.0694081783294678,
+                                 9.504401206970215,
+                                 0.29992961809039115,
+                                 90.92640835629265]]
             elif args.infer_dataset == 'val5':
 
                 corresponding_maps = ['Town10HD', 'Town03',
@@ -1305,6 +1353,58 @@ def camera_manager_listen_event(image, functions):
         f(image)
 
 
+def make_timeline(past):
+    vals = np.array(past)
+    x = vals[:, 0]
+    y = vals[:, 1]
+    z = vals[:, 2]
+
+    first_x = 0
+    end_x = int(x.shape[0]/5)
+
+    line_rot = np.arctan((y[end_x]-y[first_x]) /
+                         (x[end_x]-x[first_x]+1e-9)) * 180/np.pi
+
+    if x[end_x]-x[first_x] < 0:
+        line_rot += 180
+    elif x[end_x] == x[first_x] and y[first_x]-y[end_x] < 0:
+        line_rot += 180
+
+    rot = matplotlib.transforms.Affine2D().rotate_deg(90-line_rot)
+
+    fig = plt.figure()
+
+    points = vals[:, :3]
+    points[:, 2] = 1
+
+    temp_out = rot.transform(points[:, :2])
+
+    x = -temp_out[:, 0]
+    y = temp_out[:, 1]
+
+    plt.plot(x, y, color='black')
+
+    y_min = np.min([y[0]-20, np.min(y)-10])
+    y_max = np.max([y[0]+80, np.max(y)+10])
+
+    x_size = np.max([50, np.max(x)-x[0]+10, x[0]-np.min(x)+10])
+    x_min = x[0]-x_size
+    x_max = x[0]+x_size
+
+    plt.xlim(x_min, x_max)
+    plt.ylim(y_min, y_max)
+    plt.gca().set_aspect('equal')
+    plt.axis('off')
+
+    fig.canvas.draw()
+    timeline = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+    timeline = timeline.reshape(fig.canvas.get_width_height()[::-1]+(3,))
+    plt.close()
+    timeline = timeline[:, :, 0].astype(np.float32)/255
+    timeline = 1-timeline
+    return timeline
+
+
 def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sampling):
     global command_given
     global episode_number
@@ -1342,6 +1442,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
     global video_queue
     global full_video
+    global past
 
     global pred_found
     global num_preds
@@ -1371,6 +1472,11 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             video_queue.pop()
             video_queue.append(frame)
 
+    if frame_count == 0:
+        past = []
+    past.append([image.transform.location.x,
+                image.transform.location.y, image.transform.location.z])
+
     if frame_count == 0 and target_number == 0:
         frame_video = []
         mask_video = []
@@ -1398,8 +1504,17 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                 # phrase = phrase.float()
                 frame_mask = frame_mask.float()
 
-            mask, traj_mask = network(
-                video_frames, phrase, frame_mask, phrase_mask)
+                timeline = make_timeline(past)
+                timeline = torch.Tensor(timeline).cuda(
+                    non_blocking=True).unsqueeze(0).float()
+
+            if 'clip_' in args.img_backbone:
+                mask, traj_mask = network(
+                    video_frames, phrase, frame_mask, phrase_mask, timeline
+                )
+            else:
+                mask, traj_mask = network(
+                    video_frames, phrase, frame_mask, phrase_mask)
 
         if len(mask.shape) == 5:
             mask = mask.detach()[:, -1]
