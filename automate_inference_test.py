@@ -1,12 +1,13 @@
 import os
-episodes = [11, 14, 18, 22]+list(range(25, 25))
+episodes = list(range(27, 28))
 
 checkpoint = './saved_model/new_clip/clip_ViT-B_32_class_level_combo_multi_head_hd_512_sf_10-6_tf_20_8_Jun_0.23522.pth'
 maps = ['Town05', 'Town03', 'Town10HD', 'Town01', 'Town05', 'Town03',
         'Town02', 'Town03', 'Town05', 'Town02', 'Town05', 'Town05',
         'Town05', 'Town01', 'Town01', 'Town10HD', 'Town02', 'Town05',
         'Town05', 'Town03', 'Town07', 'Town03', 'Town05', 'Town05',
-        'Town01']
+        'Town01', 'Town03', 'Town01', 'Town10HD', 'Town02', 'Town01',
+        'Town01', 'Town10HD', 'Town02', 'Town05']
 
 command = True
 for i in range(len(episodes)):
