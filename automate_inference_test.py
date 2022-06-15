@@ -6,7 +6,7 @@ maps = ['Town05', 'Town03', 'Town10HD', 'Town01', 'Town05', 'Town03',
         'Town02', 'Town03', 'Town05', 'Town02', 'Town05', 'Town05',
         'Town05', 'Town01', 'Town01', 'Town10HD', 'Town02', 'Town05',
         'Town05', 'Town03', 'Town07', 'Town03', 'Town05', 'Town05',
-        'Town01', 'Town03', 'Town01', 'Town10HD', 'Town02', 'Town01',
+        'Town01', 'Town02', 'Town01', 'Town10HD', 'Town02', 'Town01',
         'Town01', 'Town10HD', 'Town02', 'Town05']
 
 command = True
