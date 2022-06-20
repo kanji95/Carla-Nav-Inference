@@ -36,6 +36,7 @@ IGNORE = {
     # "val": ['34', '49', '44', '37', '38', '42'],
     'train': [],
     'val': [],
+    'test': [],
 }
 
 
@@ -266,8 +267,8 @@ class CarlaCLIPFullDataset(Dataset):
 
         # import pdb; pdb.set_trace()
         # print(os.getcwd())
-        self.sub_command_data = pd.read_csv(
-            f"./dataloader/sub_commands_{self.split}.csv", index_col=0)
+        # self.sub_command_data = pd.read_csv(
+        #     f"./dataloader/sub_commands_{self.split}.csv", index_col=0)
 
     def __len__(self):
         # return len(self.episodes)

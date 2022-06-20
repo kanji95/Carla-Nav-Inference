@@ -28,11 +28,12 @@ from utilities.utilities import *
 
 
 class Solver(object):
-    def __init__(self, args, inference=False, validation=False, force_parallel=False, show_rk=False, average_masks=False):
+    def __init__(self, args, inference=False, validation=False, test=False, force_parallel=False, show_rk=False, average_masks=False):
         self.args = args
 
         self.inference = inference
         self.validation = validation
+        self.test = test
         self.force_parallel = force_parallel
         self.show_rk = show_rk
         self.average_masks = average_masks
@@ -43,6 +44,9 @@ class Solver(object):
         if self.inference:
             self.experiment.name = 'infer_' + \
                 f"{args.img_backbone}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}-{args.num_frames}_tf_{args.traj_frames}_{self.experiment.id}"
+        elif self.test:
+            exp_name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}-{args.num_frames}_tf_{args.traj_frames}_{self.experiment.id}"
+            self.experiment.name = 'test_'+exp_name
         elif self.validation:
             exp_name = f"{args.img_backbone}_{args.loss_func}_{args.attn_type}_hd_{args.hidden_dim}_sf_{args.one_in_n}-{args.num_frames}_tf_{args.traj_frames}_{self.experiment.id}"
             self.experiment.name = 'val_'+exp_name
@@ -294,7 +298,7 @@ class Solver(object):
                 self.val_dataset = CarlaFullDataset(
                     data_root=self.data_root,
                     glove_path=self.glove_path,
-                    split="val",
+                    split="val" if not self.test else "test",
                     dataset_len=20000,
                     img_transform=self.val_transform,
                     mask_transform=self.mask_transform,
@@ -328,7 +332,7 @@ class Solver(object):
                 )
                 self.val_dataset = CarlaCLIPFullDataset(
                     data_root=self.data_root,
-                    split="val",
+                    split="val" if not self.test else "test",
                     dataset_len=20000,
                     img_transform=self.val_transform,
                     mask_transform=self.mask_transform,
