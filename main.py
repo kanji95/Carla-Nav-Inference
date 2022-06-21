@@ -166,6 +166,7 @@ if __name__ == "__main__":
             "vit_tiny_patch16_384",
             "vit_small_patch16_384",
             "dino_resnet50",
+            "iros",
             "timesformer",
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",

@@ -120,6 +120,17 @@ class Solver(object):
                 image_dim=self.image_dim,
                 mask_dim=self.mask_dim,
             )
+        elif "iros" in self.img_backbone:
+            img_backbone = torch.hub.load(
+                'pytorch/vision:v0.10.0', 'resnet50', pretrained=True)
+            visual_encoder = IntermediateLayerGetter(
+                img_backbone, return_layers)
+            self.network = IROSBaseline(
+                visual_encoder,
+                hidden_dim=self.hidden_dim,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
+            )
         elif "timesformer" in self.img_backbone:
             self.mode = "video"
             spatial_dim = self.image_dim // self.patch_size
