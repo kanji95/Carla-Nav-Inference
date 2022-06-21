@@ -14,6 +14,7 @@ from torchvision.models._utils import IntermediateLayerGetter
 from dataloader.carla_loader_clip import CarlaCLIPFullDataset
 
 import timm
+from dataloader.carla_loader_rnrcon import CarlaRNRConFullDataset
 from timesformer.models.vit import VisionTransformer
 
 from segmentation_models_pytorch.losses import *
@@ -126,6 +127,17 @@ class Solver(object):
             visual_encoder = IntermediateLayerGetter(
                 img_backbone, return_layers)
             self.network = IROSBaseline(
+                visual_encoder,
+                hidden_dim=self.hidden_dim,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
+            )
+        elif "rnrcon" in self.img_backbone:
+            img_backbone = torch.hub.load(
+                'pytorch/vision:v0.10.0', 'resnet50', pretrained=True)
+            visual_encoder = IntermediateLayerGetter(
+                img_backbone, return_layers)
+            self.network = RNRCon(
                 visual_encoder,
                 hidden_dim=self.hidden_dim,
                 image_dim=self.image_dim,
@@ -288,7 +300,76 @@ class Solver(object):
         )
 
         if not self.inference:
-            if 'clip_' not in self.img_backbone:
+            if 'clip_' in self.img_backbone:
+
+                self.train_dataset = CarlaCLIPFullDataset(
+                    data_root=self.data_root,
+                    split="train",
+                    dataset_len=100000,
+                    img_transform=self.train_transform,
+                    mask_transform=self.mask_transform,
+                    traj_transform=self.traj_transform,
+                    sequence_len=self.num_frames,
+                    mode=self.mode,
+                    image_dim=self.image_dim,
+                    mask_dim=self.mask_dim,
+                    traj_dim=self.traj_dim,
+                    traj_frames=self.traj_frames,
+                    traj_size=self.traj_size,
+                    one_in_n=self.one_in_n,
+                )
+                self.val_dataset = CarlaCLIPFullDataset(
+                    data_root=self.data_root,
+                    split="val" if not self.test else "test",
+                    dataset_len=20000,
+                    img_transform=self.val_transform,
+                    mask_transform=self.mask_transform,
+                    traj_transform=self.traj_transform,
+                    sequence_len=self.num_frames,
+                    mode=self.mode,
+                    image_dim=self.image_dim,
+                    mask_dim=self.mask_dim,
+                    traj_dim=self.traj_dim,
+                    traj_frames=self.traj_frames,
+                    traj_size=self.traj_size,
+                    one_in_n=self.one_in_n,
+                )
+            elif 'rnrcon' in self.img_backbone:
+                self.train_dataset = CarlaRNRConFullDataset(
+                    data_root=self.data_root,
+                    glove_path=self.glove_path,
+                    split="train",
+                    dataset_len=100000,
+                    img_transform=self.train_transform,
+                    mask_transform=self.mask_transform,
+                    traj_transform=self.traj_transform,
+                    sequence_len=self.num_frames,
+                    mode=self.mode,
+                    image_dim=self.image_dim,
+                    mask_dim=self.mask_dim,
+                    traj_dim=self.traj_dim,
+                    traj_frames=self.traj_frames,
+                    traj_size=self.traj_size,
+                    one_in_n=self.one_in_n,
+                )
+                self.val_dataset = CarlaRNRConFullDataset(
+                    data_root=self.data_root,
+                    glove_path=self.glove_path,
+                    split="val" if not self.test else "test",
+                    dataset_len=20000,
+                    img_transform=self.val_transform,
+                    mask_transform=self.mask_transform,
+                    traj_transform=self.traj_transform,
+                    sequence_len=self.num_frames,
+                    mode=self.mode,
+                    image_dim=self.image_dim,
+                    mask_dim=self.mask_dim,
+                    traj_dim=self.traj_dim,
+                    traj_frames=self.traj_frames,
+                    traj_size=self.traj_size,
+                    one_in_n=self.one_in_n,
+                )
+            else:
                 self.train_dataset = CarlaFullDataset(
                     data_root=self.data_root,
                     glove_path=self.glove_path,
@@ -309,40 +390,6 @@ class Solver(object):
                 self.val_dataset = CarlaFullDataset(
                     data_root=self.data_root,
                     glove_path=self.glove_path,
-                    split="val" if not self.test else "test",
-                    dataset_len=20000,
-                    img_transform=self.val_transform,
-                    mask_transform=self.mask_transform,
-                    traj_transform=self.traj_transform,
-                    sequence_len=self.num_frames,
-                    mode=self.mode,
-                    image_dim=self.image_dim,
-                    mask_dim=self.mask_dim,
-                    traj_dim=self.traj_dim,
-                    traj_frames=self.traj_frames,
-                    traj_size=self.traj_size,
-                    one_in_n=self.one_in_n,
-                )
-
-            else:
-                self.train_dataset = CarlaCLIPFullDataset(
-                    data_root=self.data_root,
-                    split="train",
-                    dataset_len=100000,
-                    img_transform=self.train_transform,
-                    mask_transform=self.mask_transform,
-                    traj_transform=self.traj_transform,
-                    sequence_len=self.num_frames,
-                    mode=self.mode,
-                    image_dim=self.image_dim,
-                    mask_dim=self.mask_dim,
-                    traj_dim=self.traj_dim,
-                    traj_frames=self.traj_frames,
-                    traj_size=self.traj_size,
-                    one_in_n=self.one_in_n,
-                )
-                self.val_dataset = CarlaCLIPFullDataset(
-                    data_root=self.data_root,
                     split="val" if not self.test else "test",
                     dataset_len=20000,
                     img_transform=self.val_transform,
@@ -457,6 +504,8 @@ class Solver(object):
 
         if self.mode == "video":
             feature_dim = 7
+        elif "rnrcon" in self.img_backbone:
+            feature_dim = 7
         else:
             feature_dim = 14
 
@@ -479,6 +528,8 @@ class Solver(object):
 
                 if 'clip_' in self.img_backbone:
                     timeline = batch['timeline'].cuda(non_blocking=True)
+                elif 'rnrcon' in self.img_backbone:
+                    timeline = batch['timeline'].cuda(non_blocking=True)
 
                 # gt_timestep = batch["gt_timestep"].cuda(non_blocking=True)
 
@@ -492,6 +543,10 @@ class Solver(object):
 
             # import pdb; pdb.set_trace()
             if 'clip_' in self.img_backbone:
+                mask, traj_mask = self.network(
+                    frame, text, frame_mask, text_mask, timeline
+                )
+            elif 'rnrcon' in self.img_backbone:
                 mask, traj_mask = self.network(
                     frame, text, frame_mask, text_mask, timeline
                 )
@@ -698,6 +753,8 @@ class Solver(object):
 
         if self.mode == "video":
             feature_dim = 7
+        elif "rnrcon" in self.img_backbone:
+            feature_dim = 7
         else:
             feature_dim = 14
 
@@ -741,6 +798,11 @@ class Solver(object):
 
             # import pdb; pdb.set_trace()
             if 'clip_' in self.img_backbone:
+                timeline = batch['timeline'].cuda(non_blocking=True)
+                mask, traj_mask = self.network(
+                    frame, text, frame_mask, text_mask, timeline
+                )
+            elif 'rnrcon' in self.img_backbone:
                 timeline = batch['timeline'].cuda(non_blocking=True)
                 mask, traj_mask = self.network(
                     frame, text, frame_mask, text_mask, timeline
