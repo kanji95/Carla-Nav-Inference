@@ -1422,7 +1422,16 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             non_blocking=True).unsqueeze(0)
 
         if mode != 'video':
-            mask, traj_mask = network(frame, phrase, frame_mask, phrase_mask)
+            if 'rnrcon' in args.img_backbone:
+                timeline = make_timeline(past)
+                timeline = torch.Tensor(timeline).cuda(
+                    non_blocking=True).unsqueeze(0).float()
+
+                mask, traj_mask = network(
+                    frame, phrase, frame_mask, phrase_mask, timeline)
+            else:
+                mask, traj_mask = network(
+                    frame, phrase, frame_mask, phrase_mask)
         else:
             video_frames = video_queue[::-1][::args.one_in_n][::-1]
             # video_frames = full_video[-args.num_frames *
@@ -2254,7 +2263,9 @@ def game_loop(args):
         checkpoint_path = args.checkpoint
 
         corpus = Corpus(glove_path)
-        if args.img_backbone == 'conv3d_baseline':
+        if solver.mode == 'video':
+            feature_dim = 7
+        elif "rnrcon" in solver.img_backbone:
             feature_dim = 7
         else:
             feature_dim = 14
@@ -2911,6 +2922,7 @@ def main():
             "vit_small_patch16_384",
             "dino_resnet50",
             "iros",
+            "rnrcon",
             "timesformer",
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",

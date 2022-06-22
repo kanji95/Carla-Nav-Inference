@@ -11,9 +11,6 @@ import pandas as pd
 import cv2
 from PIL import Image
 
-from models.clip4clip_modules.module_clip import CLIP
-import clip
-
 import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
@@ -32,7 +29,7 @@ IGNORE = {
     # "val": ['1', '44']
     # "train": ['100', '128', '153', '159', '163', '180', '197', '198', '204', '211', '221', '231', '233', '237', '242', '251', '263', '264', '265', '268', '27', '273', '278', '284', '286', '327', '50', '65', '75'],
     # [116, 119, 122, 130, 131, 133, 142, 148, 160, 186, 190, 200, 408]
-    # "train": ['451', '415', '489', '387', '423', '443', '342', '480', '407', '359', '402', '43', '97', '18', '262', '404', '386', '448', '449', '225', '475', '483', '389', '405', '412', '390', '193', '403', '161', '340', '27', '14', '401', '414'],
+    # "train": ['451','415', '489', '387', '423', '443', '342', '480', '407', '359', '402', '43', '97', '18', '262', '404', '386', '448', '449', '225', '475', '483', '389', '405', '412', '390', '193', '403', '161', '340', '27', '14', '401', '414'],
     # "val": ['34', '49', '44', '37', '38', '42'],
     'train': [],
     'val': [],
@@ -210,12 +207,13 @@ def get_curve_length(points):
 #         return output
 
 
-class CarlaCLIPFullDataset(Dataset):
+class CarlaRNRConFullDataset(Dataset):
     """Some Information about CarlaDataset"""
 
     def __init__(
         self,
         data_root,
+        glove_path,
         split="train",
         img_transform=None,
         mask_transform=None,
@@ -232,6 +230,7 @@ class CarlaCLIPFullDataset(Dataset):
         traj_size=25,
     ):
         self.data_dir = os.path.join(data_root, split)
+        self.glove_path = glove_path
         self.split = split
 
         self.img_transform = img_transform
@@ -264,6 +263,8 @@ class CarlaCLIPFullDataset(Dataset):
         for episode in IGNORE[split]:
             self.episodes.remove(episode)
         print("Number of episodes after removal: ", len(self.episodes))
+
+        self.corpus = Corpus(glove_path)
 
         # import pdb; pdb.set_trace()
         # print(os.getcwd())
@@ -680,10 +681,7 @@ class CarlaCLIPFullDataset(Dataset):
         if self.mode == "image":
             sub_commands = [sub_commands]
 
-        tokens = clip.tokenize(command)
-        phrase_mask = tokens.detach().clone()
-        phrase_mask[phrase_mask != 0] = 1
-        phrase_mask = phrase_mask.detach().clone()
+        tokens, phrase_mask = self.corpus.tokenize(command)
 
         output["orig_text"] = command
         output["text"] = tokens
