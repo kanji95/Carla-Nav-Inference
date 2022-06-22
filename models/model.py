@@ -815,6 +815,186 @@ class RNRCon(nn.Module):
         return segm_mask, traj_mask
 
 
+# class SLIPCon(nn.Module):
+#     """Some Information about MyModule"""
+
+#     def __init__(
+#         self,
+#         clip_encoder,
+#         hidden_dim=512,
+#         image_dim=112,
+#         mask_dim=112,
+#         num_encoder_layers=2,
+#         normalize_before=True,
+#         imtext_matching="cross_attention",
+#     ):
+#         super(RNRCon, self).__init__()
+
+#         self.clip_encoder = clip_encoder
+
+#         # self.frame_mask = torch.ones(1, 14*14, dtype=torch.int64)
+
+#         self.timeline_encode = nn.Sequential(
+#             nn.Conv2d(in_channels=1, out_channels=3, kernel_size=3, padding=1),
+#             nn.AdaptiveMaxPool2d((160, 160)),
+#             nn.ReLU(),
+#             nn.Conv2d(in_channels=3, out_channels=5, kernel_size=3, padding=1),
+#             nn.AdaptiveMaxPool2d((32, 32)),
+#             nn.ReLU(),
+#             nn.Conv2d(in_channels=5, out_channels=7, kernel_size=3, padding=1),
+#             nn.AdaptiveMaxPool2d((7, 7)),
+#             nn.ReLU(),
+#             nn.Flatten(),
+#             nn.Linear(7*7*7, 7*7)
+#         )
+
+#         self.pool = nn.AdaptiveMaxPool2d((28, 28))
+#         self.pool2 = nn.AdaptiveMaxPool2d((7, 7))
+#         self.conv_3x3 = nn.ModuleDict(
+#             {
+#                 "layer2": nn.Sequential(
+#                     nn.Conv2d(512, hidden_dim-1, kernel_size=3,
+#                               stride=2, padding=1),
+#                     nn.BatchNorm2d(hidden_dim-1),
+#                 ),
+#                 "layer3": nn.Sequential(
+#                     nn.Conv2d(1024, hidden_dim-1, kernel_size=3,
+#                               stride=2, padding=1),
+#                     nn.BatchNorm2d(hidden_dim-1),
+#                 ),
+#                 "layer4": nn.Sequential(
+#                     nn.Conv2d(2048, hidden_dim-1, kernel_size=3,
+#                               stride=2, padding=1),
+#                     nn.BatchNorm2d(hidden_dim-1),
+#                 ),
+#             }
+#         )
+
+#         encoder_layer = TransformerEncoderLayer(
+#             hidden_dim,
+#             nhead=8,
+#             dim_feedforward=512,
+#             dropout=0.2,
+#             normalize_before=normalize_before,
+#         )
+
+#         encoder_norm = nn.LayerNorm(hidden_dim) if normalize_before else None
+#         self.transformer_encoder = TransformerEncoder(
+#             encoder_layer, num_encoder_layers, encoder_norm
+#         )
+#         self.conv_fuse = nn.Sequential(
+#             nn.Conv2d(hidden_dim * 2, hidden_dim,
+#                       kernel_size=3, stride=1, padding=1),
+#             nn.BatchNorm2d(hidden_dim),
+#         )
+
+#         self.mm_decoder = nn.Sequential(
+#             ASPP(
+#                 in_channels=hidden_dim * 3, atrous_rates=[6, 12, 24], out_channels=256
+#             ),
+#             ConvUpsample(
+#                 in_channels=256,
+#                 out_channels=2,
+#                 channels=[256, 256, 128],
+#                 upsample=[True, True, True],
+#                 drop=0.2,
+#             ),
+#             nn.Upsample(size=(mask_dim, mask_dim),
+#                         mode="bilinear", align_corners=True),
+#             nn.Sigmoid(),
+#         )
+#         self.traj_decoder = nn.Sequential(
+#             ASPP(
+#                 in_channels=hidden_dim * 3, atrous_rates=[6, 12, 24], out_channels=256
+#             ),
+#             ConvUpsample(
+#                 in_channels=256,
+#                 out_channels=1,
+#                 channels=[256, 256, 128],
+#                 upsample=[True, True, True],
+#                 drop=0.2,
+#             ),
+#             nn.Upsample(size=(mask_dim, mask_dim),
+#                         mode="bilinear", align_corners=True),
+#             nn.Sigmoid(),
+#         )
+
+#     def forward(self, frames, text, img_mask, text_mask, timeline):
+
+#         image = self.vision_encoder(frames)
+#         # print(image.shape)
+
+#         timeline = rearrange(timeline, 'b h w -> b 1 h w')
+#         timeline_feat = self.timeline_encode(timeline)  # b (h w) where h=w=7
+#         timeline_feat = rearrange(
+#             timeline_feat, 'b (h w) -> b 1 h w', h=7, w=7)
+
+#         # import pdb; pdb.set_trace()
+
+#         image_features = []
+#         for key in self.conv_3x3:
+#             layer_output = self.pool2(
+#                 F.relu(self.conv_3x3[key](self.pool(image[key]))))
+#             image_features.append(
+#                 torch.cat([layer_output, timeline_feat], dim=1))
+
+#         B, C, H, W = image_features[-1].shape
+#         # img_mask = repeat(self.frame_mask, "b n -> (repeat b) n", repeat=B)
+
+#         f_text = self.text_encoder(text)
+#         f_text = f_text.permute(0, 2, 1)
+#         _, E, L = f_text.shape
+
+#         pos_embed_img = positionalencoding2d(B, d_model=C, height=H, width=W)
+#         pos_embed_img = pos_embed_img.flatten(2).permute(2, 0, 1)
+
+#         pos_embed_txt = positionalencoding1d(
+#             B, d_model=E, max_len=text_mask.shape[1])
+#         pos_embed_txt = pos_embed_txt.permute(1, 0, 2)
+
+#         pos_embed = torch.cat([pos_embed_img, pos_embed_txt], dim=0)
+
+#         joint_features = []
+#         for i in range(len(image_features)):
+#             f_img = image_features[i]
+#             B, C, H, W = f_img.shape
+
+#             f_img = f_img.flatten(2)
+
+#             f_joint = torch.cat([f_img, f_text], dim=2)
+#             src = f_joint.flatten(2).permute(2, 0, 1)
+
+#             src_key_padding_mask = ~torch.cat(
+#                 [img_mask, text_mask], dim=1).bool()
+
+#             enc_out = self.transformer_encoder(
+#                 src, pos=pos_embed, src_key_padding_mask=src_key_padding_mask
+#             )
+#             enc_out = enc_out.permute(1, 2, 0)
+
+#             f_img_out = enc_out[:, :, : H * W].view(B, C, H, W)
+
+#             f_txt_out = enc_out[:, :, H * W:].transpose(1, 2)  # B, L, E
+#             masked_sum = f_txt_out * text_mask[:, :, None]
+#             f_txt_out = masked_sum.sum(
+#                 dim=1) / text_mask.sum(dim=-1, keepdim=True)
+
+#             f_out = torch.cat(
+#                 [f_img_out, f_txt_out[:, :, None, None].expand(B, -1, H, W)], dim=1
+#             )
+
+#             enc_out = F.relu(self.conv_fuse(f_out))
+
+#             joint_features.append(enc_out)
+
+#         fused_feature = torch.cat(joint_features, dim=1)
+
+#         segm_mask = self.mm_decoder(fused_feature)  # .squeeze(1)
+#         traj_mask = self.traj_decoder(fused_feature)  # .squeeze(1)
+
+#         return segm_mask, traj_mask
+
+
 class ConvLSTMBaseline(nn.Module):
     """Some Information about MyModule"""
 
@@ -903,6 +1083,387 @@ class ConvLSTMBaseline(nn.Module):
         # traj_mask = self.traj_decoder(last_state_feat)
 
         return segm_mask, None
+
+
+# class SLIP(nn.Module):
+#     def __init__(
+#         self,
+#         clip_dict,
+#         hidden_dim=512,
+#         image_dim=112,
+#         mask_dim=112,
+#         traj_dim=56,
+#         attn_type="dot_product",
+#         num_encoder_layers=2,
+#         normalize_before=True,
+#     ):
+#         super(SLIP, self).__init__()
+
+#         self.hidden_dim = hidden_dim
+
+#         self.attn_type = attn_type
+
+#         self.clip_from_dict(clip_dict)
+
+#         self.timeline_encode = nn.Sequential(
+#             nn.Conv2d(in_channels=1, out_channels=3, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.Conv2d(in_channels=3, out_channels=5, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.Conv2d(in_channels=5, out_channels=7, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.Flatten(),
+#             # h = w = 7 generally for clip encoded output image conversion
+#             nn.Linear(480*640*7, 49)
+#         )
+
+#         # self.temporal_clip_encode = nn.Conv3d(
+#         #     in_channels=self.hidden_dim+1, out_channels=self.hidden_dim,
+#         #     kernel_size=(3, 1, 1), padding=(1, 0, 0))
+
+#         encoder_layer = TransformerEncoderLayer(
+#             self.hidden_dim,
+#             nhead=8,
+#             dim_feedforward=512,
+#             dropout=0.2,
+#             normalize_before=normalize_before,
+#         )
+#         encoder_norm = nn.LayerNorm(
+#             self.hidden_dim) if normalize_before else None
+#         self.transformer_encoder = TransformerEncoder(
+#             encoder_layer, num_encoder_layers, encoder_norm
+#         )
+
+#         self.conv_fuse = nn.Conv2d(
+#             self.hidden_dim * 2,
+#             self.hidden_dim,
+#             kernel_size=3,
+#             stride=1,
+#             padding=1,
+#         )
+
+#         # self.temporal_conv = nn.Sequential(
+#         #     nn.Conv3d(hidden_dim, hidden_dim, kernel_size=(
+#         #         self.num_frames, 3, 3), stride=1, padding=(0, 1, 1)),
+#         #     nn.ReLU(),
+#         #     Rearrange('b c 1 h w -> b c h w'),
+#         # )
+
+#         self.mm_decoder = nn.Sequential(
+#             ASPP(in_channels=hidden_dim, atrous_rates=[
+#                  4, 6, 8], out_channels=256),
+#             ConvUpsample(
+#                 in_channels=256,
+#                 out_channels=2,
+#                 channels=[256, 256, 128],
+#                 upsample=[True, True, True],
+#                 drop=0.2,
+#             ),
+#             nn.Upsample(size=(mask_dim, mask_dim),
+#                         mode="bilinear", align_corners=True),
+#             nn.Sigmoid(),
+#         )
+
+#         self.traj_decoder = nn.Sequential(
+#             ASPP(in_channels=hidden_dim, atrous_rates=[
+#                  4, 6, 8], out_channels=256),
+#             ConvUpsample(
+#                 in_channels=256,
+#                 out_channels=1,
+#                 channels=[256, 256],
+#                 upsample=[True, True],
+#                 drop=0.2,
+#             ),
+#             nn.Upsample(size=(traj_dim, traj_dim),
+#                         mode="bilinear", align_corners=True),
+#             nn.Sigmoid(),
+#         )
+
+#     def forward(self, frames, text, frame_mask, text_mask, timeline):
+
+#         tok_type_ids = (text*0).detach().clone()
+#         import pdb
+#         pdb.set_trace()
+#         # with torch.no_grad():
+#         text_feat, vision_feat = self.get_sequence_visual_output(
+#             text, tok_type_ids, text_mask, frames, frame_mask)
+#         # vision feat: b t (h w) c
+#         # text feat: b 1 c
+#         # print(vision_feat.shape)
+#         # timeline: b 480 640
+
+#         timeline = rearrange(timeline, 'b h w -> b 1 h w')
+#         timeline_feat = self.timeline_encode(timeline)  # b (h w) where h=w=7
+
+#         h = w = int(sqrt(vision_feat.size(2)))
+#         b = vision_feat.size(0)
+#         t = vision_feat.size(1)
+#         c = vision_feat.size(3)
+
+#         # timeline_feat = repeat(timeline_feat, 'b hw -> b t hw 1', t=t)
+#         # vision_feat = torch.cat([vision_feat, timeline_feat], dim=1)
+
+#         vision_feat = rearrange(
+#             vision_feat, 'b 1 (h w) c -> b c h w ', h=h, w=w)
+
+#         # vision_feat = self.temporal_clip_encode(vision_feat)
+
+#         vision_feat = rearrange(
+#             vision_feat, 'b c h w -> b (h w) c', h=h, w=w)
+
+#         # text_feat = repeat(text_feat, "b 1 c -> (b t) c 1",
+#         #                    t=vision_feat.size(1))
+
+#         text_feat_mask = text_feat.detach().clone()[:, 0, :]
+#         text_feat_mask = 1-0*text_feat_mask
+
+#         vision_feat = rearrange(vision_feat, 'b l c -> b c l')
+
+#         visual_feat_mask = vision_feat[:, 0, :]
+
+#         vis_pos_embd = positionalencoding2d(b, c, height=h, width=w)
+#         vis_pos_embd = rearrange(vis_pos_embd, "b c h w -> b (h w) c")
+
+#         txt_pos_embd = positionalencoding1d(b, c, max_len=1)
+
+#         combined_pos_embd = torch.cat([vis_pos_embd, txt_pos_embd], dim=1)
+#         combined_pos_embd = rearrange(combined_pos_embd, "b l c -> l b c")
+
+#         frame_tensor = rearrange(vision_feat, "b c l -> l b c")
+
+#         lang_tensor = rearrange(text_feat, "b c l -> l b c")
+
+#         # frame_mask = repeat(frame_mask, "b l -> (b repeat) l", repeat=t)
+#         # text_mask = repeat(text_mask, "b l -> (b repeat) l", repeat=t)
+
+#         combined_padding = ~torch.cat(
+#             [visual_feat_mask, text_feat_mask.view(text_feat_mask.size(0), -1)], dim=-1
+#         ).bool()
+
+#         combined_tensor = torch.cat([frame_tensor, lang_tensor], dim=0)
+#         enc_out = self.transformer_encoder(
+#             combined_tensor,
+#             pos=combined_pos_embd,
+#             src_key_padding_mask=combined_padding,
+#         )
+#         enc_out = enc_out.permute(1, 2, 0)
+
+#         f_img_out = enc_out[:, :, : h * w].view(b, c, h, w)
+
+#         f_txt_out = enc_out[:, :, h * w:].transpose(1, 2)  # B, L, E
+#         f_txt_out = f_txt_out.mean(dim=1)
+
+#         f_out = torch.cat(
+#             [f_img_out, f_txt_out[:, :, None, None].expand(b, -1, h, w)], dim=1
+#         )
+
+#         enc_out = F.relu(self.conv_fuse(f_out))
+#         # enc_out = rearrange(enc_out, "(b t) c h w -> b c t h w", t=t)
+#         # enc_out = self.temporal_conv(enc_out)
+
+#         # import pdb; pdb.set_trace()
+#         segm_mask = self.mm_decoder(enc_out)
+
+#         # import pdb; pdb.set_trace()
+#         enc_out = rearrange(enc_out, "b c h w -> b c h w")
+#         traj_mask = self.traj_decoder(enc_out)
+
+#         # segm_mask = rearrange(segm_mask, "(b t) c h w -> b t c h w", t=t)
+#         # traj_mask = rearrange(traj_mask, "(b t) c h w -> b c t h w", t=t)
+
+#         return segm_mask, traj_mask
+
+#     def get_sequence_output(self, input_ids, token_type_ids, attention_mask, shaped=False):
+#         if shaped is False:
+#             input_ids = input_ids.view(-1, input_ids.shape[-1])
+#             token_type_ids = token_type_ids.view(-1, token_type_ids.shape[-1])
+#             attention_mask = attention_mask.view(-1, attention_mask.shape[-1])
+
+#         bs_pair = input_ids.size(0)
+#         sequence_hidden = self.clip.encode_text(input_ids).float()
+#         sequence_hidden = sequence_hidden.view(
+#             bs_pair, -1, sequence_hidden.size(-1))
+
+#         return sequence_hidden
+
+#     def get_visual_output(self, image, image_mask, shaped=False, image_frame=-1):
+#         if shaped is False:
+#             image_mask = image_mask.view(-1, image_mask.shape[-1])
+#             image = torch.as_tensor(image).float()
+#             b, channel, h, w = image.shape
+#             image = image.view(b, channel, h, w)
+#             image_frame = 1
+
+#         bs_pair = image_mask.size(0)
+#         visual_hidden = self.clip.encode_image(
+#             image, video_frame=image_frame).float()
+#         # import pdb; pdb.set_trace()
+#         visual_hidden = visual_hidden.view(
+#             bs_pair, image_frame, -1, visual_hidden.size(-1))
+
+#         return visual_hidden
+
+#     def get_sequence_visual_output(self, input_ids, token_type_ids, attention_mask, image, image_mask, shaped=False, image_frame=-1):
+#         if shaped is False:
+#             input_ids = input_ids.view(-1, input_ids.shape[-1])
+#             token_type_ids = token_type_ids.view(-1, token_type_ids.shape[-1])
+#             attention_mask = attention_mask.view(-1, attention_mask.shape[-1])
+#             image_mask = image_mask.view(-1, image_mask.shape[-1])
+
+#             image_mask = image_mask.view(-1, image_mask.shape[-1])
+#             image = torch.as_tensor(image).float()
+#             b, channel, h, w = image.shape
+#             image = image.view(b, channel, h, w)
+#             ts = 1
+#             image_frame = 1
+
+#         sequence_output = self.get_sequence_output(
+#             input_ids, token_type_ids, attention_mask, shaped=True)
+#         visual_output = self.get_visual_output(
+#             image, image_mask, shaped=True, image_frame=image_frame)
+
+#         return sequence_output, visual_output
+
+#     @classmethod
+#     def init_preweight(self, model, state_dict, prefix=None, task_config=None):
+#         old_keys = []
+#         new_keys = []
+#         for key in state_dict.keys():
+#             new_key = None
+#             if 'gamma' in key:
+#                 new_key = key.replace('gamma', 'weight')
+#             if 'beta' in key:
+#                 new_key = key.replace('beta', 'bias')
+#             if new_key:
+#                 old_keys.append(key)
+#                 new_keys.append(new_key)
+#         for old_key, new_key in zip(old_keys, new_keys):
+#             state_dict[new_key] = state_dict.pop(old_key)
+
+#         if prefix is not None:
+#             old_keys = []
+#             new_keys = []
+#             for key in state_dict.keys():
+#                 old_keys.append(key)
+#                 new_keys.append(prefix + key)
+#             for old_key, new_key in zip(old_keys, new_keys):
+#                 state_dict[new_key] = state_dict.pop(old_key)
+
+#         missing_keys = []
+#         unexpected_keys = []
+#         error_msgs = []
+#         # copy state_dict so _load_from_state_dict can modify it
+#         metadata = getattr(state_dict, '_metadata', None)
+#         state_dict = state_dict.copy()
+#         if metadata is not None:
+#             state_dict._metadata = metadata
+
+#         def load(module, prefix=''):
+#             local_metadata = {} if metadata is None else metadata.get(
+#                 prefix[:-1], {})
+#             module._load_from_state_dict(
+#                 state_dict, prefix, local_metadata, True, missing_keys, unexpected_keys, error_msgs)
+#             for name, child in module._modules.items():
+#                 if child is not None:
+#                     load(child, prefix + name + '.')
+
+#         load(model, prefix='')
+
+#         if prefix is None and (task_config is None or task_config.local_rank == 0):
+#             logger.info("-" * 20)
+#             if len(missing_keys) > 0:
+#                 print("Weights of {} not initialized from pretrained model: {}"
+#                       .format(model.__class__.__name__, "\n   " + "\n   ".join(missing_keys)))
+#             if len(unexpected_keys) > 0:
+#                 print("Weights from pretrained model not used in {}: {}"
+#                       .format(model.__class__.__name__, "\n   " + "\n   ".join(unexpected_keys)))
+#             if len(error_msgs) > 0:
+#                 print("Weights from pretrained model cause errors in {}: {}"
+#                       .format(model.__class__.__name__, "\n   " + "\n   ".join(error_msgs)))
+
+#         for name, param in model.named_parameters():
+#             if name in missing_keys:
+#                 param.requires_grad = True
+#             else:
+#                 param.requires_grad = False
+#         return model
+
+#     def clip_from_dict(self, clip_state_dict):
+#         vit = "visual.proj" in clip_state_dict
+#         assert vit
+#         if vit:
+#             vision_width = clip_state_dict["visual.conv1.weight"].shape[0]
+#             vision_layers = len(
+#                 [k for k in clip_state_dict.keys() if k.startswith("visual.") and k.endswith(".attn.in_proj_weight")])
+#             vision_patch_size = clip_state_dict["visual.conv1.weight"].shape[-1]
+#             grid_size = round(
+#                 (clip_state_dict["visual.positional_embedding"].shape[0] - 1) ** 0.5)
+#             image_resolution = vision_patch_size * grid_size
+#         else:
+#             counts: list = [len(set(k.split(".")[2] for k in clip_state_dict if k.startswith(f"visual.layer{b}"))) for b in
+#                             [1, 2, 3, 4]]
+#             vision_layers = tuple(counts)
+#             vision_width = clip_state_dict["visual.layer1.0.conv1.weight"].shape[0]
+#             output_width = round(
+#                 (clip_state_dict["visual.attnpool.positional_embedding"].shape[0] - 1) ** 0.5)
+#             vision_patch_size = None
+#             assert output_width ** 2 + \
+#                 1 == clip_state_dict["visual.attnpool.positional_embedding"].shape[0]
+#             image_resolution = output_width * 32
+
+#         embed_dim = clip_state_dict["text_projection"].shape[1]
+#         context_length = clip_state_dict["positional_embedding"].shape[0]
+#         vocab_size = clip_state_dict["token_embedding.weight"].shape[0]
+#         transformer_width = clip_state_dict["ln_final.weight"].shape[0]
+#         transformer_heads = transformer_width // 64
+#         transformer_layers = len(set(k.split(
+#             ".")[2] for k in clip_state_dict if k.startswith(f"transformer.resblocks")))
+
+#         self.linear_patch = '2d'  # set between 2d and 3d
+
+#         # use .float() to avoid overflow/underflow from fp16 weight. https://github.com/openai/CLIP/issues/40
+#         cut_top_layer = 0
+#         self.clip = CLIP(
+#             embed_dim,
+#             image_resolution, vision_layers-cut_top_layer, vision_width, vision_patch_size,
+#             context_length, vocab_size, transformer_width, transformer_heads, transformer_layers-cut_top_layer,
+#             linear_patch=self.linear_patch
+#         ).float()
+
+#         for key in ["input_resolution", "context_length", "vocab_size"]:
+#             if key in clip_state_dict:
+#                 del clip_state_dict[key]
+
+#         self.clip = self.init_preweight(self.clip, clip_state_dict)
+#         self.convert_weights(self.clip)
+
+#         self.clip = self.clip.float()
+
+#         # print(self.clip)
+#         # print(clip_state_dict)
+
+#     def convert_weights(self, model: nn.Module):
+#         """Convert applicable model parameters to fp16"""
+
+#         def _convert_weights_to_fp16(l):
+#             if isinstance(l, (nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear)):
+#                 l.weight.data = l.weight.data.half()
+#                 if l.bias is not None:
+#                     l.bias.data = l.bias.data.half()
+
+#             if isinstance(l, nn.MultiheadAttention):
+#                 for attr in [*[f"{s}_proj_weight" for s in ["in", "q", "k", "v"]], "in_proj_bias", "bias_k", "bias_v"]:
+#                     tensor = getattr(l, attr)
+#                     if tensor is not None:
+#                         tensor.data = tensor.data.half()
+
+#             for name in ["text_projection", "proj"]:
+#                 if hasattr(l, name):
+#                     attr = getattr(l, name)
+#                     if attr is not None:
+#                         attr.data = attr.data.half()
+
+#         model.apply(_convert_weights_to_fp16)
 
 
 class CLIP_Baseline(nn.Module):

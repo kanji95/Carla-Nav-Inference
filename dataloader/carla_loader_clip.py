@@ -585,7 +585,10 @@ class CarlaCLIPFullDataset(Dataset):
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
 
-        return img, orig_image, mask, traj_mask, None, sample_idx
+        past = vehicle_positions[:sample_idx+1]
+        timeline = self.make_timeline(past)
+
+        return img, orig_image, mask, traj_mask, None, sample_idx, timeline
 
     def __getitem__(self, idx):
         output = {}
@@ -626,6 +629,7 @@ class CarlaCLIPFullDataset(Dataset):
                 traj_mask,
                 sub_commands,
                 sample_idx,
+                timeline,
             ) = self.get_image_data(
                 episode_num,
                 K,

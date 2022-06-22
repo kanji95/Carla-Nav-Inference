@@ -143,6 +143,7 @@ class Solver(object):
                 image_dim=self.image_dim,
                 mask_dim=self.mask_dim,
             )
+
         elif "timesformer" in self.img_backbone:
             self.mode = "video"
             spatial_dim = self.image_dim // self.patch_size
@@ -220,7 +221,7 @@ class Solver(object):
                 attn_type=self.attn_type,
             )
 
-        elif "clip_" in self.img_backbone:
+        elif 'clip_' in self.img_backbone:
             self.mode = "video"
             spatial_dim = self.image_dim // self.patch_size
 
