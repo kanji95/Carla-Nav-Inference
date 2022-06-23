@@ -22,6 +22,17 @@ python .\inference_model.py --glove_path E:\carla\carla\CARLA_0.9.12\glove\glove
 python .\inference_model.py --img_backbone timesformer --hidden_dim 512 --image_dim 224 --mask_dim 224 --traj_dim 224 --sync --threshold 0.00005  --checkpoint .\saved_model\baseline_timesformer_24_Feb_02-15.pth --glove_path E:\carla\carla\CARLA_0.9.12\glove\glove\ --target network --sampling 10 --stop_criteria confidence --confidence 10 --num_frames 8 
 ```
 
+```
+#clip without context single frame
+checkpoint = './saved_model/nomap_clip/clip_ViT-B_32_class_level_combo_multi_head_hd_512_sf_10-1_tf_20_22_Jun_11_14.pth'
+
+python inference_model.py --img_backbone clip_ViT-B/32 --hidden_dim 512 --image_dim 224 --mask_dim 224 --traj_dim 224 --sync --threshold 0.00005 \
+        --checkpoint {checkpoint} --glove_path E:/carla/carla/CARLA_0.9.12/glove/glove/ --target mask \
+            --num_frames 1 --traj_frames 20 --attn_type multi_head --one_in_n 1\
+            --sampling 5 --stop_criteria confidence --confidence 100 --min_confidence 20 --infer_dataset test --distance 5 --map {maps[episodes[i]]}\
+                 --num_preds 5 --spawn {episodes[i]} {'--command' if command else ''}
+```
+
 
 
 Network mode requires very low confidence and very low threshold.
