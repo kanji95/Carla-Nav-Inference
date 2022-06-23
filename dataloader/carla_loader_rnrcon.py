@@ -466,7 +466,7 @@ class CarlaRNRConFullDataset(Dataset):
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
 
-        past = vehicle_positions[:sample_idx+1]
+        past = vehicle_positions[:sample_idx+1][-10:]
         timeline = self.make_timeline(past)
 
         # print(traj_mask.min(), traj_mask.max(), pixel_coordinates.shape)
@@ -586,7 +586,7 @@ class CarlaRNRConFullDataset(Dataset):
         traj_mask = self.traj_transform(traj_mask)
         traj_mask[traj_mask > 0] = 1
 
-        past = vehicle_positions[:sample_idx+1]
+        past = vehicle_positions[:sample_idx+1][-10:]
         timeline = self.make_timeline(past)
 
         return img, orig_image, mask, traj_mask, None, sample_idx, timeline
