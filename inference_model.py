@@ -41,6 +41,8 @@ from pprint import pprint
 import numpy as np
 from PIL import Image
 
+from sklearn.metrics import pairwise_distances
+
 
 import torch
 import timm
@@ -1377,6 +1379,11 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
     global pred_found
     global num_preds
 
+    global prev_pred
+    global prev_preds
+
+    global prev_loc
+
     global args
 
     global mode
@@ -1413,7 +1420,13 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         traj_mask_video = []
         target_video = []
 
+        prev_preds = []
+
     if pred_found or num_preds >= args.num_preds:
+        pred_found = 0
+        return
+
+    if prev_loc is not None and ((prev_loc.x - vehicle_location.x)**2 + (prev_loc.y - vehicle_location.y)**2)**0.5 < args.min_distance:
         return
 
     if frame_count % sampling == 0:
@@ -1472,7 +1485,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
             traj_mask_np, args.traj_threshold, 1, cv2.THRESH_BINARY)[1])
 
         # mask_np = cv2.resize(mask_np, (1280, 720))
-        if args.target == 'mask':
+        if args.target == 'mask' or args.target == 'distance':
             pixel_out = best_pixel(mask_np, threshold, confidence)
             if pixel_out != -1:
                 probs, region = pixel_out
@@ -1669,7 +1682,74 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
                     color = (0, 0, 255)
                     pred_found = 1
-            ########### STOPPING CRITERIA END ################
+            elif args.stop_criteria == 'consistent':
+                temp_pred = 0
+                if args.target == 'mask':
+                    pixel_temp = best_pixel(
+                        mask_np, threshold=args.threshold, confidence=args.min_confidence, method="mean_wa")
+                    if pixel_temp != -1:
+                        probs, region = pixel_temp
+                        print(
+                            f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
+                        if probs >= args.min_confidence:
+                            if args.sub_command or True:
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
+                                    prev_preds.append(target_vehicle_dist)
+
+                            color = (0, 0, 255)
+                            temp_pred = 1
+                        else:
+                            color = (255, 0, 0)
+                elif args.target == 'distance':
+                    pixel_temp = best_pixel(
+                        mask_np, threshold=args.threshold, confidence=args.min_confidence, method="mean_wa")
+                    if pixel_temp != -1:
+                        probs, region = pixel_temp
+                        print(
+                            f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
+                        if probs >= args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                            pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                           region, K, destination, set_destination=True)
+                            target_vehicle_dist = np.linalg.norm(np.array([vehicle_location.x, vehicle_location.y])
+                                                                 - np.array([agent.target_destination.x, agent.target_destination.y]))
+                            if target_vehicle_dist < 1.75 * args.considered_distance:
+                                prev_preds.append(agent.target_destination)
+                            if target_vehicle_dist < args.considered_distance and len(prev_preds) > args.num_preds:
+                                print(
+                                    "!!!!!!!!!!!!!!!!!!!!!!IN!!!!!!!!!!!!!!!!!!!!!!!!!")
+                                temp_pred = 1
+                else:
+                    return NotImplementedError(f'{args.target} does not work with stop_criteria consistent')
+
+                if temp_pred:
+                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                   region, K, destination, set_destination=False)
+                    if args.target == 'mask':
+                        if "prev_pred" not in globals():
+                            prev_pred = None
+                        if prev_pred is not None:
+                            distance_bw = np.linalg.norm(np.array([prev_pred.x, prev_pred.y]) -
+                                                         np.array([new_destination.x, new_destination.y]))
+                            if distance_bw < args.distance:
+                                pred_found = 1
+                            else:
+                                # num_preds = 0
+                                pred_found = -1
+                        else:
+                            pred_found = 1
+                        prev_pred = new_destination
+                    elif args.target == 'distance':
+                        last_points = [[tgt_point.x, tgt_point.y]
+                                       for tgt_point in prev_preds[-min(len(prev_preds), int(args.num_preds*1.5)):]]
+                        counts_followed = np.sum(pairwise_distances(
+                            np.array(last_points)) < args.distance)
+                        if counts_followed >= min(4, args.num_preds) * len(last_points):
+                            num_preds = args.num_preds+1
+                            pred_found = 1
+
+                ########### STOPPING CRITERIA END ################
 
             probs, region = pixel_out
             print(
@@ -1767,14 +1847,17 @@ def best_pixel(segmentation_map, threshold, confidence, method="weighted_average
 
     # cv2.imshow(f'seg_map', segmentation_map)
     # cv2.waitKey(10)
-    if method == "weighted_average":
+    if method == "weighted_average" or method == "mean_wa":
         segmentation_map[segmentation_map < threshold] = 0
         labeler = segmentation_map.copy()
         labeler[labeler >= threshold] = 1
         labels, num_labels = measure.label(labeler, return_num=True)
         count = list()
         for l in range(num_labels):
-            count.append([l+1, np.sum(segmentation_map[labels == l+1])])
+            if method == "mean_wa":
+                count.append([l+1, np.mean(segmentation_map[labels == l+1])])
+            else:
+                count.append([l+1, np.sum(segmentation_map[labels == l+1])])
         count = np.array(count)
         if num_labels == 0:
             return -1
@@ -1995,6 +2078,8 @@ def game_loop(args):
 
     global depth_cam_queue
     global rgb_cam_queue
+
+    global prev_loc
 
     depth_cam_queue = queue.Queue()
     rgb_cam_queue = queue.Queue()
@@ -2578,10 +2663,16 @@ def game_loop(args):
                     if not pred_found and num_preds < args.num_preds:
                         print_network_stats = 1
                     start = time.time()
+                    if args.sampling_type == 'linear':
+                        sampling_multiplier = (
+                            2*curr_times+1 if args.sub_command else 2*num_preds+1)
+                    elif args.sampling_type == 'constant':
+                        sampling_multiplier = 1
                     process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
-                                    vehicle_location, args.sampling*(2*curr_times+1 if args.sub_command else 2*num_preds+1))
+                                    vehicle_location, args.sampling*sampling_multiplier)
                     end = time.time()
-                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 5e-4 and abs(prev_loc.x - vehicle_location.x) < 5e-4:
+
+                    if prev_loc is not None and ((prev_loc.x - vehicle_location.x)**2 + (prev_loc.y - vehicle_location.y)**2)**0.5 < args.min_distance:
                         pred_found = 0
                         stationary_frames += 1
                         time_since_stopped += 1
@@ -2589,17 +2680,24 @@ def game_loop(args):
                     else:
                         time_since_running += 1
                         time_since_stopped = 0
+                        prev_loc = vehicle_location
                     if frame_count % args.sampling == 0 and print_network_stats:
                         print(
                             f'Network took {end-start}, pred_found = {pred_found}, curr_times = {curr_times}')
                         # print(
                         #     f'++++++++++++++++++++++++++++++++frame_count:{frame_count} out of {1500+stationary_frames}++++++++++++++++++++++++++++++++')
                         if args.sub_command:
-                            curr_times += pred_found
+                            if pred_found >= 0:
+                                curr_times += pred_found
+                            else:
+                                curr_times = 1
                             # if curr_times >= times_check:
                             #     num_preds += 1
                         else:
-                            num_preds += pred_found
+                            if pred_found >= 0:
+                                num_preds += pred_found
+                            else:
+                                num_preds = 1
                     if pred_found:
                         print(
                             f'-------------Num Preds: {num_preds}-------------')
@@ -2608,7 +2706,6 @@ def game_loop(args):
                         frames_from_done += 1
                     frame_count += 1
                 prev_prev_loc = prev_loc
-                prev_loc = vehicle_location
                 pred_found = 0
                 if not args.sub_command:
                     pred_found = 0
@@ -2617,7 +2714,7 @@ def game_loop(args):
             #     pred_found = 1
             #     target_number = 0
             #     frame_count = 0
-            if (agent.done() and prev_loc == prev_prev_loc and command_given) or frame_count > 1500+stationary_frames or frame_count > 3000:
+            if (agent.done() and prev_loc == prev_prev_loc and command_given) or frame_count > 1000+stationary_frames or frame_count > 2000:
                 pred_found = 0
                 if args.sub_command and command_given:
                     command_given = False
@@ -2933,6 +3030,7 @@ def main():
             "trajectory",
             "network",
             "network2",
+            "distance",
         ],
         type=str,
     )
@@ -2943,6 +3041,16 @@ def main():
         choices=[
             "confidence",
             "distance",
+                "consistent",
+        ],
+        type=str,
+    )
+    argparser.add_argument(
+        "--sampling_type",
+        default="linear",
+        choices=[
+            "linear",
+            "constant",
         ],
         type=str,
     )
@@ -2984,7 +3092,11 @@ def main():
                            default=100, help="mask confidence")
 
     argparser.add_argument("--min_confidence", type=float,
-                           default=100, help="mask confidence")
+                           default=0.3, help="mask confidence")
+    argparser.add_argument("--min_distance", type=float,
+                           default=5e-1, help="mask confidence")
+    argparser.add_argument("--considered_distance", type=float,
+                           default=20, help="mask confidence")
 
     argparser.add_argument("--confidence_probs", type=float,
                            default=0.5, help="mask confidence")
