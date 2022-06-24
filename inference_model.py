@@ -1377,6 +1377,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
     global pred_found
     global num_preds
 
+    global prev_pred
+
     global args
 
     global mode
@@ -1678,7 +1680,46 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
                     color = (0, 0, 255)
                     pred_found = 1
-            ########### STOPPING CRITERIA END ################
+            elif args.stop_criteria == 'consistent':
+                temp_pred = 0
+                if args.target == 'mask':
+                    pixel_temp = best_pixel(
+                        mask_np, threshold=args.threshold, confidence=args.confidence)
+                    if pixel_temp != -1:
+                        probs, region = pixel_temp
+                        print(
+                            f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
+                        if probs >= confidence:
+                            if args.sub_command or True:
+                                if probs > args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                                   region, K, destination, set_destination=True)
+
+                            color = (0, 0, 255)
+                            temp_pred = 1
+                        else:
+                            color = (255, 0, 0)
+                else:
+                    return NotImplementedError(f'{args.target} does not work with stop_criteria consistent')
+
+                if temp_pred:
+                    pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
+                                   region, K, destination, set_destination=False)
+                    if "prev_pred" not in globals():
+                        prev_pred = None
+                    if prev_pred is not None:
+                        distance_bw = np.linalg.norm(np.array([prev_pred.x, prev_pred.y]) -
+                                                     np.array([new_destination.x, new_destination.y]))
+                        if distance_bw < args.distance:
+                            pred_found = 1
+                        else:
+                            # num_preds = 0
+                            pred_found = -1
+                    else:
+                        pred_found = 1
+                    prev_pred = new_destination
+
+                ########### STOPPING CRITERIA END ################
 
             probs, region = pixel_out
             print(
@@ -2589,10 +2630,16 @@ def game_loop(args):
                     if not pred_found and num_preds < args.num_preds:
                         print_network_stats = 1
                     start = time.time()
-                    process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
-                                    vehicle_location, args.sampling*(2*curr_times+1 if args.sub_command else 2*num_preds+1))
+                    if args.sampling_type == 'linear':
+                        sampling_multiplier = (
+                            2*curr_times+1 if args.sub_command else 2*num_preds+1)
+                    elif args.sampling_type == 'constant':
+                        sampling_multiplier = 1
+                    if num_preds < args.num_preds:
+                        process_network(rgb_cam_data, depth_cam_data, vehicle_matrix,
+                                        vehicle_location, args.sampling*sampling_multiplier)
                     end = time.time()
-                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 5e-4 and abs(prev_loc.x - vehicle_location.x) < 5e-4:
+                    if prev_loc is not None and abs(prev_loc.x - vehicle_location.x) < 1e-1 and abs(prev_loc.y - vehicle_location.y) < 1e-1:
                         pred_found = 0
                         stationary_frames += 1
                         time_since_stopped += 1
@@ -2606,11 +2653,17 @@ def game_loop(args):
                         # print(
                         #     f'++++++++++++++++++++++++++++++++frame_count:{frame_count} out of {1500+stationary_frames}++++++++++++++++++++++++++++++++')
                         if args.sub_command:
-                            curr_times += pred_found
+                            if pred_found >= 0:
+                                curr_times += pred_found
+                            else:
+                                curr_times = 0
                             # if curr_times >= times_check:
                             #     num_preds += 1
                         else:
-                            num_preds += pred_found
+                            if pred_found >= 0:
+                                num_preds += pred_found
+                            else:
+                                num_preds = 0
                     if pred_found:
                         print(
                             f'-------------Num Preds: {num_preds}-------------')
@@ -2956,6 +3009,17 @@ def main():
         choices=[
             "confidence",
             "distance",
+            "consistent",
+        ],
+        type=str,
+    )
+
+    argparser.add_argument(
+        "--sampling_type",
+        default="linear",
+        choices=[
+            "linear",
+            "constant",
         ],
         type=str,
     )
