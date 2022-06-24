@@ -1426,7 +1426,7 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
         pred_found = 0
         return
 
-    if prev_loc is not None and ((prev_loc.x - vehicle_location.x)**2 + (prev_loc.y - vehicle_location.y)**2)**0.5 < args.min_distance:
+    if prev_loc is not None and ((prev_loc.x - vehicle_location.x)**2 + (prev_loc.y - vehicle_location.y)**2)**0.5 < args.min_distance and agent.target_destination is not None:
         return
 
     if frame_count % sampling == 0:
