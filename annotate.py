@@ -41,23 +41,19 @@ def annotate(args):
     episodes = os.listdir(args.dir)
     print(episodes)
     for episode in episodes:
-        if not episode.isnumeric():
-            continue
         try:
             annotation_dir = os.path.join(args.dir, episode, 'annotations')
-            mask_dir = os.path.join(args.dir, episode, 'masks')
             image_dir = os.path.join(args.dir, episode, 'images')
             matrix_dir = os.path.join(args.dir, episode, 'inverse_matrix')
-            if os.path.exists(mask_dir) and (len(os.listdir(mask_dir)) == len(os.listdir(image_dir)) == len(os.listdir(matrix_dir))):
+            if os.path.exists(annotation_dir) and (len(os.listdir(annotation_dir)) == len(os.listdir(image_dir)) == len(os.listdir(matrix_dir))):
                 print(f"Skipping {episode}")
-                # shutil.rmtree(os.path.join(args.dir, episode, 'annotations'))
                 continue
             else:
-                shutil.rmtree(os.path.join(args.dir, episode, 'masks'))
+                shutil.rmtree(os.path.join(args.dir, episode, 'annotations'))
         except:
             pass
         os.makedirs(os.path.join(args.dir, episode,
-                    'masks'), exist_ok=True)
+                    'annotations'), exist_ok=True)
         print(f'Episode {episode}')
         with open(os.path.join(args.dir, episode, 'vehicle_positions.txt')) as f:
             coordinates = f.readlines()
@@ -77,7 +73,6 @@ def annotate(args):
 
         for i, frame in enumerate(frames):
             name = '.'.join(frame.split('.')[:-1])
-            # print(frame, name)
             if i >= float_coordinates.shape[0]:
                 break
             if i >= float_coordinates.shape[0]:
@@ -92,9 +87,7 @@ def annotate(args):
 
             # annotation = world_to_pixel(
             #     K, inverse_matrix, target_coordinate, relative_coords[i])
-            # im = cv2.imread(os.path.join(args.dir, episode, 'images', frame))
-
-            im = np.zeros((args.height, args.width))
+            im = cv2.imread(os.path.join(args.dir, episode, 'images', frame))
 
             if im is None:
                 break
@@ -119,7 +112,7 @@ def annotate(args):
                     continue
                 # import pdb; pdb.set_trace()
                 im = cv2.circle(im, (int(x), int(y)), 4,
-                                (255), thickness=-1)
+                                (0, 255, 0), thickness=-1)
 
             # for x_offset in np.linspace(-2, 2, num=150):
             #     for y_offset in np.linspace(-2, 2, num=150):
@@ -128,7 +121,7 @@ def annotate(args):
             #         im = cv2.circle(im, (round(annotation[0]), round(
             #             annotation[1])), 2, (0, 255, 0), thickness=-1)
             cv2.imwrite(os.path.join(
-                args.dir, episode, 'masks', frame), im)
+                args.dir, episode, 'annotations', frame), im)
 
 
 def main():

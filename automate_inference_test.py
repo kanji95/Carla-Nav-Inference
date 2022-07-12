@@ -1,5 +1,5 @@
 import os
-episodes = [33]
+episodes = [7, 32, 9]
 checkpoint = './saved_model/nomap_clip/clip_ViT-B_32_class_level_combo_multi_head_hd_512_sf_10-4_tf_20_23_Jun_22_43.pth'
 
 maps = ['Town05', 'Town03', 'Town10HD', 'Town01', 'Town05', 'Town03',
