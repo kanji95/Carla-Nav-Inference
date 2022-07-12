@@ -1440,6 +1440,13 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
 
                 mask, traj_mask = network(
                     frame, phrase, frame_mask, phrase_mask, timeline)
+            elif 'roberta' in args.img_backbone:
+                timeline = make_timeline(past)
+                timeline = torch.Tensor(timeline).cuda(
+                    non_blocking=True).unsqueeze(0).float()
+
+                mask, traj_mask = network(
+                    frame, phrase, frame_mask, phrase_mask, timeline)
             else:
                 mask, traj_mask = network(
                     frame, phrase, frame_mask, phrase_mask)
@@ -2350,6 +2357,8 @@ def game_loop(args):
             feature_dim = 7
         elif "rnrcon" in solver.img_backbone:
             feature_dim = 7
+        elif "roberta" in solver.img_backbone:
+            feature_dim = 7
         else:
             feature_dim = 14
 
@@ -3017,6 +3026,7 @@ def main():
             "dino_resnet50",
             "iros",
             "rnrcon",
+            "roberta",
             "timesformer",
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",

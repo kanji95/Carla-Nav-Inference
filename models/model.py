@@ -17,6 +17,9 @@ from .conv_lstm import ConvLSTM
 from timesformer.models.vit import TimeSformer
 from .clip4clip_modules.module_clip import CLIP
 
+from transformers import RobertaTokenizer, RobertaModel
+
+
 logger = logging.getLogger(__name__)
 
 # simplest thing should be to predict a segmentation mask first
@@ -762,6 +765,7 @@ class RNRCon(nn.Module):
         # img_mask = repeat(self.frame_mask, "b n -> (repeat b) n", repeat=B)
 
         f_text = self.text_encoder(text)
+
         f_text = f_text.permute(0, 2, 1)
         _, E, L = f_text.shape
 
@@ -814,6 +818,190 @@ class RNRCon(nn.Module):
 
         return segm_mask, traj_mask
 
+
+class RNRRoberta(nn.Module):
+    """Some Information about MyModule"""
+
+    def __init__(
+        self,
+        vision_encoder,
+        text_encoder,
+        hidden_dim=384,
+        image_dim=112,
+        mask_dim=112,
+        num_encoder_layers=2,
+        normalize_before=True,
+        imtext_matching="cross_attention",
+    ):
+        super(RNRRoberta, self).__init__()
+
+        self.vision_encoder = vision_encoder
+        self.text_encoder = text_encoder.eval()
+        self.text_encoder.requires_grad_ = False
+
+        # self.frame_mask = torch.ones(1, 14*14, dtype=torch.int64)
+
+        self.timeline_encode = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=3, kernel_size=3, padding=1),
+            nn.AdaptiveMaxPool2d((160, 160)),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=3, out_channels=5, kernel_size=3, padding=1),
+            nn.AdaptiveMaxPool2d((32, 32)),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=5, out_channels=7, kernel_size=3, padding=1),
+            nn.AdaptiveMaxPool2d((7, 7)),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(7*7*7, 7*7)
+        )
+
+        self.pool = nn.AdaptiveMaxPool2d((28, 28))
+        self.pool2 = nn.AdaptiveMaxPool2d((7, 7))
+        self.conv_3x3 = nn.ModuleDict(
+            {
+                "layer2": nn.Sequential(
+                    nn.Conv2d(512, hidden_dim-1, kernel_size=3,
+                              stride=2, padding=1),
+                    nn.BatchNorm2d(hidden_dim-1),
+                ),
+                "layer3": nn.Sequential(
+                    nn.Conv2d(1024, hidden_dim-1, kernel_size=3,
+                              stride=2, padding=1),
+                    nn.BatchNorm2d(hidden_dim-1),
+                ),
+                "layer4": nn.Sequential(
+                    nn.Conv2d(2048, hidden_dim-1, kernel_size=3,
+                              stride=2, padding=1),
+                    nn.BatchNorm2d(hidden_dim-1),
+                ),
+            }
+        )
+
+        encoder_layer = TransformerEncoderLayer(
+            hidden_dim,
+            nhead=8,
+            dim_feedforward=512,
+            dropout=0.2,
+            normalize_before=normalize_before,
+        )
+
+        encoder_norm = nn.LayerNorm(hidden_dim) if normalize_before else None
+        self.transformer_encoder = TransformerEncoder(
+            encoder_layer, num_encoder_layers, encoder_norm
+        )
+        self.conv_fuse = nn.Sequential(
+            nn.Conv2d(hidden_dim * 2, hidden_dim,
+                      kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(hidden_dim),
+        )
+
+        self.mm_decoder = nn.Sequential(
+            ASPP(
+                in_channels=hidden_dim * 3, atrous_rates=[6, 12, 24], out_channels=256
+            ),
+            ConvUpsample(
+                in_channels=256,
+                out_channels=2,
+                channels=[256, 256, 128],
+                upsample=[True, True, True],
+                drop=0.2,
+            ),
+            nn.Upsample(size=(mask_dim, mask_dim),
+                        mode="bilinear", align_corners=True),
+            nn.Sigmoid(),
+        )
+        self.traj_decoder = nn.Sequential(
+            ASPP(
+                in_channels=hidden_dim * 3, atrous_rates=[6, 12, 24], out_channels=256
+            ),
+            ConvUpsample(
+                in_channels=256,
+                out_channels=1,
+                channels=[256, 256, 128],
+                upsample=[True, True, True],
+                drop=0.2,
+            ),
+            nn.Upsample(size=(mask_dim, mask_dim),
+                        mode="bilinear", align_corners=True),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, frames, text, img_mask, text_mask, timeline):
+
+        image = self.vision_encoder(frames)
+        self.text_encoder.eval()
+        # print(image.shape)
+
+        timeline = rearrange(timeline, 'b h w -> b 1 h w')
+        timeline_feat = self.timeline_encode(timeline)  # b (h w) where h=w=7
+        timeline_feat = rearrange(
+            timeline_feat, 'b (h w) -> b 1 h w', h=7, w=7)
+
+        # import pdb; pdb.set_trace()
+
+        image_features = []
+        for key in self.conv_3x3:
+            layer_output = self.pool2(
+                F.relu(self.conv_3x3[key](self.pool(image[key]))))
+            image_features.append(
+                torch.cat([layer_output, timeline_feat], dim=1))
+
+        B, C, H, W = image_features[-1].shape
+        # img_mask = repeat(self.frame_mask, "b n -> (repeat b) n", repeat=B)
+
+        f_text = self.text_encoder(
+            input_ids=text, attention_mask=text_mask).last_hidden_state
+        f_text = f_text.permute(0, 2, 1)
+        _, E, L = f_text.shape
+
+        pos_embed_img = positionalencoding2d(B, d_model=C, height=H, width=W)
+        pos_embed_img = pos_embed_img.flatten(2).permute(2, 0, 1)
+
+        pos_embed_txt = positionalencoding1d(
+            B, d_model=E, max_len=text_mask.shape[1])
+        pos_embed_txt = pos_embed_txt.permute(1, 0, 2)
+
+        pos_embed = torch.cat([pos_embed_img, pos_embed_txt], dim=0)
+
+        joint_features = []
+        for i in range(len(image_features)):
+            f_img = image_features[i]
+            B, C, H, W = f_img.shape
+
+            f_img = f_img.flatten(2)
+
+            f_joint = torch.cat([f_img, f_text], dim=2)
+            src = f_joint.flatten(2).permute(2, 0, 1)
+
+            src_key_padding_mask = ~torch.cat(
+                [img_mask, text_mask], dim=1).bool()
+
+            enc_out = self.transformer_encoder(
+                src, pos=pos_embed, src_key_padding_mask=src_key_padding_mask
+            )
+            enc_out = enc_out.permute(1, 2, 0)
+
+            f_img_out = enc_out[:, :, : H * W].view(B, C, H, W)
+
+            f_txt_out = enc_out[:, :, H * W:].transpose(1, 2)  # B, L, E
+            masked_sum = f_txt_out * text_mask[:, :, None]
+            f_txt_out = masked_sum.sum(
+                dim=1) / text_mask.sum(dim=-1, keepdim=True)
+
+            f_out = torch.cat(
+                [f_img_out, f_txt_out[:, :, None, None].expand(B, -1, H, W)], dim=1
+            )
+
+            enc_out = F.relu(self.conv_fuse(f_out))
+
+            joint_features.append(enc_out)
+
+        fused_feature = torch.cat(joint_features, dim=1)
+
+        segm_mask = self.mm_decoder(fused_feature)  # .squeeze(1)
+        traj_mask = self.traj_decoder(fused_feature)  # .squeeze(1)
+
+        return segm_mask, traj_mask
 
 # class SLIPCon(nn.Module):
 #     """Some Information about MyModule"""
