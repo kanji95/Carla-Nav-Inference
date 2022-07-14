@@ -17,6 +17,8 @@ import timm
 from dataloader.carla_loader_rnrcon import CarlaRNRConFullDataset
 from timesformer.models.vit import VisionTransformer
 
+from dataloader.carla_loader_roberta import CarlaRobertaFullDataset
+
 from segmentation_models_pytorch.losses import *
 
 from models.model import *
@@ -139,6 +141,21 @@ class Solver(object):
                 img_backbone, return_layers)
             self.network = RNRCon(
                 visual_encoder,
+                hidden_dim=self.hidden_dim,
+                image_dim=self.image_dim,
+                mask_dim=self.mask_dim,
+            )
+        elif "roberta" in self.img_backbone:
+            img_backbone = torch.hub.load(
+                'pytorch/vision:v0.10.0', 'resnet50', pretrained=True)
+            visual_encoder = IntermediateLayerGetter(
+                img_backbone, return_layers)
+            text_encoder = RobertaModel.from_pretrained("roberta-base").eval()
+            for name, param in text_encoder.named_parameters():
+                param.requires_grad = False
+            self.network = RNRRoberta(
+                visual_encoder,
+                text_encoder,
                 hidden_dim=self.hidden_dim,
                 image_dim=self.image_dim,
                 mask_dim=self.mask_dim,
@@ -370,6 +387,39 @@ class Solver(object):
                     traj_size=self.traj_size,
                     one_in_n=self.one_in_n,
                 )
+            elif 'roberta' in self.img_backbone:
+                self.train_dataset = CarlaRobertaFullDataset(
+                    data_root=self.data_root,
+                    split="train",
+                    dataset_len=100000,
+                    img_transform=self.train_transform,
+                    mask_transform=self.mask_transform,
+                    traj_transform=self.traj_transform,
+                    sequence_len=self.num_frames,
+                    mode=self.mode,
+                    image_dim=self.image_dim,
+                    mask_dim=self.mask_dim,
+                    traj_dim=self.traj_dim,
+                    traj_frames=self.traj_frames,
+                    traj_size=self.traj_size,
+                    one_in_n=self.one_in_n,
+                )
+                self.val_dataset = CarlaRobertaFullDataset(
+                    data_root=self.data_root,
+                    split="val" if not self.test else "test",
+                    dataset_len=20000,
+                    img_transform=self.val_transform,
+                    mask_transform=self.mask_transform,
+                    traj_transform=self.traj_transform,
+                    sequence_len=self.num_frames,
+                    mode=self.mode,
+                    image_dim=self.image_dim,
+                    mask_dim=self.mask_dim,
+                    traj_dim=self.traj_dim,
+                    traj_frames=self.traj_frames,
+                    traj_size=self.traj_size,
+                    one_in_n=self.one_in_n,
+                )
             else:
                 self.train_dataset = CarlaFullDataset(
                     data_root=self.data_root,
@@ -507,6 +557,8 @@ class Solver(object):
             feature_dim = 7
         elif "rnrcon" in self.img_backbone:
             feature_dim = 7
+        elif "roberta" in self.img_backbone:
+            feature_dim = 7
         else:
             feature_dim = 14
 
@@ -531,6 +583,8 @@ class Solver(object):
                     timeline = batch['timeline'].cuda(non_blocking=True)
                 elif 'rnrcon' in self.img_backbone:
                     timeline = batch['timeline'].cuda(non_blocking=True)
+                elif 'roberta' in self.img_backbone:
+                    timeline = batch['timeline'].cuda(non_blocking=True)
 
                 # gt_timestep = batch["gt_timestep"].cuda(non_blocking=True)
 
@@ -548,6 +602,10 @@ class Solver(object):
                     frame, text, frame_mask, text_mask, timeline
                 )
             elif 'rnrcon' in self.img_backbone:
+                mask, traj_mask = self.network(
+                    frame, text, frame_mask, text_mask, timeline
+                )
+            elif 'roberta' in self.img_backbone:
                 mask, traj_mask = self.network(
                     frame, text, frame_mask, text_mask, timeline
                 )
@@ -756,6 +814,8 @@ class Solver(object):
             feature_dim = 7
         elif "rnrcon" in self.img_backbone:
             feature_dim = 7
+        elif "roberta" in self.img_backbone:
+            feature_dim = 7
         else:
             feature_dim = 14
 
@@ -804,6 +864,11 @@ class Solver(object):
                     frame, text, frame_mask, text_mask, timeline
                 )
             elif 'rnrcon' in self.img_backbone:
+                timeline = batch['timeline'].cuda(non_blocking=True)
+                mask, traj_mask = self.network(
+                    frame, text, frame_mask, text_mask, timeline
+                )
+            elif 'roberta' in self.img_backbone:
                 timeline = batch['timeline'].cuda(non_blocking=True)
                 mask, traj_mask = self.network(
                     frame, text, frame_mask, text_mask, timeline

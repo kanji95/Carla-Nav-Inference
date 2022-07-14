@@ -131,6 +131,7 @@ if __name__ == "__main__":
             "dino_resnet50",
             "iros",
             "rnrcon",
+            "roberta",
             "timesformer",
             "deeplabv3_resnet50",
             "deeplabv3_resnet101",
