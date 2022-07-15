@@ -1,5 +1,5 @@
 import os
-episodes = list(range(0, 25))
+episodes = [6, 15, ]+list(range(25, 25))
 
 checkpoint = './saved_model/new_clip/clip_ViT-B_32_class_level_combo_multi_head_hd_512_sf_10-8_tf_20_12_Jul_00_37.pth'
 maps = ['Town05', 'Town05', 'Town01', 'Town02', 'Town05', 'Town05',
