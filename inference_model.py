@@ -247,6 +247,7 @@ class World(object):
                                     5.19960381e-01, -1.79999636e+02],
                                 [-1.84589813e+02, -7.04510651e+01,
                                     3.55607432e-01, -9.01640295e+01]]
+
             elif args.infer_dataset == 'test':
                 corresponding_maps = ['Town05', 'Town03', 'Town10HD', 'Town01', 'Town05', 'Town03',
                                       'Town02', 'Town03', 'Town05', 'Town02', 'Town05', 'Town05',
@@ -536,6 +537,82 @@ class World(object):
                                 0.35560743156820535,
                                 -90.16402948723683],
                                 [338.88525390625, 21.121721267700195, 0.3003598779439926, -89.97128156148169]]
+
+            elif args.infer_dataset == 'sample':
+                corresponding_maps = ['Town05', 'Town03', 'Town10HD', 'Town01', 'Town05', 'Town03',
+                                      'Town02', 'Town03', 'Town05', 'Town02', 'Town05', 'Town05',
+                                      'Town05', 'Town01', 'Town01', 'Town10HD', 'Town02', 'Town05',
+                                      'Town05', 'Town03', 'Town07', 'Town03', 'Town05', 'Town05',
+                                      'Town01', 'Town03', 'Town01', 'Town10HD', 'Town02', 'Town01',
+                                      'Town01', 'Town10HD', 'Town02', 'Town05']
+
+                other_spawns = [[1.51480820e+02, -4.27365417e+01,  3.39031866e-01, 8.97952266e+01],
+                                [-9.44684219e+00,  1.41458786e+02,
+                                    3.00416851e-01, 8.95683141e+01],
+                                [-4.18338623e+01, -1.65551643e+01,
+                                    3.00070247e-01, -9.01611881e+01],
+                                [3.92473267e+02,  2.30671387e+01,
+                                    3.00345726e-01, 8.50064448e+01],
+                                [-1.20810310e+02, -1.24561485e+02,
+                                    3.00484276e-01, -8.10923244e+01],
+                                [5.63164234e+00,  1.53826477e+02,
+                                    3.00356674e-01, -9.05994198e+01],
+                                [1.76574783e+02,  2.40945877e+02,
+                                    5.20440914e-01, 6.86590549e-01],
+                                [1.10706512e+02, -6.82702827e+00,
+                                    3.00383205e-01, -1.79121001e+02],
+                                [-1.66296967e+02, -4.21021843e+00,
+                                    3.00320625e-01, -1.71883268e+02],
+                                [1.46535995e+02,  3.02544861e+02,
+                                    5.20397879e-01, 1.79977370e+02],
+                                [-1.84470978e+02, -2.71637936e+01,
+                                    3.55837420e-01, -9.45089721e+01],
+                                [-1.84637863e+02,  1.09748627e+02,
+                                    3.56090468e-01, -9.39120116e+01],
+                                [-1.25969410e+01, -8.43987503e+01,
+                                    3.00346832e-01, 6.38101506e-01],
+                                [1.34890442e+02,  1.33428787e+02,
+                                    3.00334396e-01, 6.14681041e-01],
+                                [8.83620987e+01,  3.43473473e+01,
+                                    3.00381927e-01, 9.08729553e+01],
+                                [3.18485489e+01,  1.40787888e+02,
+                                    3.00343570e-01, -4.29834205e+00],
+                                [1.73870056e+02,  1.09400040e+02,
+                                    5.20033695e-01, -1.83105474e-04],
+                                [-1.46840958e+02, -8.46176071e+01,
+                                    3.00092544e-01, -5.13183552e-01],
+                                [-1.50300430e+02, -8.43797150e+01,
+                                    3.00304661e-01, 1.11999618e+01],
+                                [1.50086563e+02, -1.10106041e+02,
+                                    8.30025009e+00, 9.14936144e+01],
+                                [-5.17965279e+01, -8.82258453e+01,
+                                    2.99742241e-01, -8.96606526e-02],
+                                [-6.18445063e+00,  1.04491875e+02,
+                                    3.04057273e-01, 8.99171581e+01],
+                                [-1.84589813e+02, -7.04510651e+01,
+                                    3.55607432e-01, -9.01640295e+01],
+                                [6.91786041e+01, -1.45469162e+02,
+                                    3.38874053e-01, 1.94061631e+00],
+                                [-2.06940818e+00,  9.50440121e+00,
+                                    2.99929618e-01, 9.09264084e+01],
+                                [1.12055565e+02,  1.91608566e+02,
+                                    5.20440616e-01, -3.77898660e-01],
+                                [1.58059494e+02,  1.83820286e+01,
+                                    3.00492706e-01, -8.99103017e+01],
+                                [-1.13558014e+02, -1.77364063e+01,
+                                    3.00432529e-01, 8.45108810e+01],
+                                [1.36133987e+02,  2.08886505e+02,
+                                    5.20381831e-01, -9.02495434e+01],
+                                [1.09782021e+02,  1.95143631e+02,
+                                    3.00322456e-01, -1.79884083e+02],
+                                [9.23820648e+01,  7.63002396e+01,
+                                    3.00486411e-01, -9.00924628e+01],
+                                [-4.16684113e+01,  1.13936279e+02,
+                                    3.00354862e-01, -9.98055513e+01],
+                                [1.93697357e+02,  2.61185120e+02,
+                                    5.20474680e-01, -9.03951562e+01],
+                                [5.43945541e+01, -9.14242859e+01,
+                                    3.00569495e-01, -1.76808831e+02]]
             if args.spawn == -1:
                 spawn_point = random.choice(
                     spawn_points) if spawn_points else carla.Transform()
@@ -2098,6 +2175,8 @@ def game_loop(args):
     depth_cam_queue = queue.Queue()
     rgb_cam_queue = queue.Queue()
 
+    tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
+
     pygame.init()
     pygame.font.init()
     world = None
@@ -2557,6 +2636,43 @@ def game_loop(args):
                         'Turn left and stop beside the traffic signal',
                         'Turn left and stop near the traffic signal']
             sub_commands = commands
+        if args.infer_dataset == 'sample':
+            commands = ['Stop before the next right turn.',
+                        'After crossing the blue car come to a stop',
+                        'take a right and stop beside the tree',
+                        'Stop near the signboard',
+                        'Take a left at the traffic light',
+                        'Turn right from the intersection',
+                        'Take a left from the intersection ahead',
+                        'Drive to the corner and go right',
+                        'Drive to the intersection and turn left',
+                        'Go straight and stop a few metres ahead of the bus stop',
+                        'Stop in front of the garbage dumpsters.',
+                        'Go straight and stop next to the grey arch.',
+                        'Change lanes and stop at the junction.',
+                        'Park on the roadside after you have crossed the bus stop',
+                        'Wait for the signal to turn green and continue straight',
+                        'Drive towards the bus stop and park after crossing it',
+                        'take a right turn and stop across the bench on left',
+                        'Turn right from the crossroads ahead',
+                        'Turn right and park near the sidewalk.',
+                        'go straight and take a right',
+                        'park beside the red volkswagen',
+                        'Turn left from the next crossroads',
+                        'Turn right from the crossroads.',
+                        'stop by the lamp post',
+                        'park immediately after the signboard',
+                        'Turn right and stop beside the traffic signal',
+                        'Turn left and stop near the traffic signal',
+                        'Turn left and stop near the intersection',
+                        'Turn left and come to a halt at the intersection',
+                        'Turn right and stop before the traffic signal',
+                        'Turn right and stop just before the traffic signal',
+                        'Turn right and stop near the bus stop',
+                        'Turn left and stop beside the traffic signal',
+                        'Turn left and stop near the traffic signal']
+            sub_commands = commands
+
         if args.sub_command:
             assert args.command == True
             assert args.spawn != -1
@@ -2617,15 +2733,22 @@ def game_loop(args):
                             f'_out/{episode_number}/camera_intrinsic.npy', K)
                         command = re.sub(r"[^\w\s]", "", command)
 
-                        if 'clip_' not in args.img_backbone:
-                            phrase, phrase_mask = corpus.tokenize(command)
-                            phrase = phrase.unsqueeze(0).cuda()
-                            phrase_mask = phrase_mask.unsqueeze(0).cuda()
-                        else:
+                        if 'clip_' in args.img_backbone:
                             phrase = clip.tokenize(command).cuda()
                             phrase_mask = phrase.detach().clone()
                             phrase_mask[phrase_mask != 0] = 1
                             phrase_mask = phrase_mask.detach().clone().cuda()
+                        elif 'roberta' in args.img_backbone:
+                            tokenizer_out = tokenizer(
+                                command, return_tensors="pt", padding="max_length", max_length=50)
+
+                            phrase = tokenizer_out['input_ids']
+                            phrase_mask = tokenizer_out['attention_mask']
+                            print(phrase.shape, phrase_mask.shape)
+                        else:
+                            phrase, phrase_mask = corpus.tokenize(command)
+                            phrase = phrase.unsqueeze(0).cuda()
+                            phrase_mask = phrase_mask.unsqueeze(0).cuda()
 
                         command_given = True
                         new_start = False
@@ -2928,7 +3051,7 @@ def main():
         '--infer_dataset',
         required=True,
         type=str,
-        choices=['val', 'test', 'val5'],
+        choices=['val', 'test', 'val5', 'sample'],
         help='Infer Dataset')
     argparser.add_argument(
         '--res',
