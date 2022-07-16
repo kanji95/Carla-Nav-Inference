@@ -2645,7 +2645,7 @@ def game_loop(args):
                         'Turn right from the intersection',
                         'Take a left from the intersection ahead',
                         'Drive to the corner and go right',
-                        'Drive to the intersection and turn left',
+                        'Turn left and stop across the gray gate',
                         'Go straight and stop a few metres ahead of the bus stop',
                         'Stop in front of the garbage dumpsters.',
                         'Go straight and stop next to the grey arch.',
