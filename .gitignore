@@ -9,6 +9,7 @@ wandb/
 saved_model/
 test.py
 _out/
+_bev/
 *.zip
 *.ipynb_checkpoints
 debug.log
