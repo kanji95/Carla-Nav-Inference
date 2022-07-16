@@ -5,7 +5,7 @@ datasets = ['val']
 for dataset in datasets:
     if dataset == 'val':
         episodes = list(range(0, 25))
-        episodes = [5]
+        episodes = [22]
     elif dataset == 'test':
         episodes = list(range(0, 34))
         episodes = [28]
