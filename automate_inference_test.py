@@ -11,7 +11,7 @@ maps = ['Town05', 'Town03', 'Town10HD', 'Town01', 'Town05', 'Town03',
 
 command = True
 for i in range(len(episodes)):
-    os.system(f"python inference_model.py --img_backbone clip_ViT-B/32 --hidden_dim 512 --image_dim 224 --mask_dim 224 --traj_dim 224 --sync --threshold 0.00005 \
+    os.system(f"python inference_model_old.py --img_backbone clip_ViT-B/32 --hidden_dim 512 --image_dim 224 --mask_dim 224 --traj_dim 224 --sync --threshold 0.00005 \
         --checkpoint {checkpoint} --glove_path E:/carla/carla/CARLA_0.9.12/glove/glove/ --target mask \
             --num_frames 6 --traj_frames 20 --attn_type multi_head --one_in_n 10 --min_distance 2\
             --sampling 5 --stop_criteria confidence --confidence 150 --min_confidence 25 --infer_dataset test --distance 5 --map {maps[episodes[i]]}\
