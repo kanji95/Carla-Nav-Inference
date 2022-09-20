@@ -536,7 +536,8 @@ class World(object):
                                 -70.45106506347656,
                                 0.35560743156820535,
                                 -90.16402948723683],
-                                [338.88525390625, 21.121721267700195, 0.3003598779439926, -89.97128156148169]]
+                                [338.88525390625, 21.121721267700195,
+                                    0.3003598779439926, -89.97128156148169]]
 
             elif args.infer_dataset == 'sample':
                 corresponding_maps = ['Town05', 'Town03', 'Town10HD', 'Town01', 'Town05', 'Town03',
@@ -544,7 +545,7 @@ class World(object):
                                       'Town05', 'Town01', 'Town01', 'Town10HD', 'Town02', 'Town05',
                                       'Town05', 'Town03', 'Town07', 'Town03', 'Town05', 'Town05',
                                       'Town01', 'Town03', 'Town01', 'Town10HD', 'Town02', 'Town01',
-                                      'Town01', 'Town10HD', 'Town02', 'Town05']
+                                      'Town01', 'Town10HD', 'Town02', 'Town05', 'Town10HD', 'Town10HD']
 
                 other_spawns = [[1.51480820e+02, -4.27365417e+01,  3.39031866e-01, 8.97952266e+01],
                                 [-9.44684219e+00,  1.41458786e+02,
@@ -612,7 +613,10 @@ class World(object):
                                 [1.93697357e+02,  2.61185120e+02,
                                     5.20474680e-01, -9.03951562e+01],
                                 [5.43945541e+01, -9.14242859e+01,
-                                    3.00569495e-01, -1.76808831e+02]]
+                                    3.00569495e-01, -1.76808831e+02],
+                                [22.88115692138672, -60.89999771118164,
+                                    0.311680335737764835, 0],
+                                [99.43485260009766, -19.65771484375, 0.311619682423770428, 90]]
             if args.spawn == -1:
                 spawn_point = random.choice(
                     spawn_points) if spawn_points else carla.Transform()
@@ -1302,6 +1306,8 @@ class CameraManager(object):
         global depth_cam_queue
         global rgb_cam_queue
 
+        global past
+
         self = weak_self()
         if not self:
             return
@@ -1331,6 +1337,7 @@ class CameraManager(object):
             if 'target_destination' in agent.__dict__ and agent.target_destination is not None:
                 os.makedirs(f'_out/{episode_number}', exist_ok=True)
                 os.makedirs(f'_out/{episode_number}/images', exist_ok=True)
+                # os.makedirs(f'_out/{episode_number}/context', exist_ok=True)
                 os.makedirs(
                     f'_out/{episode_number}/inverse_matrix', exist_ok=True)
 
@@ -1344,6 +1351,10 @@ class CameraManager(object):
 
                 cv2.imwrite(
                     f'_out/{episode_number}/images/{image.frame:08d}.png', img)
+
+                # timeline = make_timeline(past)*255
+                # cv2.imwrite(
+                #     f'_out/{episode_number}/context/{image.frame:08d}.png', timeline)
 
                 # image.save_to_disk(
                 #     f'_out/{episode_number}/images/{image.frame:08d}')
@@ -1364,6 +1375,11 @@ def camera_manager_listen_event(image, functions):
 
 def make_timeline(past):
     vals = np.array(past)
+    vals[:, 2] = 1
+
+    vals = np.vstack(
+        [[vals[0]], vals[np.sum(vals != vals[0], axis=1).astype(bool)]])
+
     x = vals[:, 0]
     y = vals[:, 1]
     z = vals[:, 2]
@@ -1539,6 +1555,8 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                 frame_mask = frame_mask.float()
 
                 timeline = make_timeline(past)
+                cv2.imwrite(
+                    f'_out/{episode_number}/context/{image.frame:08d}.png', timeline)
                 timeline = torch.Tensor(timeline).cuda(
                     non_blocking=True).unsqueeze(0).float()
 
@@ -1795,17 +1813,17 @@ def process_network(image, depth_cam_data, vehicle_matrix, vehicle_location, sam
                             color = (255, 0, 0)
                 elif args.target == 'distance':
                     pixel_temp = best_pixel(
-                        mask_np, threshold=args.threshold, confidence=args.min_confidence, method="mean_wa")
+                        mask_np, threshold=args.threshold, confidence=args.min_confidence, method="weighted_average")
                     if pixel_temp != -1:
                         probs, region = pixel_temp
                         print(
                             f"+++++++++++Confidence: {probs}++++++++++++++++++++++")
-                        if probs >= args.min_confidence or probs == -1 or np.random.randint(1000) < args.confidence_probs*100:
+                        if probs >= args.min_confidence or np.random.randint(1000) < args.confidence_probs*100:
                             pixel_to_world(depth_cam_data, vehicle_matrix, vehicle_location, weak_agent,
                                            region, K, destination, set_destination=True)
                             target_vehicle_dist = np.linalg.norm(np.array([vehicle_location.x, vehicle_location.y])
                                                                  - np.array([agent.target_destination.x, agent.target_destination.y]))
-                            if target_vehicle_dist < 1.75 * args.considered_distance:
+                            if target_vehicle_dist < 2 * args.considered_distance:
                                 prev_preds.append(agent.target_destination)
                             if target_vehicle_dist < args.considered_distance and len(prev_preds) > args.num_preds:
                                 print(
@@ -2289,7 +2307,7 @@ def game_loop(args):
         percentagePedestriansCrossing = 0.0
         # 1. take all the random locations to spawn
         spawn_points = []
-        number_of_walkers = 70
+        number_of_walkers = 20
         for i in range(number_of_walkers):
             spawn_point = carla.Transform()
             loc = world.world.get_random_location_from_navigation()
@@ -2670,7 +2688,9 @@ def game_loop(args):
                         'Turn right and stop just before the traffic signal',
                         'Turn right and stop near the bus stop',
                         'Turn left and stop beside the traffic signal',
-                        'Turn left and stop near the traffic signal']
+                        'Turn left and stop near the traffic signal',
+                        'Go straight and stop before the intersection',
+                        'Turn right and stop at the bus stop']
             sub_commands = commands
 
         if args.sub_command:
@@ -2846,6 +2866,7 @@ def game_loop(args):
                         frames_from_done += 1
                     frame_count += 1
                 prev_prev_loc = prev_loc
+                # prev_loc = vehicle_location
                 pred_found = 0
                 if not args.sub_command:
                     pred_found = 0
