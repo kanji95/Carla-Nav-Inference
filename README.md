@@ -1,3 +1,5 @@
+## Youtube Video: [Link](https://youtu.be/bSwtb6APGns)
+
 ## Hidden layer sizes:
 
 ```
