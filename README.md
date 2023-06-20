@@ -1,6 +1,19 @@
-## Youtube Video: [Link](https://youtu.be/bSwtb6APGns)
+# Ground then Navigate: Language-guided Navigation in Dynamic Scenes (ICRA 2023)
 
-## Hidden layer sizes:
+Official Code | [Paper](https://arxiv.org/pdf/2209.11972.pdf) | [Video](https://youtu.be/bSwtb6APGns)
+
+## Abstract
+> We investigate the Vision-and-Language Navigation (VLN) problem in the context of autonomous driving in outdoor settings. We solve the problem by explicitly grounding the navigable regions corresponding to the textual command. At each timestamp, the model predicts a segmentation mask corresponding to the intermediate or the final navigable region. Our work contrasts with existing efforts in VLN, which pose this task as a node selection problem, given a discrete connected graph corresponding to the environment. We do not assume the availability of such a discretised map. Our work moves towards continuity in action space, provides interpretability through visual feedback and allows VLN on commands requiring finer manoeuvres like "park between the two cars". Furthermore, we propose a novel meta-dataset CARLA-NAV to allow efficient training and validation. The dataset comprises pre-recorded training sequences and a live environment for validation and testing. We provide extensive qualitative and quantitive empirical results to validate the efficacy of the proposed approach.
+
+![Screenshot 2023-06-20 at 3 06 06 PM](https://github.com/kanji95/Carla-Nav/assets/30688360/3866fa1d-bd8c-47b4-89cc-13fb9966e4d4)
+
+## Dataset 
+
+Coming Soon
+
+## Implementation Details
+
+### Hidden layer sizes:
 
 ```
 vit_tiny_patch16_224: 192
@@ -9,7 +22,7 @@ deeplabv3_resnet50: 2048
 dino_resnet50: 256
 ```
 
-## Inference Example:
+### Inference Example:
 
 ```
 python .\inference_model.py --glove_path E:\carla\carla\CARLA_0.9.12\glove\glove\ --checkpoint .\saved_model\baseline_deeplabv3_resnet50_18_Feb_06-11.pth --img_backbone deeplabv3_resnet50 --hidden_dim 2048 --map Town10HD --threshold 0.1 --sync
